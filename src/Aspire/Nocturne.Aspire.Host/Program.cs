@@ -129,27 +129,27 @@ class Program
         {
             var dexcomUsername = builder.AddParameter(
                 "dexcom-username",
-                value: builder.Configuration["Parameters:Connectors:Dexcom:Username"],
+                value: builder.Configuration["Parameters:Connectors:Dexcom:Username"] ?? "",
                 secret: true
             );
             var dexcomPassword = builder.AddParameter(
                 "dexcom-password",
-                value: builder.Configuration["Parameters:Connectors:Dexcom:Password"],
+                value: builder.Configuration["Parameters:Connectors:Dexcom:Password"] ?? "",
                 secret: true
             );
             var dexcomRegion = builder.AddParameter(
                 "dexcom-region",
-                value: builder.Configuration["Parameters:Connectors:Dexcom:Region"],
+                value: builder.Configuration["Parameters:Connectors:Dexcom:Region"] ?? "",
                 secret: false
             );
             var dexcomServer = builder.AddParameter(
                 "dexcom-server",
-                value: builder.Configuration["Parameters:Connectors:Dexcom:Server"],
+                value: builder.Configuration["Parameters:Connectors:Dexcom:Server"] ?? "",
                 secret: false
             );
             var dexcomSyncInterval = builder.AddParameter(
                 "dexcom-sync-interval",
-                value: builder.Configuration["Parameters:Connectors:Dexcom:SyncIntervalMinutes"],
+                value: builder.Configuration["Parameters:Connectors:Dexcom:SyncIntervalMinutes"] ?? "",
                 secret: false
             );
 
@@ -188,27 +188,27 @@ class Program
         {
             var glookoEmail = builder.AddParameter(
                 "glooko-email",
-                value: builder.Configuration["Parameters:Connectors:Glooko:Email"],
+                value: builder.Configuration["Parameters:Connectors:Glooko:Email"] ?? "",
                 secret: true
             );
             var glookoPassword = builder.AddParameter(
                 "glooko-password",
-                value: builder.Configuration["Parameters:Connectors:Glooko:Password"],
+                value: builder.Configuration["Parameters:Connectors:Glooko:Password"] ?? "",
                 secret: true
             );
             var glookoServer = builder.AddParameter(
                 "glooko-server",
-                value: builder.Configuration["Parameters:Connectors:Glooko:Server"],
+                value: builder.Configuration["Parameters:Connectors:Glooko:Server"] ?? "",
                 secret: false
             );
             var glookoTimezoneOffset = builder.AddParameter(
                 "glooko-timezone-offset",
-                value: builder.Configuration["Parameters:Connectors:Glooko:TimezoneOffset"],
+                value: builder.Configuration["Parameters:Connectors:Glooko:TimezoneOffset"] ?? "",
                 secret: false
             );
             var glookoSyncInterval = builder.AddParameter(
                 "glooko-sync-interval",
-                value: builder.Configuration["Parameters:Connectors:Glooko:SyncIntervalMinutes"],
+                value: builder.Configuration["Parameters:Connectors:Glooko:SyncIntervalMinutes"] ?? "",
                 secret: false
             );
 
@@ -247,34 +247,34 @@ class Program
         {
             var libreUsername = builder.AddParameter(
                 "librelinkup-username",
-                value: builder.Configuration["Parameters:Connectors:LibreLinkUp:Username"],
+                value: builder.Configuration["Parameters:Connectors:LibreLinkUp:Username"] ?? "",
                 secret: true
             );
             var librePassword = builder.AddParameter(
                 "librelinkup-password",
-                value: builder.Configuration["Parameters:Connectors:LibreLinkUp:Password"],
+                value: builder.Configuration["Parameters:Connectors:LibreLinkUp:Password"] ?? "",
                 secret: true
             );
             var libreRegion = builder.AddParameter(
                 "librelinkup-region",
-                value: builder.Configuration["Parameters:Connectors:LibreLinkUp:Region"],
+                value: builder.Configuration["Parameters:Connectors:LibreLinkUp:Region"] ?? "",
                 secret: false
             );
             var librePatientId = builder.AddParameter(
                 "librelinkup-patient-id",
-                value: builder.Configuration["Parameters:Connectors:LibreLinkUp:PatientId"],
+                value: builder.Configuration["Parameters:Connectors:LibreLinkUp:PatientId"] ?? "",
                 secret: false
             );
             var libreServer = builder.AddParameter(
                 "librelinkup-server",
-                value: builder.Configuration["Parameters:Connectors:LibreLinkUp:Server"],
+                value: builder.Configuration["Parameters:Connectors:LibreLinkUp:Server"] ?? "",
                 secret: false
             );
             var libreSyncInterval = builder.AddParameter(
                 "librelinkup-sync-interval",
                 value: builder.Configuration[
                     "Parameters:Connectors:LibreLinkUp:SyncIntervalMinutes"
-                ],
+                ] ?? "",
                 secret: false
             );
 
@@ -317,32 +317,32 @@ class Program
         {
             var carelinkUsername = builder.AddParameter(
                 "carelink-username",
-                value: builder.Configuration["Parameters:Connectors:CareLink:Username"],
+                value: builder.Configuration["Parameters:Connectors:CareLink:Username"] ?? "",
                 secret: true
             );
             var carelinkPassword = builder.AddParameter(
                 "carelink-password",
-                value: builder.Configuration["Parameters:Connectors:CareLink:Password"],
+                value: builder.Configuration["Parameters:Connectors:CareLink:Password"] ?? "",
                 secret: true
             );
             var carelinkRegion = builder.AddParameter(
                 "carelink-region",
-                value: builder.Configuration["Parameters:Connectors:CareLink:Region"],
+                value: builder.Configuration["Parameters:Connectors:CareLink:Region"] ?? "",
                 secret: false
             );
             var carelinkCountryCode = builder.AddParameter(
                 "carelink-country-code",
-                value: builder.Configuration["Parameters:Connectors:CareLink:CountryCode"],
+                value: builder.Configuration["Parameters:Connectors:CareLink:CountryCode"] ?? "",
                 secret: false
             );
             var carelinkPatientUsername = builder.AddParameter(
                 "carelink-patient-username",
-                value: builder.Configuration["Parameters:Connectors:CareLink:PatientUsername"],
+                value: builder.Configuration["Parameters:Connectors:CareLink:PatientUsername"] ?? "",
                 secret: false
             );
             var carelinkSyncInterval = builder.AddParameter(
                 "carelink-sync-interval",
-                value: builder.Configuration["Parameters:Connectors:CareLink:SyncIntervalMinutes"],
+                value: builder.Configuration["Parameters:Connectors:CareLink:SyncIntervalMinutes"] ?? "",
                 secret: false
             );
 
@@ -386,7 +386,7 @@ class Program
             var nightscoutSourceEndpoint = builder
                 .AddParameter(
                     "nightscout-source-endpoint",
-                    value: builder.Configuration["Parameters:Connectors:Nightscout:SourceEndpoint"],
+                    value: builder.Configuration["Parameters:Connectors:Nightscout:SourceEndpoint"] ?? "",
                     secret: false
                 )
                 .WithDescription(
@@ -397,7 +397,7 @@ class Program
                     "nightscout-source-api-secret",
                     value: builder.Configuration[
                         "Parameters:Connectors:Nightscout:SourceApiSecret"
-                    ],
+                    ] ?? "",
                     secret: true
                 )
                 .WithDescription("API secret for the external Nightscout instance to sync FROM");
@@ -405,7 +405,7 @@ class Program
                 "nightscout-sync-interval",
                 value: builder.Configuration[
                     "Parameters:Connectors:Nightscout:SyncIntervalMinutes"
-                ],
+                ] ?? "",
                 secret: false
             );
 
@@ -438,24 +438,24 @@ class Program
         {
             var myFitnessPalUsername = builder.AddParameter(
                 "myfitnesspal-username",
-                value: builder.Configuration["Parameters:Connectors:MyFitnessPal:Username"],
+                value: builder.Configuration["Parameters:Connectors:MyFitnessPal:Username"] ?? "",
                 secret: true
             );
             var myFitnessPalPassword = builder.AddParameter(
                 "myfitnesspal-password",
-                value: builder.Configuration["Parameters:Connectors:MyFitnessPal:Password"],
+                value: builder.Configuration["Parameters:Connectors:MyFitnessPal:Password"] ?? "",
                 secret: true
             );
             var myFitnessPalSyncDays = builder.AddParameter(
                 "myfitnesspal-sync-days",
-                value: builder.Configuration["Parameters:Connectors:MyFitnessPal:SyncDays"],
+                value: builder.Configuration["Parameters:Connectors:MyFitnessPal:SyncDays"] ?? "",
                 secret: false
             );
             var myFitnessPalSyncInterval = builder.AddParameter(
                 "myfitnesspal-sync-interval",
                 value: builder.Configuration[
                     "Parameters:Connectors:MyFitnessPal:SyncIntervalMinutes"
-                ],
+                ] ?? "",
                 secret: false
             );
 
@@ -496,7 +496,7 @@ class Program
             var compatProxyNightscoutUrl = builder
                 .AddParameter(
                     "compat-proxy-nightscout-url",
-                    value: builder.Configuration["Parameters:CompatibilityProxy:NightscoutUrl"],
+                    value: builder.Configuration["Parameters:CompatibilityProxy:NightscoutUrl"] ?? "",
                     secret: false
                 )
                 .WithDescription(
@@ -507,7 +507,7 @@ class Program
                     "compat-proxy-nightscout-secret",
                     value: builder.Configuration[
                         "Parameters:CompatibilityProxy:NightscoutApiSecret"
-                    ],
+                    ] ?? "",
                     secret: true
                 )
                 .WithDescription("API secret for your existing/production Nightscout instance");

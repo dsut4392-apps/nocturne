@@ -16,11 +16,6 @@ public class CompatibilityProxyConfiguration
     public string NightscoutUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// Nocturne target URL
-    /// </summary>
-    public string NocturneUrl { get; set; } = string.Empty;
-
-    /// <summary>
     /// Request timeout in seconds
     /// </summary>
     public int TimeoutSeconds { get; set; } = 30;

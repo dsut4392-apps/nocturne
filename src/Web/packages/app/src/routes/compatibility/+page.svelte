@@ -13,6 +13,7 @@
 	let config = $state(data.config);
 	let isPolling = $state(true);
 	let lastUpdate = $state(new Date());
+	let nocturneUrl = $state(''); // Auto-detected URL
 
 	// Polling interval (5 seconds)
 	let pollInterval: NodeJS.Timeout | null = null;
@@ -72,6 +73,11 @@
 
 	// Start/stop polling
 	onMount(() => {
+		// Auto-detect the Nocturne URL from the browser
+		if (typeof window !== 'undefined') {
+			nocturneUrl = `${window.location.protocol}//${window.location.host}`;
+		}
+
 		if (isPolling) {
 			pollInterval = setInterval(pollData, 5000); // Poll every 5 seconds
 		}
@@ -157,7 +163,7 @@
 			</div>
 			<div>
 				<p class="text-sm text-gray-500 dark:text-gray-400">Nocturne URL</p>
-				<p class="font-mono text-sm">{config.nocturneUrl || 'Not configured'}</p>
+				<p class="font-mono text-sm">{nocturneUrl || 'Auto-detecting...'}</p>
 			</div>
 			<div>
 				<p class="text-sm text-gray-500 dark:text-gray-400">Strategy</p>

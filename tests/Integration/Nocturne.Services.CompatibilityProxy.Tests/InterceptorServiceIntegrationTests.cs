@@ -35,7 +35,6 @@ public class CompatibilityProxyServiceIntegrationTests
                 services.Configure<CompatibilityProxyConfiguration>(config =>
                 {
                     config.NightscoutUrl = _nightscoutMockServer.Url!;
-                    config.NocturneUrl = _nocturneeMockServer.Url!;
                     config.TimeoutSeconds = 5;
                     config.RetryAttempts = 1;
                     config.DefaultStrategy = ResponseSelectionStrategy.Nightscout;

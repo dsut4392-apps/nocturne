@@ -49,7 +49,6 @@ public class CompatibilityController : ControllerBase
             new ProxyConfigurationDto
             {
                 NightscoutUrl = _configuration.NightscoutUrl,
-                NocturneUrl = _configuration.NocturneUrl,
                 DefaultStrategy = _configuration.DefaultStrategy.ToString(),
                 EnableDetailedLogging = _configuration.EnableDetailedLogging,
             }
@@ -311,7 +310,6 @@ public class CompatibilityController : ControllerBase
 public class ProxyConfigurationDto
 {
     public string NightscoutUrl { get; set; } = string.Empty;
-    public string NocturneUrl { get; set; } = string.Empty;
     public string DefaultStrategy { get; set; } = string.Empty;
     public bool EnableDetailedLogging { get; set; }
 }

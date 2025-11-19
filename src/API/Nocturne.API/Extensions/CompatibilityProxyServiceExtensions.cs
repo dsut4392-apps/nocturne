@@ -92,10 +92,8 @@ public static class CompatibilityProxyServiceExtensions
                 "NocturneClient",
                 client =>
                 {
-                    if (!string.IsNullOrEmpty(interceptorConfig.NocturneUrl))
-                    {
-                        client.BaseAddress = new Uri(interceptorConfig.NocturneUrl);
-                    }
+                    // Note: BaseAddress is intentionally not set here
+                    // It will be auto-detected from the current request in RequestForwardingService
                     client.Timeout = TimeSpan.FromSeconds(interceptorConfig.TimeoutSeconds);
                     client.DefaultRequestHeaders.Add(
                         "User-Agent",
@@ -151,39 +149,25 @@ public class CompatibilityProxyHealthCheck : IHealthCheck
             var config = _configuration.Value;
             var healthData = new Dictionary<string, object>();
 
-            // Check configuration - if no URLs are configured, the service is simply not in use
-            if (
-                string.IsNullOrEmpty(config.NightscoutUrl)
-                && string.IsNullOrEmpty(config.NocturneUrl)
-            )
+            // Check configuration - if Nightscout URL is not configured, the service is not in use
+            if (string.IsNullOrEmpty(config.NightscoutUrl))
             {
                 _logger.LogDebug(
-                    "Compatibility proxy service is not configured - no target URLs set"
+                    "Compatibility proxy service is not configured - no Nightscout URL set"
                 );
                 return HealthCheckResult.Healthy("Service not configured (optional)");
             }
 
-            // Check Nightscout connectivity if configured
-            if (!string.IsNullOrEmpty(config.NightscoutUrl))
-            {
-                var nightscoutHealthy = await CheckTargetHealthAsync(
-                    "NightscoutClient",
-                    config.NightscoutUrl,
-                    cancellationToken
-                );
-                healthData["nightscout"] = nightscoutHealthy ? "healthy" : "unhealthy";
-            }
+            // Check Nightscout connectivity
+            var nightscoutHealthy = await CheckTargetHealthAsync(
+                "NightscoutClient",
+                config.NightscoutUrl,
+                cancellationToken
+            );
+            healthData["nightscout"] = nightscoutHealthy ? "healthy" : "unhealthy";
 
-            // Check Nocturne connectivity if configured
-            if (!string.IsNullOrEmpty(config.NocturneUrl))
-            {
-                var nocturneHealthy = await CheckTargetHealthAsync(
-                    "NocturneClient",
-                    config.NocturneUrl,
-                    cancellationToken
-                );
-                healthData["nocturne"] = nocturneHealthy ? "healthy" : "unhealthy";
-            }
+            // Note: Nocturne connectivity is not checked here as it auto-detects its own URL
+            healthData["nocturne"] = "auto-detected";
 
             // Add Phase 2 feature status
             healthData["responseComparison"] = config.Comparison.EnableDeepComparison

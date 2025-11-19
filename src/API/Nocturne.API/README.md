@@ -151,13 +151,14 @@ If you're migrating from an existing Nightscout instance, you can enable the Com
 
 ```json
 {
-  "CompatibilityProxy": {
-    "NightscoutUrl": "https://your-existing-nightscout.com",
-    "NocturneUrl": "http://localhost:1612",
-    "DefaultStrategy": "Nightscout",
-    "EnableDetailedLogging": true,
-    "Comparison": {
-      "EnableDeepComparison": true
+  "Parameters": {
+    "CompatibilityProxy": {
+      "NightscoutUrl": "https://your-existing-nightscout.com",
+      "DefaultStrategy": "Nightscout",
+      "EnableDetailedLogging": true,
+      "Comparison": {
+        "EnableDeepComparison": true
+      }
     }
   }
 }

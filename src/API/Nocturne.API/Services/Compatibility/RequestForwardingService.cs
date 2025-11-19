@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Nocturne.API.Configuration;
 using Nocturne.API.Models.Compatibility;
@@ -34,6 +35,7 @@ public class RequestForwardingService : IRequestForwardingService
     private readonly IResponseComparisonService _responseComparisonService;
     private readonly IResponseCacheService _responseCacheService;
     private readonly IDiscrepancyPersistenceService _discrepancyPersistenceService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     /// <summary>
     /// Initializes a new instance of the RequestForwardingService class
@@ -45,6 +47,7 @@ public class RequestForwardingService : IRequestForwardingService
     /// <param name="responseComparisonService">Service for comparing responses</param>
     /// <param name="responseCacheService">Service for caching responses</param>
     /// <param name="discrepancyPersistenceService">Service for persisting discrepancy analysis</param>
+    /// <param name="httpContextAccessor">HTTP context accessor for auto-detecting Nocturne URL</param>
     public RequestForwardingService(
         IHttpClientFactory httpClientFactory,
         IOptions<CompatibilityProxyConfiguration> configuration,
@@ -52,12 +55,14 @@ public class RequestForwardingService : IRequestForwardingService
         ICorrelationService correlationService,
         IResponseComparisonService responseComparisonService,
         IResponseCacheService responseCacheService,
-        IDiscrepancyPersistenceService discrepancyPersistenceService
+        IDiscrepancyPersistenceService discrepancyPersistenceService,
+        IHttpContextAccessor httpContextAccessor
     )
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
         _correlationService = correlationService;
         _responseComparisonService = responseComparisonService;
         _responseCacheService = responseCacheService;
@@ -102,6 +107,9 @@ public class RequestForwardingService : IRequestForwardingService
             }
         }
 
+        // Auto-detect Nocturne URL from current request
+        var nocturneUrl = GetNocturneBaseUrl();
+
         // Forward to both systems concurrently
         var nightscoutTask = ForwardToTargetAsync(
             clonedRequest,
@@ -112,7 +120,7 @@ public class RequestForwardingService : IRequestForwardingService
         var nocturneTask = ForwardToTargetAsync(
             clonedRequest,
             "Nocturne",
-            _configuration.Value.NocturneUrl,
+            nocturneUrl,
             cancellationToken
         );
 
@@ -534,5 +542,25 @@ public class RequestForwardingService : IRequestForwardingService
         }
 
         return filteredMessage;
+    }
+
+    /// <summary>
+    /// Auto-detect the base URL for Nocturne from the current HTTP context
+    /// </summary>
+    /// <returns>Base URL for local Nocturne instance</returns>
+    private string GetNocturneBaseUrl()
+    {
+        var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext == null)
+        {
+            _logger.LogWarning("HttpContext not available, defaulting to http://localhost");
+            return "http://localhost";
+        }
+
+        var request = httpContext.Request;
+        var scheme = request.Scheme;
+        var host = request.Host.Value;
+
+        return $"{scheme}://{host}";
     }
 }

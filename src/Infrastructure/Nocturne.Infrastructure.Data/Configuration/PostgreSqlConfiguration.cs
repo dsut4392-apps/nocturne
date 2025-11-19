@@ -11,7 +11,12 @@ public class PostgreSqlConfiguration
     public const string SectionName = "PostgreSql";
 
     /// <summary>
-    /// PostgreSQL connection string
+    /// Whether to use a remote database (true) or Aspire-managed local container (false)
+    /// </summary>
+    public bool UseRemoteDatabase { get; set; } = false;
+
+    /// <summary>
+    /// PostgreSQL connection string (optional - injected by Aspire when UseRemoteDatabase is false)
     /// </summary>
     public string ConnectionString { get; set; } = string.Empty;
 

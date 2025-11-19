@@ -30,9 +30,9 @@ class Program
         );
 
         // Add PostgreSQL database - use remote database connection or local container
-        var useRemoteDb = builder.Configuration.GetValue<bool>("UseRemoteDatabase", false);
+        var useRemoteDb = builder.Configuration.GetValue<bool>("PostgreSql:UseRemoteDatabase", false);
 
-        Console.WriteLine($"[Aspire] UseRemoteDatabase: {useRemoteDb}");
+        Console.WriteLine($"[Aspire] PostgreSql:UseRemoteDatabase: {useRemoteDb}");
         Console.WriteLine($"[Aspire] Environment: {builder.Environment.EnvironmentName}");
 
         // Get remote connection string if using remote database

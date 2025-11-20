@@ -63,16 +63,15 @@ builder.Configuration.AddJsonFile(
 builder.AddServiceDefaults();
 
 // Configure PostgreSQL database
-var aspirePostgreSqlConnection = builder.Configuration.GetConnectionString("nocturne");
+var aspirePostgreSqlConnection = builder.Configuration.GetConnectionString(ServiceNames.PostgreSql);
 
 if (string.IsNullOrWhiteSpace(aspirePostgreSqlConnection))
 {
     throw new InvalidOperationException(
-        "PostgreSQL connection string 'nocturne' not found. Ensure Aspire is properly configured."
+        $"PostgreSQL connection string '{ServiceNames.PostgreSql}' not found. Ensure Aspire is properly configured."
     );
 }
 
-Console.WriteLine("Using Aspire PostgreSQL connection");
 builder.Services.AddPostgreSqlInfrastructure(
     aspirePostgreSqlConnection,
     config =>

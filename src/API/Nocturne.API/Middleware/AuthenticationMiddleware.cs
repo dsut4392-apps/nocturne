@@ -157,7 +157,7 @@ public class AuthenticationMiddleware
         {
             if (string.IsNullOrEmpty(_apiSecret))
             {
-                _logger.LogWarning("API_SECRET not configured but api-secret header provided");
+                _logger.LogWarning("api-secret not configured but api-secret header provided");
                 SetUnauthenticated(context);
                 return;
             }

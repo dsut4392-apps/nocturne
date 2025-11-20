@@ -13,8 +13,8 @@ public static class ServiceNames
     public const string CompatibilityProxy = "compatibility-proxy";
 
     // Data Services
-    public const string MongoDb = "mongodb";
-    public const string PostgreSql = "postgres";
+    public const string MongoDb = "nightscout-mongodb";
+    public const string PostgreSql = "nocturne-postgres";
 
     // Aspire Services
     public const string AspireHost = "aspire-host";

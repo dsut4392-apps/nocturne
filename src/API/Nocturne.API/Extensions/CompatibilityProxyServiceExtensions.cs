@@ -31,6 +31,9 @@ public static class CompatibilityProxyServiceExtensions
             configuration.GetSection(CompatibilityProxyConfiguration.ConfigurationSection)
         );
 
+        // Register HTTP context accessor for auto-detecting Nocturne URL
+        services.AddHttpContextAccessor();
+
         // Register core services
         services.AddScoped<IRequestCloningService, RequestCloningService>();
         services.AddScoped<IRequestForwardingService, RequestForwardingService>();

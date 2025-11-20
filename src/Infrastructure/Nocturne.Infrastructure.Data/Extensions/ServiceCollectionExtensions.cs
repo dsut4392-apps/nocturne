@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Nocturne.Core.Contracts;
 using Nocturne.Infrastructure.Data.Abstractions;
 using Nocturne.Infrastructure.Data.Adapters;
@@ -42,38 +43,50 @@ public static class ServiceCollectionExtensions
             );
         }
 
+        // Register NpgsqlDataSource as a singleton - this manages the connection pool
+        var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(
+            postgreSqlConfig.ConnectionString
+        );
+        var dataSource = dataSourceBuilder.Build();
+        services.AddSingleton(dataSource);
+
         // Register DbContext with PostgreSQL
-        services.AddDbContext<NocturneDbContext>(options =>
-        {
-            options.UseNpgsql(
-                postgreSqlConfig.ConnectionString,
-                npgsqlOptions =>
+        services.AddDbContext<NocturneDbContext>(
+            (serviceProvider, options) =>
+            {
+                var config = serviceProvider
+                    .GetRequiredService<IOptions<PostgreSqlConfiguration>>()
+                    .Value;
+
+                var dataSource = serviceProvider.GetRequiredService<Npgsql.NpgsqlDataSource>();
+
+                options.UseNpgsql(
+                    dataSource,
+                    npgsqlOptions =>
+                    {
+                        npgsqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: config.MaxRetryCount,
+                            maxRetryDelay: TimeSpan.FromSeconds(config.MaxRetryDelaySeconds),
+                            errorCodesToAdd: null
+                        );
+
+                        npgsqlOptions.CommandTimeout(config.CommandTimeoutSeconds);
+                    }
+                );
+
+                if (config.EnableSensitiveDataLogging)
                 {
-                    npgsqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: postgreSqlConfig.MaxRetryCount,
-                        maxRetryDelay: TimeSpan.FromSeconds(postgreSqlConfig.MaxRetryDelaySeconds),
-                        errorCodesToAdd: null
-                    );
-
-                    npgsqlOptions.CommandTimeout(postgreSqlConfig.CommandTimeoutSeconds);
+                    options.EnableSensitiveDataLogging();
                 }
-            );
 
-            // Enable sensitive data logging only in development
-            if (postgreSqlConfig.EnableSensitiveDataLogging)
-            {
-                options.EnableSensitiveDataLogging();
+                if (config.EnableDetailedErrors)
+                {
+                    options.EnableDetailedErrors();
+                }
+
+                options.EnableServiceProviderCaching();
             }
-
-            // Enable detailed errors only in development
-            if (postgreSqlConfig.EnableDetailedErrors)
-            {
-                options.EnableDetailedErrors();
-            }
-
-            // Enable service provider scope validation in development
-            options.EnableServiceProviderCaching();
-        });
+        );
 
         // Register PostgreSQL service
         services.AddScoped<IPostgreSqlService, PostgreSqlService>();
@@ -112,6 +125,14 @@ public static class ServiceCollectionExtensions
         var config = new PostgreSqlConfiguration { ConnectionString = connectionString };
         configure?.Invoke(config);
 
+        // Validate connection string is still set after configure action
+        if (string.IsNullOrEmpty(config.ConnectionString))
+        {
+            throw new InvalidOperationException(
+                "Connection string was cleared by the configure action"
+            );
+        }
+
         // Register configuration
         services.Configure<PostgreSqlConfiguration>(options =>
         {
@@ -123,35 +144,48 @@ public static class ServiceCollectionExtensions
             options.CommandTimeoutSeconds = config.CommandTimeoutSeconds;
         });
 
+        // Register NpgsqlDataSource as a singleton - this manages the connection pool
+        var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(config.ConnectionString);
+        var dataSource = dataSourceBuilder.Build();
+        services.AddSingleton(dataSource);
+
         // Register DbContext with PostgreSQL
-        services.AddDbContext<NocturneDbContext>(options =>
-        {
-            options.UseNpgsql(
-                connectionString,
-                npgsqlOptions =>
+        services.AddDbContext<NocturneDbContext>(
+            (serviceProvider, options) =>
+            {
+                var config = serviceProvider
+                    .GetRequiredService<IOptions<PostgreSqlConfiguration>>()
+                    .Value;
+
+                var dataSource = serviceProvider.GetRequiredService<Npgsql.NpgsqlDataSource>();
+
+                options.UseNpgsql(
+                    dataSource,
+                    npgsqlOptions =>
+                    {
+                        npgsqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: config.MaxRetryCount,
+                            maxRetryDelay: TimeSpan.FromSeconds(config.MaxRetryDelaySeconds),
+                            errorCodesToAdd: null
+                        );
+
+                        npgsqlOptions.CommandTimeout(config.CommandTimeoutSeconds);
+                    }
+                );
+
+                if (config.EnableSensitiveDataLogging)
                 {
-                    npgsqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: config.MaxRetryCount,
-                        maxRetryDelay: TimeSpan.FromSeconds(config.MaxRetryDelaySeconds),
-                        errorCodesToAdd: null
-                    );
-
-                    npgsqlOptions.CommandTimeout(config.CommandTimeoutSeconds);
+                    options.EnableSensitiveDataLogging();
                 }
-            );
 
-            if (config.EnableSensitiveDataLogging)
-            {
-                options.EnableSensitiveDataLogging();
+                if (config.EnableDetailedErrors)
+                {
+                    options.EnableDetailedErrors();
+                }
+
+                options.EnableServiceProviderCaching();
             }
-
-            if (config.EnableDetailedErrors)
-            {
-                options.EnableDetailedErrors();
-            }
-
-            options.EnableServiceProviderCaching();
-        });
+        );
 
         // Register PostgreSQL service
         services.AddScoped<IPostgreSqlService, PostgreSqlService>();

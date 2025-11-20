@@ -30,46 +30,49 @@ class Program
         );
 
         // Add PostgreSQL database - use remote database connection or local container
-        var useRemoteDb = builder.Configuration.GetValue<bool>("PostgreSql:UseRemoteDatabase", false);
+        var useRemoteDb = builder.Configuration.GetValue<bool>(
+            "PostgreSql:UseRemoteDatabase",
+            false
+        );
 
         Console.WriteLine($"[Aspire] PostgreSql:UseRemoteDatabase: {useRemoteDb}");
         Console.WriteLine($"[Aspire] Environment: {builder.Environment.EnvironmentName}");
 
-        // Get remote connection string if using remote database
-        string? remoteConnectionString = null;
-        if (useRemoteDb)
-        {
-            remoteConnectionString = builder.Configuration.GetConnectionString(
-                ServiceNames.PostgreSql
-            );
-
-            if (string.IsNullOrWhiteSpace(remoteConnectionString))
-            {
-                throw new InvalidOperationException(
-                    $"Remote database enabled but connection string '{ServiceNames.PostgreSql}' not found in configuration."
-                );
-            }
-
-            Console.WriteLine($"[Aspire] Using remote database: {remoteConnectionString}");
-        }
-
-        IResourceBuilder<IResourceWithConnectionString> nocturnedb;
+        // Use separate variables for managed vs remote database to maintain type safety
+        // and make the distinction explicit between Aspire-managed containers and external databases
+        IResourceBuilder<PostgresDatabaseResource>? managedDatabase = null;
+        IResourceBuilder<IResourceWithConnectionString>? remoteDatabase = null;
 
         if (!useRemoteDb)
         {
-            // Use local PostgreSQL container
+            // Use local PostgreSQL container managed by Aspire
+            // Parameters must have values from configuration or defaults
             var postgresUsername = builder.AddParameter(
                 ServiceNames.Parameters.PostgresUsername,
+                value: builder.Configuration["Parameters:postgres-username"]
+                    ?? ServiceNames.Defaults.PostgresUser,
                 secret: false
             );
             var postgresPassword = builder.AddParameter(
                 ServiceNames.Parameters.PostgresPassword,
+                value: builder.Configuration["Parameters:postgres-password"]
+                    ?? ServiceNames.Defaults.PostgresPassword,
                 secret: true
             );
             var postgresDbName = builder.AddParameter(
                 ServiceNames.Parameters.PostgresDbName,
+                value: builder.Configuration["Parameters:postgres-database"]
+                    ?? ServiceNames.Defaults.PostgresDatabase,
                 secret: false
             );
+
+            Console.WriteLine(
+                $"[Aspire] Creating local PostgreSQL container with username: {builder.Configuration["Parameters:postgres-username"] ?? ServiceNames.Defaults.PostgresUser}"
+            );
+            Console.WriteLine(
+                $"[Aspire] Database name: {builder.Configuration["Parameters:postgres-database"] ?? ServiceNames.Defaults.PostgresDatabase}"
+            );
+
             var postgres = builder
                 .AddPostgres(ServiceNames.PostgreSql)
                 .WithLifetime(ContainerLifetime.Persistent)
@@ -84,7 +87,8 @@ class Program
 
             postgres.WithDataVolume(ServiceNames.Volumes.PostgresData);
 
-            nocturnedb = postgres.AddDatabase(
+            managedDatabase = postgres.AddDatabase(
+                ServiceNames.PostgreSql,
                 builder.Configuration["Parameters:postgres-database"]
                     ?? ServiceNames.Defaults.PostgresDatabase
             );
@@ -94,10 +98,26 @@ class Program
         }
         else
         {
-            // For remote database, create a placeholder resource
-            // We'll inject the connection string directly via environment variable
-            // @TODO This is really ugly but we are H A C K E R M O D E atm
-            nocturnedb = builder.AddConnectionString(ServiceNames.Defaults.PostgresDatabase);
+            // Use external/remote database via connection string reference
+            // Read the connection string from Aspire Host's configuration
+            var remoteConnectionString = builder.Configuration.GetConnectionString(
+                ServiceNames.PostgreSql
+            );
+
+            if (string.IsNullOrWhiteSpace(remoteConnectionString))
+            {
+                throw new InvalidOperationException(
+                    $"Remote database enabled but connection string '{ServiceNames.PostgreSql}' not found in Aspire Host configuration (ConnectionStrings section)."
+                );
+            }
+
+            Console.WriteLine($"[Aspire] Remote database connection string loaded from config");
+            Console.WriteLine(
+                $"[Aspire] Connection: {remoteConnectionString.Substring(0, Math.Min(50, remoteConnectionString.Length))}..."
+            );
+
+            // AddConnectionString creates a resource that references the connection string from configuration
+            remoteDatabase = builder.AddConnectionString(ServiceNames.PostgreSql);
         }
 
         // Add the Nocturne API service (without embedded connectors)
@@ -106,18 +126,24 @@ class Program
             .AddProject<Projects.Nocturne_API>(ServiceNames.NocturneApi)
             .WithExternalHttpEndpoints();
 
-        // For remote database, inject connection string directly as environment variable
-        if (useRemoteDb)
+        // Configure database connection based on mode
+        if (managedDatabase != null)
         {
-            api.WithEnvironment(
-                $"ConnectionStrings__{ServiceNames.Defaults.PostgresDatabase}",
-                remoteConnectionString!
-            );
+            // For Aspire-managed local database, use WithReference which automatically injects the connection string
+            Console.WriteLine("[Aspire] Configuring API with managed PostgreSQL database");
+            api.WaitFor(managedDatabase).WithReference(managedDatabase);
+        }
+        else if (remoteDatabase != null)
+        {
+            // For external/remote database, use the connection string reference
+            Console.WriteLine("[Aspire] Configuring API with remote PostgreSQL database");
+            api.WithReference(remoteDatabase);
         }
         else
         {
-            // For local database, use WithReference which automatically injects the connection string
-            api.WaitFor(nocturnedb).WithReference(nocturnedb);
+            throw new InvalidOperationException(
+                "Database configuration error: neither managed nor remote database was configured."
+            );
         }
 
         // Add connector services as independent services based on Parameters configuration
@@ -149,7 +175,8 @@ class Program
             );
             var dexcomSyncInterval = builder.AddParameter(
                 "dexcom-sync-interval",
-                value: builder.Configuration["Parameters:Connectors:Dexcom:SyncIntervalMinutes"] ?? "",
+                value: builder.Configuration["Parameters:Connectors:Dexcom:SyncIntervalMinutes"]
+                    ?? "",
                 secret: false
             );
 
@@ -208,7 +235,8 @@ class Program
             );
             var glookoSyncInterval = builder.AddParameter(
                 "glooko-sync-interval",
-                value: builder.Configuration["Parameters:Connectors:Glooko:SyncIntervalMinutes"] ?? "",
+                value: builder.Configuration["Parameters:Connectors:Glooko:SyncIntervalMinutes"]
+                    ?? "",
                 secret: false
             );
 
@@ -337,12 +365,14 @@ class Program
             );
             var carelinkPatientUsername = builder.AddParameter(
                 "carelink-patient-username",
-                value: builder.Configuration["Parameters:Connectors:CareLink:PatientUsername"] ?? "",
+                value: builder.Configuration["Parameters:Connectors:CareLink:PatientUsername"]
+                    ?? "",
                 secret: false
             );
             var carelinkSyncInterval = builder.AddParameter(
                 "carelink-sync-interval",
-                value: builder.Configuration["Parameters:Connectors:CareLink:SyncIntervalMinutes"] ?? "",
+                value: builder.Configuration["Parameters:Connectors:CareLink:SyncIntervalMinutes"]
+                    ?? "",
                 secret: false
             );
 
@@ -386,7 +416,8 @@ class Program
             var nightscoutSourceEndpoint = builder
                 .AddParameter(
                     "nightscout-source-endpoint",
-                    value: builder.Configuration["Parameters:Connectors:Nightscout:SourceEndpoint"] ?? "",
+                    value: builder.Configuration["Parameters:Connectors:Nightscout:SourceEndpoint"]
+                        ?? "",
                     secret: false
                 )
                 .WithDescription(
@@ -395,17 +426,15 @@ class Program
             var nightscoutSourceApiSecret = builder
                 .AddParameter(
                     "nightscout-source-api-secret",
-                    value: builder.Configuration[
-                        "Parameters:Connectors:Nightscout:SourceApiSecret"
-                    ] ?? "",
+                    value: builder.Configuration["Parameters:Connectors:Nightscout:SourceApiSecret"]
+                        ?? "",
                     secret: true
                 )
                 .WithDescription("API secret for the external Nightscout instance to sync FROM");
             var nightscoutSyncInterval = builder.AddParameter(
                 "nightscout-sync-interval",
-                value: builder.Configuration[
-                    "Parameters:Connectors:Nightscout:SyncIntervalMinutes"
-                ] ?? "",
+                value: builder.Configuration["Parameters:Connectors:Nightscout:SyncIntervalMinutes"]
+                    ?? "",
                 secret: false
             );
 
@@ -496,7 +525,8 @@ class Program
             var compatProxyNightscoutUrl = builder
                 .AddParameter(
                     "compat-proxy-nightscout-url",
-                    value: builder.Configuration["Parameters:CompatibilityProxy:NightscoutUrl"] ?? "",
+                    value: builder.Configuration["Parameters:CompatibilityProxy:NightscoutUrl"]
+                        ?? "",
                     secret: false
                 )
                 .WithDescription(
@@ -516,7 +546,7 @@ class Program
             // The parameters above are defined for visibility in Aspire dashboard and secret management
         }
 
-        // Add API_SECRET parameter for authentication
+        // Add api-secret parameter for authentication
         var apiSecret = builder.AddParameter(ServiceNames.Parameters.ApiSecret, secret: true);
 
         // Add SignalR Hub URL parameter for the web app's integrated WebSocket bridge

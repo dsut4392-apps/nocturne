@@ -2,14 +2,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Nocturne.API.Middleware;
 using Nocturne.Core.Contracts;
-using SignalRSwaggerGen.Attributes;
 
 namespace Nocturne.API.Hubs;
 
 /// <summary>
 /// SignalR hub for real-time data updates, replacing socket.io main data connection
 /// </summary>
-[SignalRHub]
 public class DataHub : Hub
 {
     private readonly ILogger<DataHub> _logger;
@@ -62,7 +60,7 @@ public class DataHub : Hub
                     var configuration = Context
                         .GetHttpContext()
                         ?.RequestServices.GetRequiredService<IConfiguration>();
-                    var configuredSecret = configuration?["API_SECRET"];
+                    var configuredSecret = configuration?["Parameters:api-secret"];
 
                     if (!string.IsNullOrEmpty(configuredSecret))
                     {

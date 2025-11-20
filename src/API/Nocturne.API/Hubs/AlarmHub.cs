@@ -2,14 +2,12 @@ using Microsoft.AspNetCore.SignalR;
 using Nocturne.API.Middleware;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
-using SignalRSwaggerGen.Attributes;
 
 namespace Nocturne.API.Hubs;
 
 /// <summary>
 /// SignalR hub for alarm notifications, replacing socket.io alarm namespace
 /// </summary>
-[SignalRHub]
 public class AlarmHub : Hub
 {
     private readonly ILogger<AlarmHub> _logger;
@@ -57,7 +55,7 @@ public class AlarmHub : Hub
                     var configuration = Context
                         .GetHttpContext()
                         ?.RequestServices.GetRequiredService<IConfiguration>();
-                    var configuredSecret = configuration?["API_SECRET"];
+                    var configuredSecret = configuration?["Parameters:api-secret"];
 
                     if (!string.IsNullOrEmpty(configuredSecret))
                     {

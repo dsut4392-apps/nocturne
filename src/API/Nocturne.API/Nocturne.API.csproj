@@ -26,7 +26,6 @@
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="ShiroTrie" />
-    <PackageReference Include="SignalRSwaggerGen" />
     <PackageReference Include="Yarp.ReverseProxy" />
   </ItemGroup>
   <ItemGroup>

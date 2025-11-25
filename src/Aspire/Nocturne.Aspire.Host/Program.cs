@@ -92,7 +92,7 @@ class Program
             );
 
             var postgres = builder
-                .AddPostgres(ServiceNames.PostgreSql)
+                .AddPostgres(ServiceNames.PostgreSql + "-server")
                 .WithLifetime(ContainerLifetime.Persistent)
                 .WithUserName(postgresUsername)
                 .WithPassword(postgresPassword);
@@ -594,6 +594,35 @@ class Program
 
         // Add SignalR Hub URL parameter for the web app's integrated WebSocket bridge
         var signalrHubUrl = builder.AddParameter("signalr-hub-url", secret: false);
+
+        // Build the bridge package synchronously to ensure artifacts exist
+        var bridgePackagePath = Path.Combine(solutionRoot, "src", "Web", "packages", "bridge");
+        Console.WriteLine("[Aspire] Building @nocturne/bridge...");
+
+        var buildProcess = new System.Diagnostics.Process
+        {
+            StartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd",
+                Arguments = "/c pnpm run build",
+                WorkingDirectory = bridgePackagePath,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+
+        buildProcess.Start();
+        buildProcess.WaitForExit();
+
+        if (buildProcess.ExitCode != 0)
+        {
+            var error = buildProcess.StandardError.ReadToEnd();
+            throw new InvalidOperationException($"Failed to build @nocturne/bridge: {error}");
+        }
+
+        Console.WriteLine("[Aspire] @nocturne/bridge built successfully");
 
         // Add the SvelteKit web application (with integrated WebSocket bridge)
         var webPackagePath = Path.Combine(solutionRoot, "src", "Web", "packages", "app");

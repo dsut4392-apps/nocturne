@@ -454,6 +454,10 @@ namespace Nocturne.Connectors.Glooko.Services
         /// Fetch comprehensive batch data from all Glooko endpoints
         /// This matches the legacy implementation's dataFromSession method
         /// </summary>
+        /// <summary>
+        /// Fetch comprehensive batch data from all Glooko endpoints
+        /// This matches the legacy implementation's dataFromSession method
+        /// </summary>
         public async Task<GlookoBatchData?> FetchBatchDataAsync(DateTime? since = null)
         {
             try
@@ -478,150 +482,169 @@ namespace Nocturne.Connectors.Glooko.Services
                     $"Fetching comprehensive Glooko data from {fromDate:yyyy-MM-dd} to {toDate:yyyy-MM-dd}"
                 );
 
-                // Define all endpoints to fetch (comprehensive diabetes management data)
-                var endpoints = new[]
+                var batchData = new GlookoBatchData();
+
+                // Define endpoints and their handlers
+                var endpointDefinitions = new[]
                 {
-                    "/api/v2/foods",
-                    "/api/v2/insulins",
-                    "/api/v2/pumps/scheduled_basals",
-                    "/api/v2/pumps/normal_boluses",
-                    "/api/v2/cgm/readings",
-                    "/api/v2/blood_glucose",
-                    "/api/v2/ketones",
-                    "/api/v2/blood_pressure",
-                    "/api/v2/weight",
-                    "/api/v2/sleep",
-                    "/api/v2/activity",
-                    "/api/v2/medications",
-                    "/api/v2/insulin_pens",
+                    new
+                    {
+                        Endpoint = "/api/v2/external/foods",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("foods", out var element))
+                                batchData.Foods = JsonSerializer.Deserialize<GlookoFood[]>(element.GetRawText()) ?? Array.Empty<GlookoFood>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/pumps/scheduled_basals",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("scheduledBasals", out var element))
+                                batchData.ScheduledBasals = JsonSerializer.Deserialize<GlookoBasal[]>(element.GetRawText()) ?? Array.Empty<GlookoBasal>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/pumps/normal_boluses",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("normalBoluses", out var element))
+                                batchData.NormalBoluses = JsonSerializer.Deserialize<GlookoBolus[]>(element.GetRawText()) ?? Array.Empty<GlookoBolus>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/cgm/readings",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("readings", out var element))
+                                batchData.Readings = JsonSerializer.Deserialize<GlookoCgmReading[]>(element.GetRawText()) ?? Array.Empty<GlookoCgmReading>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/readings", // BGM Readings
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("bloodGlucose", out var element))
+                                batchData.BloodGlucose = JsonSerializer.Deserialize<GlookoBloodGlucoseReading[]>(element.GetRawText()) ?? Array.Empty<GlookoBloodGlucoseReading>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/blood_pressures",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("bloodPressure", out var element))
+                                batchData.BloodPressure = JsonSerializer.Deserialize<GlookoBloodPressureReading[]>(element.GetRawText()) ?? Array.Empty<GlookoBloodPressureReading>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/exercises",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("activity", out var element))
+                                batchData.Activity = JsonSerializer.Deserialize<GlookoActivityReading[]>(element.GetRawText()) ?? Array.Empty<GlookoActivityReading>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/medications",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("medications", out var element))
+                                batchData.Medications = JsonSerializer.Deserialize<GlookoMedicationReading[]>(element.GetRawText()) ?? Array.Empty<GlookoMedicationReading>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/pumps/extended_boluses",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("extendedBoluses", out var element))
+                                batchData.ExtendedBoluses = JsonSerializer.Deserialize<GlookoExtendedBolus[]>(element.GetRawText()) ?? Array.Empty<GlookoExtendedBolus>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/pumps/suspend_basals",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("suspendBasals", out var element))
+                                batchData.SuspendBasals = JsonSerializer.Deserialize<GlookoSuspendBasal[]>(element.GetRawText()) ?? Array.Empty<GlookoSuspendBasal>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/pumps/temporary_basals",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("temporaryBasals", out var element))
+                                batchData.TempBasals = JsonSerializer.Deserialize<GlookoTempBasal[]>(element.GetRawText()) ?? Array.Empty<GlookoTempBasal>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/pumps/settings",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("settings", out var element))
+                                batchData.PumpSettings = JsonSerializer.Deserialize<GlookoPumpSettings[]>(element.GetRawText()) ?? Array.Empty<GlookoPumpSettings>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/pumps/alarms",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("alarms", out var element))
+                                batchData.PumpAlarms = JsonSerializer.Deserialize<GlookoPumpAlarm[]>(element.GetRawText()) ?? Array.Empty<GlookoPumpAlarm>();
+                        })
+                    },
+                    new
+                    {
+                        Endpoint = "/api/v2/external/pumps/events",
+                        Handler = new Action<JsonElement>(json =>
+                        {
+                            if (json.TryGetProperty("events", out var element))
+                                batchData.PumpEvents = JsonSerializer.Deserialize<GlookoPumpEvent[]>(element.GetRawText()) ?? Array.Empty<GlookoPumpEvent>();
+                        })
+                    }
                 };
 
-                // Build URLs with patient and date parameters
-                var urlsToFetch = endpoints
-                    .Select(endpoint => ConstructGlookoUrl(endpoint, fromDate, toDate))
-                    .ToArray();
-                // Fetch endpoints sequentially with rate limiting to avoid 422 errors
-                var results = new JsonElement?[urlsToFetch.Length];
-                for (int i = 0; i < urlsToFetch.Length; i++)
+                // Fetch endpoints sequentially with rate limiting
+                for (int i = 0; i < endpointDefinitions.Length; i++)
                 {
+                    var def = endpointDefinitions[i];
+                    var url = ConstructGlookoUrl(def.Endpoint, fromDate, toDate);
+
                     // Apply rate limiting strategy
                     await _rateLimitingStrategy.ApplyDelayAsync(i);
 
-                    results[i] = await FetchFromGlookoEndpointWithRetry(urlsToFetch[i]);
-                }
-
-                // Parse results into batch data structure
-                var batchData = new GlookoBatchData();
-                try
-                {
-                    for (int i = 0; i < results.Length; i++)
+                    try
                     {
-                        if (!results[i].HasValue)
-                            continue;
-
-                        var result = results[i]!.Value;
-                        switch (i)
+                        var result = await FetchFromGlookoEndpointWithRetry(url);
+                        if (result.HasValue)
                         {
-                            case 0: // foods
-                                if (result.TryGetProperty("foods", out var foodsElement))
-                                    batchData.Foods =
-                                        JsonSerializer.Deserialize<GlookoFood[]>(
-                                            foodsElement.GetRawText()
-                                        ) ?? new GlookoFood[0];
-                                break;
-                            case 1: // insulins
-                                if (result.TryGetProperty("insulins", out var insulinsElement))
-                                    batchData.Insulins =
-                                        JsonSerializer.Deserialize<GlookoInsulin[]>(
-                                            insulinsElement.GetRawText()
-                                        ) ?? new GlookoInsulin[0];
-                                break;
-                            case 2: // scheduled basals
-                                if (result.TryGetProperty("scheduledBasals", out var basalsElement))
-                                    batchData.ScheduledBasals =
-                                        JsonSerializer.Deserialize<GlookoBasal[]>(
-                                            basalsElement.GetRawText()
-                                        ) ?? new GlookoBasal[0];
-                                break;
-                            case 3: // normal boluses
-                                if (result.TryGetProperty("normalBoluses", out var bolusesElement))
-                                    batchData.NormalBoluses =
-                                        JsonSerializer.Deserialize<GlookoBolus[]>(
-                                            bolusesElement.GetRawText()
-                                        ) ?? new GlookoBolus[0];
-                                break;
-                            case 4: // cgm readings
-                                if (result.TryGetProperty("readings", out var readingsElement))
-                                    batchData.Readings =
-                                        JsonSerializer.Deserialize<GlookoCgmReading[]>(
-                                            readingsElement.GetRawText()
-                                        ) ?? new GlookoCgmReading[0];
-                                break;
-                            case 5: // blood glucose
-                                if (result.TryGetProperty("bloodGlucose", out var bgElement))
-                                    batchData.BloodGlucose =
-                                        JsonSerializer.Deserialize<GlookoBloodGlucoseReading[]>(
-                                            bgElement.GetRawText()
-                                        ) ?? new GlookoBloodGlucoseReading[0];
-                                break;
-                            case 6: // ketones
-                                if (result.TryGetProperty("ketones", out var ketonesElement))
-                                    batchData.Ketones =
-                                        JsonSerializer.Deserialize<GlookoKetoneReading[]>(
-                                            ketonesElement.GetRawText()
-                                        ) ?? new GlookoKetoneReading[0];
-                                break;
-                            case 7: // blood pressure
-                                if (result.TryGetProperty("bloodPressure", out var bpElement))
-                                    batchData.BloodPressure =
-                                        JsonSerializer.Deserialize<GlookoBloodPressureReading[]>(
-                                            bpElement.GetRawText()
-                                        ) ?? new GlookoBloodPressureReading[0];
-                                break;
-                            case 8: // weight
-                                if (result.TryGetProperty("weight", out var weightElement))
-                                    batchData.Weight =
-                                        JsonSerializer.Deserialize<GlookoWeightReading[]>(
-                                            weightElement.GetRawText()
-                                        ) ?? new GlookoWeightReading[0];
-                                break;
-                            case 9: // sleep
-                                if (result.TryGetProperty("sleep", out var sleepElement))
-                                    batchData.Sleep =
-                                        JsonSerializer.Deserialize<GlookoSleepReading[]>(
-                                            sleepElement.GetRawText()
-                                        ) ?? new GlookoSleepReading[0];
-                                break;
-                            case 10: // activity
-                                if (result.TryGetProperty("activity", out var activityElement))
-                                    batchData.Activity =
-                                        JsonSerializer.Deserialize<GlookoActivityReading[]>(
-                                            activityElement.GetRawText()
-                                        ) ?? new GlookoActivityReading[0];
-                                break;
-                            case 11: // medications
-                                if (
-                                    result.TryGetProperty("medications", out var medicationsElement)
-                                )
-                                    batchData.Medications =
-                                        JsonSerializer.Deserialize<GlookoMedicationReading[]>(
-                                            medicationsElement.GetRawText()
-                                        ) ?? new GlookoMedicationReading[0];
-                                break;
-                            case 12: // insulin pens
-                                if (result.TryGetProperty("insulinPens", out var pensElement))
-                                    batchData.InsulinPens =
-                                        JsonSerializer.Deserialize<GlookoInsulinPenReading[]>(
-                                            pensElement.GetRawText()
-                                        ) ?? new GlookoInsulinPenReading[0];
-                                break;
+                            try
+                            {
+                                def.Handler(result.Value);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "Error parsing data from {Endpoint}", def.Endpoint);
+                            }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to fetch from {Url}. Continuing with other endpoints.", url);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning($"Error parsing batch data: {ex.Message}");
-                }
+
                 return batchData;
             }
             catch (InvalidOperationException)

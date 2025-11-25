@@ -44,6 +44,23 @@ namespace Nocturne.Connectors.Glooko.Models
 
         [JsonPropertyName("insulinPens")]
         public GlookoInsulinPenReading[]? InsulinPens { get; set; }
+        [JsonPropertyName("extendedBoluses")]
+        public GlookoExtendedBolus[]? ExtendedBoluses { get; set; }
+
+        [JsonPropertyName("suspendBasals")]
+        public GlookoSuspendBasal[]? SuspendBasals { get; set; }
+
+        [JsonPropertyName("temporaryBasals")]
+        public GlookoTempBasal[]? TempBasals { get; set; }
+
+        [JsonPropertyName("pumpSettings")]
+        public GlookoPumpSettings[]? PumpSettings { get; set; }
+
+        [JsonPropertyName("pumpAlarms")]
+        public GlookoPumpAlarm[]? PumpAlarms { get; set; }
+
+        [JsonPropertyName("pumpEvents")]
+        public GlookoPumpEvent[]? PumpEvents { get; set; }
     }
 
     public class GlookoFood
@@ -329,5 +346,83 @@ namespace Nocturne.Connectors.Glooko.Models
 
         [JsonPropertyName("temperature")]
         public double? Temperature { get; set; }
+    }
+
+    public class GlookoExtendedBolus
+    {
+        [JsonPropertyName("timestamp")]
+        public string Timestamp { get; set; } = string.Empty;
+
+        [JsonPropertyName("bolusAmount")]
+        public double BolusAmount { get; set; }
+
+        [JsonPropertyName("duration")]
+        public int Duration { get; set; }
+
+        [JsonPropertyName("extendedAmount")]
+        public double ExtendedAmount { get; set; }
+    }
+
+    public class GlookoSuspendBasal
+    {
+        [JsonPropertyName("timestamp")]
+        public string Timestamp { get; set; } = string.Empty;
+
+        [JsonPropertyName("duration")]
+        public int Duration { get; set; }
+
+        [JsonPropertyName("suspendReason")]
+        public string? SuspendReason { get; set; }
+    }
+
+    public class GlookoTempBasal
+    {
+        [JsonPropertyName("timestamp")]
+        public string Timestamp { get; set; } = string.Empty;
+
+        [JsonPropertyName("rate")]
+        public double Rate { get; set; }
+
+        [JsonPropertyName("duration")]
+        public int Duration { get; set; }
+
+        [JsonPropertyName("percent")]
+        public int? Percent { get; set; }
+
+        [JsonPropertyName("tempBasalType")]
+        public string? TempBasalType { get; set; }
+    }
+
+    public class GlookoPumpSettings
+    {
+        [JsonPropertyName("timestamp")]
+        public string Timestamp { get; set; } = string.Empty;
+
+        [JsonPropertyName("settings")]
+        public object? Settings { get; set; }
+    }
+
+    public class GlookoPumpAlarm
+    {
+        [JsonPropertyName("timestamp")]
+        public string Timestamp { get; set; } = string.Empty;
+
+        [JsonPropertyName("alarmCode")]
+        public string? AlarmCode { get; set; }
+
+        [JsonPropertyName("alarmDescription")]
+        public string? AlarmDescription { get; set; }
+    }
+
+    public class GlookoPumpEvent
+    {
+        [JsonPropertyName("timestamp")]
+        public string Timestamp { get; set; } = string.Empty;
+
+        [JsonPropertyName("eventType")]
+        public string EventType { get; set; } = string.Empty;
+
+        [JsonPropertyName("eventData")]
+        public object? EventData { get; set; }
     }
 }

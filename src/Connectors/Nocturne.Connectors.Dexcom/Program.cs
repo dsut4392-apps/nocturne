@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Nocturne.Connectors.Core.Extensions;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -20,12 +21,26 @@ public class Program
         builder.AddServiceDefaults();
 
         // Configure services
-        builder.Services.AddHttpClient();
+        // Configure connector configuration
+        builder.Services.Configure<DexcomConnectorConfiguration>(
+            builder.Configuration.GetSection("Connectors:Dexcom"));
 
-        // Configure connector-specific services
+        // Bind configuration for HttpClient setup
         var dexcomConfig = new DexcomConnectorConfiguration();
-        builder.Configuration.GetSection("Connectors:Dexcom").Bind(dexcomConfig);
-        builder.Services.AddSingleton(dexcomConfig);
+        builder.Configuration.BindConnectorConfiguration(dexcomConfig, "Dexcom");
+
+        // Configure typed HttpClient for DexcomConnectorService
+        builder.Services.AddHttpClient<DexcomConnectorService>()
+            .ConfigureDexcomClient(
+                !string.IsNullOrEmpty(dexcomConfig.DexcomServer)
+                    ? dexcomConfig.DexcomServer
+                    : (dexcomConfig.DexcomRegion.ToLowerInvariant() == "ous"
+                        ? "shareous1.dexcom.com"
+                        : "share2.dexcom.com"));
+
+        // Register strategies
+        builder.Services.AddSingleton<IRetryDelayStrategy, ProductionRetryDelayStrategy>();
+        builder.Services.AddSingleton<IRateLimitingStrategy, ProductionRateLimitingStrategy>();
 
         // Configure API data submitter for HTTP-based data submission
         var apiUrl = builder.Configuration["NocturneApiUrl"];
@@ -33,21 +48,14 @@ public class Program
 
         builder.Services.AddSingleton<IApiDataSubmitter>(sp =>
         {
-            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient();
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient("NocturneApi");
             var logger = sp.GetRequiredService<ILogger<ApiDataSubmitter>>();
             if (string.IsNullOrEmpty(apiUrl))
             {
                 throw new InvalidOperationException("NocturneApiUrl configuration is missing.");
             }
             return new ApiDataSubmitter(httpClient, apiUrl, apiSecret, logger);
-        });
-
-        builder.Services.AddSingleton<DexcomConnectorService>(sp =>
-        {
-            var config = sp.GetRequiredService<DexcomConnectorConfiguration>();
-            var logger = sp.GetRequiredService<ILogger<DexcomConnectorService>>();
-            var apiDataSubmitter = sp.GetRequiredService<IApiDataSubmitter>();
-            return new DexcomConnectorService(config, logger, apiDataSubmitter);
         });
         builder.Services.AddHostedService<DexcomHostedService>();
 

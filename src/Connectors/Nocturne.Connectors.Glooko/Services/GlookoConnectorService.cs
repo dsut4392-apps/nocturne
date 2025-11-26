@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -26,7 +27,6 @@ namespace Nocturne.Connectors.Glooko.Services
     public class GlookoConnectorService : BaseConnectorService<GlookoConnectorConfiguration>
     {
         private readonly GlookoConnectorConfiguration _config;
-        private new readonly ILogger<GlookoConnectorService> _logger;
         private readonly IRateLimitingStrategy _rateLimitingStrategy;
         private readonly IRetryDelayStrategy _retryDelayStrategy;
         private readonly IConnectorFileService<GlookoBatchData> _fileService;
@@ -57,114 +57,19 @@ namespace Nocturne.Connectors.Glooko.Services
         public override string ConnectorSource => "glooko";
 
         public GlookoConnectorService(
-            GlookoConnectorConfiguration config,
-            ILogger<GlookoConnectorService> logger
-        )
-            : base()
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-            _fileService = new ConnectorFileService<GlookoBatchData>(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ConnectorFileService<GlookoBatchData>>()
-            );
-        }
-
-        public GlookoConnectorService(
-            GlookoConnectorConfiguration config,
-            ILogger<GlookoConnectorService> logger,
-            IRetryDelayStrategy retryDelayStrategy
-        )
-            : base()
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy =
-                retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-            _fileService = new ConnectorFileService<GlookoBatchData>(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ConnectorFileService<GlookoBatchData>>()
-            );
-        }
-
-        public GlookoConnectorService(
-            GlookoConnectorConfiguration config,
+            HttpClient httpClient,
+            IOptions<GlookoConnectorConfiguration> config,
             ILogger<GlookoConnectorService> logger,
             IRetryDelayStrategy retryDelayStrategy,
-            IRateLimitingStrategy rateLimitingStrategy
-        )
-            : base()
+            IRateLimitingStrategy rateLimitingStrategy,
+            IConnectorFileService<GlookoBatchData> fileService,
+            IApiDataSubmitter? apiDataSubmitter = null)
+            : base(httpClient, logger, apiDataSubmitter)
         {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy =
-                retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
-            _rateLimitingStrategy =
-                rateLimitingStrategy
-                ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
-            _fileService = new ConnectorFileService<GlookoBatchData>(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ConnectorFileService<GlookoBatchData>>()
-            );
-        }
-
-        public GlookoConnectorService(
-            GlookoConnectorConfiguration config,
-            ILogger<GlookoConnectorService> logger,
-            HttpClient httpClient
-        )
-            : base(httpClient)
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-            _fileService = new ConnectorFileService<GlookoBatchData>(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ConnectorFileService<GlookoBatchData>>()
-            );
-        }
-
-        public GlookoConnectorService(
-            GlookoConnectorConfiguration config,
-            ILogger<GlookoConnectorService> logger,
-            HttpClient httpClient,
-            IApiDataSubmitter apiDataSubmitter
-        )
-            : base(httpClient, apiDataSubmitter, logger)
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-            _fileService = new ConnectorFileService<GlookoBatchData>(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ConnectorFileService<GlookoBatchData>>()
-            );
+            _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
+            _retryDelayStrategy = retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
+            _rateLimitingStrategy = rateLimitingStrategy ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
+            _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
         }
 
         public override async Task<bool> AuthenticateAsync()
@@ -239,10 +144,17 @@ namespace Nocturne.Connectors.Glooko.Services
 
                     // Decompress if needed (check for gzip magic number 0x1F 0x8B)
                     string responseJson;
-                    if (responseBytes.Length >= 2 && responseBytes[0] == 0x1F && responseBytes[1] == 0x8B)
+                    if (
+                        responseBytes.Length >= 2
+                        && responseBytes[0] == 0x1F
+                        && responseBytes[1] == 0x8B
+                    )
                     {
                         using var compressedStream = new MemoryStream(responseBytes);
-                        using var gzipStream = new System.IO.Compression.GZipStream(compressedStream, System.IO.Compression.CompressionMode.Decompress);
+                        using var gzipStream = new System.IO.Compression.GZipStream(
+                            compressedStream,
+                            System.IO.Compression.CompressionMode.Decompress
+                        );
                         using var decompressedStream = new MemoryStream();
                         await gzipStream.CopyToAsync(decompressedStream);
                         responseJson = Encoding.UTF8.GetString(decompressedStream.ToArray());
@@ -274,14 +186,20 @@ namespace Nocturne.Connectors.Glooko.Services
                         _userData = JsonSerializer.Deserialize<GlookoUserData>(responseJson);
                         if (_userData?.UserLogin?.GlookoCode != null)
                         {
-                            _logger.LogInformation("User data parsed successfully. Glooko code: {GlookoCode}", _userData.UserLogin.GlookoCode);
+                            _logger.LogInformation(
+                                "User data parsed successfully. Glooko code: {GlookoCode}",
+                                _userData.UserLogin.GlookoCode
+                            );
                             return true;
                         }
                     }
                     catch (Exception ex)
                     {
                         _logger.LogWarning($"Could not parse user data: {ex.Message}");
-                        _logger.LogDebug("Response JSON: {ResponseJson}", responseJson.Substring(0, Math.Min(500, responseJson.Length)));
+                        _logger.LogDebug(
+                            "Response JSON: {ResponseJson}",
+                            responseJson.Substring(0, Math.Min(500, responseJson.Length))
+                        );
                     }
 
                     if (!string.IsNullOrEmpty(_sessionCookie))
@@ -301,7 +219,10 @@ namespace Nocturne.Connectors.Glooko.Services
                     if (errorBytes.Length >= 2 && errorBytes[0] == 0x1F && errorBytes[1] == 0x8B)
                     {
                         using var compressedStream = new MemoryStream(errorBytes);
-                        using var gzipStream = new System.IO.Compression.GZipStream(compressedStream, System.IO.Compression.CompressionMode.Decompress);
+                        using var gzipStream = new System.IO.Compression.GZipStream(
+                            compressedStream,
+                            System.IO.Compression.CompressionMode.Decompress
+                        );
                         using var decompressedStream = new MemoryStream();
                         await gzipStream.CopyToAsync(decompressedStream);
                         errorContent = Encoding.UTF8.GetString(decompressedStream.ToArray());
@@ -328,122 +249,39 @@ namespace Nocturne.Connectors.Glooko.Services
 
         public override async Task<IEnumerable<Entry>> FetchGlucoseDataAsync(DateTime? since = null)
         {
+            // Use the base class helper for file I/O and data fetching
+            var entries = await FetchWithOptionalFileIOAsync(
+                _config,
+                async (s) => await FetchBatchDataAsync(s),
+                TransformBatchDataToEntries,
+                _fileService,
+                "glooko_batch",
+                since
+            );
+
+            _logger.LogInformation(
+                "Retrieved {Count} glucose entries from Glooko",
+                entries.Count()
+            );
+
+            return entries;
+        }
+
+        // Adapter method to match Func<TData, IEnumerable<Entry>> signature
+        private IEnumerable<Entry> TransformBatchDataToEntries(GlookoBatchData batchData)
+        {
             var entries = new List<Entry>();
-
-            try
+            if (batchData?.Readings != null)
             {
-                GlookoBatchData? batchData = null;
-
-                // Check if we should load from file instead of fetching from API
-                if (_config.LoadFromFile)
+                foreach (var reading in batchData.Readings)
                 {
-                    var fileToLoad = _config.LoadFilePath;
-
-                    if (!string.IsNullOrEmpty(fileToLoad))
+                    var entry = ParseEntry(reading);
+                    if (entry != null)
                     {
-                        _logger.LogInformation(
-                            "Loading Glooko data from specified file: {FilePath}",
-                            fileToLoad
-                        );
-                        batchData = await _fileService.LoadDataAsync(fileToLoad);
-                    }
-                    else
-                    {
-                        // Load from most recent file in data directory
-                        var dataDir = _config.DataDirectory;
-                        var filePrefix = "glooko_batch";
-                        var availableFiles = _fileService.GetAvailableDataFiles(
-                            dataDir,
-                            filePrefix
-                        );
-
-                        if (availableFiles.Length > 0)
-                        {
-                            var mostRecentFile = _fileService.GetMostRecentDataFile(
-                                dataDir,
-                                filePrefix
-                            );
-                            if (mostRecentFile != null)
-                            {
-                                _logger.LogInformation(
-                                    "Loading Glooko data from most recent file: {FilePath}",
-                                    mostRecentFile
-                                );
-                                batchData = await _fileService.LoadDataAsync(mostRecentFile);
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogWarning(
-                                "No saved Glooko data files found in directory: {DataDirectory}",
-                                dataDir
-                            );
-                        }
+                        entries.Add(entry);
                     }
                 }
-
-                // If no data loaded from file, fetch from API
-                if (batchData == null)
-                {
-                    _logger.LogInformation("Fetching fresh data from Glooko API");
-
-                    // Use catch-up functionality to determine optimal since timestamp
-                    var effectiveSince = await CalculateSinceTimestampAsync(_config, since);
-                    batchData = await FetchBatchDataAsync(effectiveSince);
-
-                    // Save the fetched data if SaveRawData is enabled
-                    if (batchData != null && _config.SaveRawData)
-                    {
-                        var dataDir = _config.DataDirectory;
-                        var filePrefix = "glooko_batch";
-                        var savedPath = await _fileService.SaveDataAsync(
-                            batchData,
-                            dataDir,
-                            filePrefix
-                        );
-                        if (savedPath != null)
-                        {
-                            _logger.LogInformation(
-                                "Saved Glooko batch data for debugging: {FilePath}",
-                                savedPath
-                            );
-                        }
-                    }
-                }
-
-                // Convert CGM readings to glucose entries
-                if (batchData?.Readings != null)
-                {
-                    foreach (var reading in batchData.Readings)
-                    {
-                        var entry = ParseEntry(reading);
-                        if (entry != null)
-                        {
-                            entries.Add(entry);
-                        }
-                    }
-                }
-
-                _logger.LogInformation(
-                    "Retrieved {Count} glucose entries from Glooko",
-                    entries.Count
-                );
             }
-            catch (InvalidOperationException)
-            {
-                // Re-throw authentication-related exceptions
-                throw;
-            }
-            catch (HttpRequestException)
-            {
-                // Re-throw HTTP-related exceptions (including rate limiting)
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching Glooko glucose data");
-            }
-
             return entries;
         }
 
@@ -490,8 +328,10 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("foods", out var element))
-                                batchData.Foods = JsonSerializer.Deserialize<GlookoFood[]>(element.GetRawText()) ?? Array.Empty<GlookoFood>();
-                        })
+                                batchData.Foods =
+                                    JsonSerializer.Deserialize<GlookoFood[]>(element.GetRawText())
+                                    ?? Array.Empty<GlookoFood>();
+                        }),
                     },
                     new
                     {
@@ -499,8 +339,10 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("scheduledBasals", out var element))
-                                batchData.ScheduledBasals = JsonSerializer.Deserialize<GlookoBasal[]>(element.GetRawText()) ?? Array.Empty<GlookoBasal>();
-                        })
+                                batchData.ScheduledBasals =
+                                    JsonSerializer.Deserialize<GlookoBasal[]>(element.GetRawText())
+                                    ?? Array.Empty<GlookoBasal>();
+                        }),
                     },
                     new
                     {
@@ -508,8 +350,10 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("normalBoluses", out var element))
-                                batchData.NormalBoluses = JsonSerializer.Deserialize<GlookoBolus[]>(element.GetRawText()) ?? Array.Empty<GlookoBolus>();
-                        })
+                                batchData.NormalBoluses =
+                                    JsonSerializer.Deserialize<GlookoBolus[]>(element.GetRawText())
+                                    ?? Array.Empty<GlookoBolus>();
+                        }),
                     },
                     new
                     {
@@ -517,8 +361,11 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("readings", out var element))
-                                batchData.Readings = JsonSerializer.Deserialize<GlookoCgmReading[]>(element.GetRawText()) ?? Array.Empty<GlookoCgmReading>();
-                        })
+                                batchData.Readings =
+                                    JsonSerializer.Deserialize<GlookoCgmReading[]>(
+                                        element.GetRawText()
+                                    ) ?? Array.Empty<GlookoCgmReading>();
+                        }),
                     },
                     new
                     {
@@ -527,8 +374,11 @@ namespace Nocturne.Connectors.Glooko.Services
                         {
                             // Internal API returns 'readings' for BGM as well
                             if (json.TryGetProperty("readings", out var element))
-                                batchData.BloodGlucose = JsonSerializer.Deserialize<GlookoBloodGlucoseReading[]>(element.GetRawText()) ?? Array.Empty<GlookoBloodGlucoseReading>();
-                        })
+                                batchData.BloodGlucose =
+                                    JsonSerializer.Deserialize<GlookoBloodGlucoseReading[]>(
+                                        element.GetRawText()
+                                    ) ?? Array.Empty<GlookoBloodGlucoseReading>();
+                        }),
                     },
                     new
                     {
@@ -536,8 +386,11 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("bloodPressure", out var element))
-                                batchData.BloodPressure = JsonSerializer.Deserialize<GlookoBloodPressureReading[]>(element.GetRawText()) ?? Array.Empty<GlookoBloodPressureReading>();
-                        })
+                                batchData.BloodPressure =
+                                    JsonSerializer.Deserialize<GlookoBloodPressureReading[]>(
+                                        element.GetRawText()
+                                    ) ?? Array.Empty<GlookoBloodPressureReading>();
+                        }),
                     },
                     new
                     {
@@ -545,8 +398,11 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("activity", out var element))
-                                batchData.Activity = JsonSerializer.Deserialize<GlookoActivityReading[]>(element.GetRawText()) ?? Array.Empty<GlookoActivityReading>();
-                        })
+                                batchData.Activity =
+                                    JsonSerializer.Deserialize<GlookoActivityReading[]>(
+                                        element.GetRawText()
+                                    ) ?? Array.Empty<GlookoActivityReading>();
+                        }),
                     },
                     // Medications endpoint removed due to 404 errors
                     /*
@@ -566,8 +422,11 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("extendedBoluses", out var element))
-                                batchData.ExtendedBoluses = JsonSerializer.Deserialize<GlookoExtendedBolus[]>(element.GetRawText()) ?? Array.Empty<GlookoExtendedBolus>();
-                        })
+                                batchData.ExtendedBoluses =
+                                    JsonSerializer.Deserialize<GlookoExtendedBolus[]>(
+                                        element.GetRawText()
+                                    ) ?? Array.Empty<GlookoExtendedBolus>();
+                        }),
                     },
                     new
                     {
@@ -575,8 +434,11 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("suspendBasals", out var element))
-                                batchData.SuspendBasals = JsonSerializer.Deserialize<GlookoSuspendBasal[]>(element.GetRawText()) ?? Array.Empty<GlookoSuspendBasal>();
-                        })
+                                batchData.SuspendBasals =
+                                    JsonSerializer.Deserialize<GlookoSuspendBasal[]>(
+                                        element.GetRawText()
+                                    ) ?? Array.Empty<GlookoSuspendBasal>();
+                        }),
                     },
                     new
                     {
@@ -584,8 +446,11 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("temporaryBasals", out var element))
-                                batchData.TempBasals = JsonSerializer.Deserialize<GlookoTempBasal[]>(element.GetRawText()) ?? Array.Empty<GlookoTempBasal>();
-                        })
+                                batchData.TempBasals =
+                                    JsonSerializer.Deserialize<GlookoTempBasal[]>(
+                                        element.GetRawText()
+                                    ) ?? Array.Empty<GlookoTempBasal>();
+                        }),
                     },
                     new
                     {
@@ -593,8 +458,11 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("settings", out var element))
-                                batchData.PumpSettings = JsonSerializer.Deserialize<GlookoPumpSettings[]>(element.GetRawText()) ?? Array.Empty<GlookoPumpSettings>();
-                        })
+                                batchData.PumpSettings =
+                                    JsonSerializer.Deserialize<GlookoPumpSettings[]>(
+                                        element.GetRawText()
+                                    ) ?? Array.Empty<GlookoPumpSettings>();
+                        }),
                     },
                     new
                     {
@@ -602,8 +470,11 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("alarms", out var element))
-                                batchData.PumpAlarms = JsonSerializer.Deserialize<GlookoPumpAlarm[]>(element.GetRawText()) ?? Array.Empty<GlookoPumpAlarm>();
-                        })
+                                batchData.PumpAlarms =
+                                    JsonSerializer.Deserialize<GlookoPumpAlarm[]>(
+                                        element.GetRawText()
+                                    ) ?? Array.Empty<GlookoPumpAlarm>();
+                        }),
                     },
                     new
                     {
@@ -611,9 +482,12 @@ namespace Nocturne.Connectors.Glooko.Services
                         Handler = new Action<JsonElement>(json =>
                         {
                             if (json.TryGetProperty("events", out var element))
-                                batchData.PumpEvents = JsonSerializer.Deserialize<GlookoPumpEvent[]>(element.GetRawText()) ?? Array.Empty<GlookoPumpEvent>();
-                        })
-                    }
+                                batchData.PumpEvents =
+                                    JsonSerializer.Deserialize<GlookoPumpEvent[]>(
+                                        element.GetRawText()
+                                    ) ?? Array.Empty<GlookoPumpEvent>();
+                        }),
+                    },
                 };
 
                 // Fetch endpoints sequentially with rate limiting
@@ -636,13 +510,21 @@ namespace Nocturne.Connectors.Glooko.Services
                             }
                             catch (Exception ex)
                             {
-                                _logger.LogWarning(ex, "Error parsing data from {Endpoint}", def.Endpoint);
+                                _logger.LogWarning(
+                                    ex,
+                                    "Error parsing data from {Endpoint}",
+                                    def.Endpoint
+                                );
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to fetch from {Url}. Continuing with other endpoints.", url);
+                        _logger.LogWarning(
+                            ex,
+                            "Failed to fetch from {Url}. Continuing with other endpoints.",
+                            url
+                        );
                     }
                 }
 
@@ -718,7 +600,9 @@ namespace Nocturne.Connectors.Glooko.Services
                         }
 
                         treatment.Carbs = food.Carbs > 0 ? food.Carbs : food.CarbohydrateGrams;
-                        treatment.AdditionalProperties = JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(food));
+                        treatment.AdditionalProperties = JsonSerializer.Deserialize<
+                            Dictionary<string, object>
+                        >(JsonSerializer.Serialize(food));
                         treatment.Source = ConnectorSource;
                         treatments.Add(treatment);
                     }
@@ -775,7 +659,9 @@ namespace Nocturne.Connectors.Glooko.Services
                                 .ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                             Insulin = bolus.InsulinDelivered,
                             Carbs = bolus.CarbsInput > 0 ? bolus.CarbsInput : null,
-                            AdditionalProperties = JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(bolus)),
+                            AdditionalProperties = JsonSerializer.Deserialize<
+                                Dictionary<string, object>
+                            >(JsonSerializer.Serialize(bolus)),
                             Source = ConnectorSource,
                         };
                         treatments.Add(treatment);
@@ -805,7 +691,9 @@ namespace Nocturne.Connectors.Glooko.Services
                             Rate = basal.Rate,
                             Absolute = basal.Rate,
                             Duration = basal.Duration / 60.0, // Convert seconds to minutes
-                            AdditionalProperties = JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(basal)),
+                            AdditionalProperties = JsonSerializer.Deserialize<
+                                Dictionary<string, object>
+                            >(JsonSerializer.Serialize(basal)),
                             Source = ConnectorSource,
                         };
                         treatments.Add(treatment);
@@ -842,7 +730,9 @@ namespace Nocturne.Connectors.Glooko.Services
                 }
 
                 var actualConfig = config ?? _config;
-                _logger.LogInformation($"FetchAndUploadTreatmentsAsync: SaveRawData={actualConfig.SaveRawData}, DataDirectory={actualConfig.DataDirectory}");
+                _logger.LogInformation(
+                    $"FetchAndUploadTreatmentsAsync: SaveRawData={actualConfig.SaveRawData}, DataDirectory={actualConfig.DataDirectory}"
+                );
 
                 // Use catch-up functionality to determine optimal since timestamp
                 var effectiveSince = await CalculateSinceTimestampAsync(actualConfig, since);
@@ -853,74 +743,10 @@ namespace Nocturne.Connectors.Glooko.Services
                 {
                     _logger.LogWarning("No batch data retrieved from Glooko");
                     return false;
-                } // Save raw data files if configured to do so
-                if (actualConfig.SaveRawData)
-                {
-                    // Save each data type separately using base class methods
-                    if (batchData.Foods != null && batchData.Foods.Length > 0)
-                    {
-                        await SaveDataByTypeAsync(
-                            batchData.Foods,
-                            "foods",
-                            ServiceName,
-                            actualConfig,
-                            _logger
-                        );
-                    }
-
-                    if (batchData.Insulins != null && batchData.Insulins.Length > 0)
-                    {
-                        await SaveDataByTypeAsync(
-                            batchData.Insulins,
-                            "insulins",
-                            ServiceName,
-                            actualConfig,
-                            _logger
-                        );
-                    }
-
-                    if (batchData.NormalBoluses != null && batchData.NormalBoluses.Length > 0)
-                    {
-                        await SaveDataByTypeAsync(
-                            batchData.NormalBoluses,
-                            "boluses",
-                            ServiceName,
-                            actualConfig,
-                            _logger
-                        );
-                    }
-
-                    if (batchData.ScheduledBasals != null && batchData.ScheduledBasals.Length > 0)
-                    {
-                        await SaveDataByTypeAsync(
-                            batchData.ScheduledBasals,
-                            "basals",
-                            ServiceName,
-                            actualConfig,
-                            _logger
-                        );
-                    }
-
-                    if (batchData.Readings != null && batchData.Readings.Length > 0)
-                    {
-                        await SaveDataByTypeAsync(
-                            batchData.Readings,
-                            "glucose",
-                            ServiceName,
-                            actualConfig,
-                            _logger
-                        );
-                    }
-
-                    // Also save the complete batch data
-                    await SaveDataByTypeAsync(
-                        new[] { batchData },
-                        "batch",
-                        ServiceName,
-                        actualConfig,
-                        _logger
-                    );
                 }
+
+                // Save raw data files if configured - now using reflection-based helper
+                await SaveBatchDataAsync(batchData, ServiceName, actualConfig, _logger);
 
                 // Transform to treatments
                 var nightscoutTreatments = TransformBatchDataToTreatments(batchData);
@@ -1000,10 +826,17 @@ namespace Nocturne.Connectors.Glooko.Services
 
                     // Decompress if needed (check for gzip magic number 0x1F 0x8B)
                     string responseJson;
-                    if (responseBytes.Length >= 2 && responseBytes[0] == 0x1F && responseBytes[1] == 0x8B)
+                    if (
+                        responseBytes.Length >= 2
+                        && responseBytes[0] == 0x1F
+                        && responseBytes[1] == 0x8B
+                    )
                     {
                         using var compressedStream = new MemoryStream(responseBytes);
-                        using var gzipStream = new System.IO.Compression.GZipStream(compressedStream, System.IO.Compression.CompressionMode.Decompress);
+                        using var gzipStream = new System.IO.Compression.GZipStream(
+                            compressedStream,
+                            System.IO.Compression.CompressionMode.Decompress
+                        );
                         using var decompressedStream = new MemoryStream();
                         await gzipStream.CopyToAsync(decompressedStream);
                         responseJson = Encoding.UTF8.GetString(decompressedStream.ToArray());
@@ -1222,9 +1055,7 @@ namespace Nocturne.Connectors.Glooko.Services
 
                     if (success)
                     {
-                        _logger.LogInformation(
-                            "Glooko health data published successfully via API"
-                        );
+                        _logger.LogInformation("Glooko health data published successfully via API");
                         return true;
                     }
                     else

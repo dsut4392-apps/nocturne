@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -22,7 +23,6 @@ namespace Nocturne.Connectors.MyFitnessPal.Services;
 public class MyFitnessPalConnectorService : BaseConnectorService<MyFitnessPalConnectorConfiguration>
 {
     private readonly MyFitnessPalConnectorConfiguration _config;
-    private new readonly ILogger<MyFitnessPalConnectorService> _logger;
     private readonly Func<
         IEnumerable<Food>,
         CancellationToken,
@@ -49,15 +49,15 @@ public class MyFitnessPalConnectorService : BaseConnectorService<MyFitnessPalCon
     /// <param name="httpClient">HTTP client instance</param>
     /// <param name="createFoodAsync">Optional delegate for creating food records directly</param>
     public MyFitnessPalConnectorService(
-        MyFitnessPalConnectorConfiguration config,
-        ILogger<MyFitnessPalConnectorService> logger,
         HttpClient httpClient,
+        IOptions<MyFitnessPalConnectorConfiguration> config,
+        ILogger<MyFitnessPalConnectorService> logger,
+        IApiDataSubmitter? apiDataSubmitter = null,
         Func<IEnumerable<Food>, CancellationToken, Task<IEnumerable<Food>>>? createFoodAsync = null
     )
-        : base(httpClient)
+        : base(httpClient, logger, apiDataSubmitter)
     {
-        _config = config ?? throw new ArgumentNullException(nameof(config));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
         _createFoodAsync = createFoodAsync;
     }
 

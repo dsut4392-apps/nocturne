@@ -27,8 +27,7 @@ namespace Nocturne.Connectors.Core.Services
     {
         protected readonly HttpClient _httpClient;
         protected readonly IApiDataSubmitter? _apiDataSubmitter;
-        protected readonly ILogger? _logger;
-        private readonly bool _httpClientOwned;
+        protected readonly ILogger _logger;
         private const int MaxRetries = 3;
         private static readonly TimeSpan[] RetryDelays =
         {
@@ -42,56 +41,20 @@ namespace Nocturne.Connectors.Core.Services
         /// </summary>
         public abstract string ConnectorSource { get; }
 
-        protected BaseConnectorService()
-        {
-            var handler = new HttpClientHandler()
-            {
-                AutomaticDecompression =
-                    System.Net.DecompressionMethods.GZip
-                    | System.Net.DecompressionMethods.Deflate
-                    | System.Net.DecompressionMethods.Brotli,
-            };
-            _httpClient = new HttpClient(handler);
-            _httpClient.Timeout = TimeSpan.FromMinutes(2); // 2-minute timeout
-            _httpClientOwned = true;
-            _apiDataSubmitter = null;
-            _logger = null;
-        }
-
-        protected BaseConnectorService(HttpClient httpClient)
-        {
-            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            _httpClientOwned = false;
-            _apiDataSubmitter = null;
-            _logger = null;
-        }
-
+        /// <summary>
+        /// Base constructor for connector services using IHttpClientFactory pattern
+        /// </summary>
+        /// <param name="httpClient">HttpClient instance from IHttpClientFactory (will not be disposed)</param>
+        /// <param name="logger">Logger instance for this connector</param>
+        /// <param name="apiDataSubmitter">Optional API data submitter for Nocturne mode</param>
         protected BaseConnectorService(
             HttpClient httpClient,
-            IApiDataSubmitter? apiDataSubmitter,
-            ILogger? logger
-        )
+            ILogger logger,
+            IApiDataSubmitter? apiDataSubmitter = null)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            _httpClientOwned = false;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiDataSubmitter = apiDataSubmitter;
-            _logger = logger;
-        }
-
-        protected BaseConnectorService(IApiDataSubmitter? apiDataSubmitter, ILogger? logger)
-        {
-            var handler = new HttpClientHandler()
-            {
-                AutomaticDecompression =
-                    System.Net.DecompressionMethods.GZip
-                    | System.Net.DecompressionMethods.Deflate
-                    | System.Net.DecompressionMethods.Brotli,
-            };
-            _httpClient = new HttpClient(handler);
-            _httpClient.Timeout = TimeSpan.FromMinutes(2); // 2-minute timeout
-            _httpClientOwned = true;
-            _apiDataSubmitter = apiDataSubmitter;
-            _logger = logger;
         }
 
         /// <summary>
@@ -221,7 +184,9 @@ namespace Nocturne.Connectors.Core.Services
         {
             if (_apiDataSubmitter == null)
             {
-                _logger?.LogWarning("API data submitter not available for treatment data submission");
+                _logger?.LogWarning(
+                    "API data submitter not available for treatment data submission"
+                );
                 return false;
             }
 
@@ -268,7 +233,9 @@ namespace Nocturne.Connectors.Core.Services
         {
             if (_apiDataSubmitter == null)
             {
-                _logger?.LogWarning("API data submitter not available for device status submission");
+                _logger?.LogWarning(
+                    "API data submitter not available for device status submission"
+                );
                 return false;
             }
 
@@ -406,7 +373,6 @@ namespace Nocturne.Connectors.Core.Services
             return allSuccessful;
         }
 
-
         /// <summary>
         /// Main sync method that handles data synchronization based on connector mode
         /// </summary>
@@ -529,6 +495,132 @@ namespace Nocturne.Connectors.Core.Services
                 var entries = await FetchGlucoseDataAsync(sinceTimestamp);
                 return await UploadToNightscoutAsync(entries, config);
             }
+        }
+
+        /// <summary>
+        /// Helper method to fetch data with optional file I/O support (load/save)
+        /// </summary>
+        protected async Task<IEnumerable<TResult>> FetchWithOptionalFileIOAsync<TData, TResult>(
+            TConfig config,
+            Func<DateTime?, Task<TData?>> fetchAction,
+            Func<TData, IEnumerable<TResult>> transformAction,
+            IConnectorFileService<TData>? fileService,
+            string filePrefix,
+            DateTime? since = null
+        )
+            where TData : class
+        {
+            var results = new List<TResult>();
+
+            try
+            {
+                TData? data = null;
+
+                // Check if we should load from file instead of fetching from API
+                if (config.LoadFromFile && fileService != null)
+                {
+                    var fileToLoad = config.LoadFilePath;
+
+                    if (!string.IsNullOrEmpty(fileToLoad))
+                    {
+                        _logger?.LogInformation(
+                            "Loading data from specified file: {FilePath}",
+                            fileToLoad
+                        );
+                        data = await fileService.LoadDataAsync(fileToLoad);
+                    }
+                    else
+                    {
+                        // Load from most recent file in data directory
+                        var dataDir = config.DataDirectory;
+                        var availableFiles = fileService.GetAvailableDataFiles(dataDir, filePrefix);
+
+                        if (availableFiles.Length > 0)
+                        {
+                            var mostRecentFile = fileService.GetMostRecentDataFile(
+                                dataDir,
+                                filePrefix
+                            );
+                            if (mostRecentFile != null)
+                            {
+                                _logger?.LogInformation(
+                                    "Loading data from most recent file: {FilePath}",
+                                    mostRecentFile
+                                );
+                                data = await fileService.LoadDataAsync(mostRecentFile);
+                            }
+                        }
+                        else
+                        {
+                            _logger?.LogWarning(
+                                "No saved data files found in directory: {DataDirectory}",
+                                dataDir
+                            );
+                        }
+                    }
+                }
+                else if (config.LoadFromFile && fileService == null)
+                {
+                    _logger?.LogWarning(
+                        "LoadFromFile is enabled but no file service is available."
+                    );
+                }
+
+                // If no data loaded from file, fetch from API
+                if (data == null)
+                {
+                    _logger?.LogInformation("Fetching fresh data from source");
+
+                    // Use catch-up functionality to determine optimal since timestamp
+                    var effectiveSince = await CalculateSinceTimestampAsync(config, since);
+                    data = await fetchAction(effectiveSince);
+
+                    // Save the fetched data if SaveRawData is enabled
+                    if (data != null && config.SaveRawData && fileService != null)
+                    {
+                        var dataDir = config.DataDirectory;
+                        var savedPath = await fileService.SaveDataAsync(data, dataDir, filePrefix);
+                        if (savedPath != null)
+                        {
+                            _logger?.LogInformation(
+                                "Saved raw data for debugging: {FilePath}",
+                                savedPath
+                            );
+                        }
+                    }
+                    else if (data != null && config.SaveRawData && fileService == null)
+                    {
+                        _logger?.LogWarning(
+                            "SaveRawData is enabled but no file service is available."
+                        );
+                    }
+                }
+
+                // Transform data to results
+                if (data != null)
+                {
+                    var transformed = transformAction(data);
+                    results.AddRange(transformed);
+                }
+
+                _logger?.LogInformation("Retrieved {Count} items from source", results.Count);
+            }
+            catch (InvalidOperationException)
+            {
+                // Re-throw authentication-related exceptions
+                throw;
+            }
+            catch (HttpRequestException)
+            {
+                // Re-throw HTTP-related exceptions (including rate limiting)
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error fetching data");
+            }
+
+            return results;
         }
 
         /// <summary>
@@ -848,10 +940,132 @@ namespace Nocturne.Connectors.Core.Services
         }
 
         /// <summary>
+        /// Automatically saves all array properties from a batch data object using reflection
+        /// This eliminates verbose if/null checks for each property
+        /// </summary>
+        protected async Task SaveBatchDataAsync<TBatch>(
+            TBatch batchData,
+            string connectorName,
+            TConfig config,
+            ILogger logger
+        )
+            where TBatch : class
+        {
+            if (!config.SaveRawData || batchData == null)
+                return;
+
+            try
+            {
+                var batchType = typeof(TBatch);
+                var properties = batchType
+                    .GetProperties()
+                    .Where(p => p.PropertyType.IsArray && p.CanRead);
+
+                foreach (var prop in properties)
+                {
+                    var dataArray = prop.GetValue(batchData) as Array;
+                    if (dataArray != null && dataArray.Length > 0)
+                    {
+                        // Convert Array to typed array for serialization
+                        var elementType = prop.PropertyType.GetElementType();
+                        if (elementType != null)
+                        {
+                            var typedArray = Array.CreateInstance(elementType, dataArray.Length);
+                            Array.Copy(dataArray, typedArray, dataArray.Length);
+
+                            await SaveDataByTypeAsync(
+                                typedArray,
+                                prop.Name,
+                                connectorName,
+                                config,
+                                logger
+                            );
+                        }
+                    }
+                }
+
+                // Also save the complete batch data object
+                await SaveDataByTypeAsync(
+                    new[] { batchData },
+                    "batch",
+                    connectorName,
+                    config,
+                    logger
+                );
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error saving batch data using reflection");
+            }
+        }
+
+        /// <summary>
         /// Save raw data files by data type to organized folder structure
         /// </summary>
         protected async Task SaveDataByTypeAsync<T>(
             T[] data,
+            string dataTypeName,
+            string connectorName,
+            TConfig config,
+            ILogger logger
+        )
+        {
+            if (data == null || data.Length == 0)
+                return;
+
+            try
+            {
+                var timestamp = DateTime.Now.ToString("yyyy-MM-dd");
+                var connectorFolder = Path.Combine(
+                    config.DataDirectory,
+                    connectorName.ToLowerInvariant()
+                );
+                var fileName =
+                    $"{connectorName.ToLowerInvariant()}-{timestamp}-{dataTypeName.ToLowerInvariant()}.json";
+
+                // Ensure directory exists
+                if (!Directory.Exists(connectorFolder))
+                {
+                    Directory.CreateDirectory(connectorFolder);
+                    logger.LogInformation(
+                        "Created connector directory: {ConnectorFolder}",
+                        connectorFolder
+                    );
+                }
+
+                var filePath = Path.Combine(connectorFolder, fileName);
+                var json = JsonSerializer.Serialize(
+                    data,
+                    new JsonSerializerOptions
+                    {
+                        WriteIndented = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    }
+                );
+
+                await File.WriteAllTextAsync(filePath, json);
+                logger.LogInformation(
+                    "Saved {Count} {DataType} entries to {FilePath}",
+                    data.Length,
+                    dataTypeName,
+                    filePath
+                );
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    "Error saving {DataType} data to file: {Error}",
+                    dataTypeName,
+                    ex.Message
+                );
+            }
+        }
+
+        /// <summary>
+        /// Overload that accepts Array for use with reflection
+        /// </summary>
+        protected async Task SaveDataByTypeAsync(
+            Array data,
             string dataTypeName,
             string connectorName,
             TConfig config,
@@ -1039,10 +1253,7 @@ namespace Nocturne.Connectors.Core.Services
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && _httpClientOwned)
-            {
-                _httpClient?.Dispose();
-            }
+            // HttpClient is managed by IHttpClientFactory - do not dispose
         }
 
         public void Dispose()

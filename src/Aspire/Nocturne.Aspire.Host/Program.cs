@@ -265,6 +265,8 @@ class Program
                 secret: false
             );
 
+            var glookoSaveRawData = connectors.GetValue<bool>("Glooko:SaveRawData", false);
+
             var glooko = builder
                 .AddProject<Projects.Nocturne_Connectors_Glooko>(ServiceNames.GlookoConnector)
                 .WithExternalHttpEndpoints()
@@ -294,6 +296,7 @@ class Program
                 )
                 .WithEnvironment("NocturneApiUrl", api.GetEndpoint("http"))
                 .WithEnvironment("ApiSecret", apiSecret)
+                .WithEnvironment("SaveRawData", glookoSaveRawData.ToString())
                 .WaitFor(api)
                 .WithReference(api);
         }

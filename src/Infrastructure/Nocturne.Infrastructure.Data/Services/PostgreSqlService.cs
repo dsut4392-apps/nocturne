@@ -352,6 +352,54 @@ public class PostgreSqlService : IPostgreSqlService
         return await _treatmentRepository.GetTreatmentByIdAsync(id, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<Treatment?> CheckForDuplicateTreatmentAsync(
+        string? id,
+        string? originalId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug(
+            "Checking for duplicate treatment: id={Id}, originalId={OriginalId}",
+            id ?? "null",
+            originalId ?? "null"
+        );
+
+        // If both are null/empty, no duplicate check possible
+        if (string.IsNullOrEmpty(id) && string.IsNullOrEmpty(originalId))
+        {
+            return null;
+        }
+
+        // Try to find by OriginalId first (MongoDB ObjectId), then by GUID
+        Treatment? duplicate = null;
+
+        if (!string.IsNullOrEmpty(originalId))
+        {
+            duplicate = await _treatmentRepository.GetTreatmentByIdAsync(
+                originalId,
+                cancellationToken
+            );
+            if (duplicate != null)
+            {
+                _logger.LogDebug("Found duplicate treatment by OriginalId: {OriginalId}", originalId);
+                return duplicate;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(id))
+        {
+            duplicate = await _treatmentRepository.GetTreatmentByIdAsync(id, cancellationToken);
+            if (duplicate != null)
+            {
+                _logger.LogDebug("Found duplicate treatment by Id: {Id}", id);
+                return duplicate;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Get treatments with optional filtering and pagination (interface-compatible)
     /// </summary>
@@ -397,7 +445,54 @@ public class PostgreSqlService : IPostgreSqlService
     {
         var treatmentsList = treatments.ToList();
         _logger.LogDebug("Creating {Count} treatments", treatmentsList.Count);
-        return await _treatmentRepository.CreateTreatmentsAsync(treatmentsList, cancellationToken);
+
+        // Filter out duplicates before insertion
+        var uniqueTreatments = new List<Treatment>();
+        var skippedCount = 0;
+
+        foreach (var treatment in treatmentsList)
+        {
+            // The treatment.Id can be either a MongoDB ObjectId or a GUID string
+            // The repository's GetTreatmentByIdAsync handles checking both
+            var isDuplicate = await CheckForDuplicateTreatmentAsync(
+                treatment.Id,
+                null, // originalId is derived from treatment.Id by the mapper
+                cancellationToken
+            );
+
+            if (isDuplicate == null)
+            {
+                uniqueTreatments.Add(treatment);
+            }
+            else
+            {
+                skippedCount++;
+                _logger.LogDebug(
+                    "Skipping duplicate treatment: Id={Id}",
+                    treatment.Id ?? "null"
+                );
+            }
+        }
+
+        if (skippedCount > 0)
+        {
+            _logger.LogInformation(
+                "Skipped {SkippedCount} duplicate treatments out of {TotalCount}",
+                skippedCount,
+                treatmentsList.Count
+            );
+        }
+
+        // Create only unique treatments
+        if (uniqueTreatments.Count > 0)
+        {
+            return await _treatmentRepository.CreateTreatmentsAsync(
+                uniqueTreatments,
+                cancellationToken
+            );
+        }
+
+        return Enumerable.Empty<Treatment>();
     }
 
     /// <inheritdoc />

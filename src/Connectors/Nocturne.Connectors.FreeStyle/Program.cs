@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Nocturne.Connectors.Core.Extensions;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -21,12 +22,17 @@ public class Program
         builder.AddServiceDefaults();
 
         // Configure services
-        builder.Services.AddHttpClient();
+        // Bind configuration for HttpClient setup
+        var libreConfig = new LibreLinkUpConnectorConfiguration();
+        builder.Configuration.BindConnectorConfiguration(libreConfig, "FreeStyle");
 
-        // Configure connector-specific services
-        builder.Services.Configure<LibreLinkUpConnectorConfiguration>(
-            builder.Configuration.GetSection("Connectors:FreeStyle")
-        );
+        // Configure typed HttpClient for LibreConnectorService
+        builder.Services.AddHttpClient<LibreConnectorService>()
+            .ConfigureLibreLinkUpClient(libreConfig.LibreRegion);
+
+        // Register strategies
+        builder.Services.AddSingleton<IRetryDelayStrategy, ProductionRetryDelayStrategy>();
+        builder.Services.AddSingleton<IRateLimitingStrategy, ProductionRateLimitingStrategy>();
 
         // Configure API data submitter for HTTP-based data submission
         var apiUrl = builder.Configuration["NocturneApiUrl"];
@@ -34,21 +40,14 @@ public class Program
 
         builder.Services.AddSingleton<IApiDataSubmitter>(sp =>
         {
-            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient();
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient("NocturneApi");
             var logger = sp.GetRequiredService<ILogger<ApiDataSubmitter>>();
             if (string.IsNullOrEmpty(apiUrl))
             {
                 throw new InvalidOperationException("NocturneApiUrl configuration is missing.");
             }
             return new ApiDataSubmitter(httpClient, apiUrl, apiSecret, logger);
-        });
-
-        builder.Services.AddSingleton<LibreConnectorService>(sp =>
-        {
-            var config = sp.GetRequiredService<IOptions<LibreLinkUpConnectorConfiguration>>().Value;
-            var logger = sp.GetRequiredService<ILogger<LibreConnectorService>>();
-            var apiDataSubmitter = sp.GetRequiredService<IApiDataSubmitter>();
-            return new LibreConnectorService(config, logger, apiDataSubmitter);
         });
         builder.Services.AddHostedService<FreeStyleHostedService>();
 

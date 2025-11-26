@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Nocturne.Connectors.Core.Extensions;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -21,12 +22,13 @@ public class Program
         builder.AddServiceDefaults();
 
         // Configure services
-        builder.Services.AddHttpClient();
+        // Bind configuration for HttpClient setup
+        var mfpConfig = new MyFitnessPalConnectorConfiguration();
+        builder.Configuration.BindConnectorConfiguration(mfpConfig, "MyFitnessPal");
 
-        // Configure connector-specific services
-        builder.Services.Configure<MyFitnessPalConnectorConfiguration>(
-            builder.Configuration.GetSection("Connectors:MyFitnessPal")
-        );
+        // Configure typed HttpClient for MyFitnessPalConnectorService
+        builder.Services.AddHttpClient<MyFitnessPalConnectorService>()
+            .ConfigureMyFitnessPalClient();
 
         // Configure API data submitter for HTTP-based data submission
         var apiUrl = builder.Configuration["NocturneApiUrl"];
@@ -34,21 +36,14 @@ public class Program
 
         builder.Services.AddSingleton<IApiDataSubmitter>(sp =>
         {
-            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient();
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient("NocturneApi");
             var logger = sp.GetRequiredService<ILogger<ApiDataSubmitter>>();
             if (string.IsNullOrEmpty(apiUrl))
             {
                 throw new InvalidOperationException("NocturneApiUrl configuration is missing.");
             }
             return new ApiDataSubmitter(httpClient, apiUrl, apiSecret, logger);
-        });
-
-        builder.Services.AddSingleton<MyFitnessPalConnectorService>(sp =>
-        {
-            var config = sp.GetRequiredService<IOptions<MyFitnessPalConnectorConfiguration>>().Value;
-            var logger = sp.GetRequiredService<ILogger<MyFitnessPalConnectorService>>();
-            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient();
-            return new MyFitnessPalConnectorService(config, logger, httpClient);
         });
         builder.Services.AddSingleton<
             IMyFitnessPalManualSyncService,

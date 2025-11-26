@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Nocturne.Connectors.Core.Extensions;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -21,12 +22,18 @@ public class Program
         builder.AddServiceDefaults();
 
         // Configure services
-        builder.Services.AddHttpClient();
+        // Bind configuration for HttpClient setup
+        var glookoConfig = new GlookoConnectorConfiguration();
+        builder.Configuration.BindConnectorConfiguration(glookoConfig, "Glooko");
 
-        // Configure connector-specific services
-        builder.Services.Configure<GlookoConnectorConfiguration>(
-            builder.Configuration.GetSection("Connectors:Glooko")
-        );
+        // Configure typed HttpClient for GlookoConnectorService
+        builder.Services.AddHttpClient<GlookoConnectorService>()
+            .ConfigureGlookoClient(glookoConfig.GlookoServer);
+
+        // Register strategies
+        builder.Services.AddSingleton<IRetryDelayStrategy, ProductionRetryDelayStrategy>();
+        builder.Services.AddSingleton<IRateLimitingStrategy, ProductionRateLimitingStrategy>();
+        builder.Services.AddSingleton(typeof(IConnectorFileService<>), typeof(ConnectorFileService<>));
 
         // Configure API data submitter for HTTP-based data submission
         var apiUrl = builder.Configuration["NocturneApiUrl"];
@@ -34,23 +41,14 @@ public class Program
 
         builder.Services.AddSingleton<IApiDataSubmitter>(sp =>
         {
-            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient();
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient("NocturneApi");
             var logger = sp.GetRequiredService<ILogger<ApiDataSubmitter>>();
             if (string.IsNullOrEmpty(apiUrl))
             {
                 throw new InvalidOperationException("NocturneApiUrl configuration is missing.");
             }
             return new ApiDataSubmitter(httpClient, apiUrl, apiSecret, logger);
-        });
-
-        builder.Services.AddSingleton<GlookoConnectorService>(sp =>
-        {
-            var config = sp.GetRequiredService<IOptions<GlookoConnectorConfiguration>>().Value;
-            var logger = sp.GetRequiredService<ILogger<GlookoConnectorService>>();
-            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient();
-            var apiDataSubmitter = sp.GetRequiredService<IApiDataSubmitter>();
-
-            return new GlookoConnectorService(config, logger, httpClient, apiDataSubmitter);
         });
         builder.Services.AddHostedService<GlookoHostedService>();
 

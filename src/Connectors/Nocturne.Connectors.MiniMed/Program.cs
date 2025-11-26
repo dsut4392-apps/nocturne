@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Nocturne.Connectors.Core.Extensions;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -21,12 +22,27 @@ public class Program
         builder.AddServiceDefaults();
 
         // Configure services
-        builder.Services.AddHttpClient();
+        // Bind configuration for HttpClient setup
+        var careLinkConfig = new CareLinkConnectorConfiguration();
+        builder.Configuration.BindConnectorConfiguration(careLinkConfig, "MiniMed");
 
-        // Configure connector-specific services
-        builder.Services.Configure<CareLinkConnectorConfiguration>(
-            builder.Configuration.GetSection("Connectors:MiniMed")
+        var knownServers = new Dictionary<string, string>
+        {
+            { "us", "carelink.minimed.com" },
+            { "eu", "carelink.minimed.eu" },
+        };
+        var server = knownServers.GetValueOrDefault(
+            careLinkConfig.CarelinkRegion?.ToLowerInvariant() ?? "us",
+            knownServers["us"]
         );
+
+        // Configure typed HttpClient for CareLinkConnectorService
+        builder.Services.AddHttpClient<CareLinkConnectorService>()
+            .ConfigureCareLinkClient(server);
+
+        // Register strategies
+        builder.Services.AddSingleton<IRetryDelayStrategy, ProductionRetryDelayStrategy>();
+        builder.Services.AddSingleton<IRateLimitingStrategy, ProductionRateLimitingStrategy>();
 
         // Configure API data submitter for HTTP-based data submission
         var apiUrl = builder.Configuration["NocturneApiUrl"];
@@ -34,20 +50,14 @@ public class Program
 
         builder.Services.AddSingleton<IApiDataSubmitter>(sp =>
         {
-            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient();
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient("NocturneApi");
             var logger = sp.GetRequiredService<ILogger<ApiDataSubmitter>>();
             if (string.IsNullOrEmpty(apiUrl))
             {
                 throw new InvalidOperationException("NocturneApiUrl configuration is missing.");
             }
             return new ApiDataSubmitter(httpClient, apiUrl, apiSecret, logger);
-        });
-
-        builder.Services.AddSingleton<CareLinkConnectorService>(sp =>
-        {
-            var config = sp.GetRequiredService<IOptions<CareLinkConnectorConfiguration>>().Value;
-            var logger = sp.GetRequiredService<ILogger<CareLinkConnectorService>>();
-            return new CareLinkConnectorService(config, logger);
         });
         builder.Services.AddHostedService<MiniMedHostedService>();
 

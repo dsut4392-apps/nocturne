@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Core.Constants;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
@@ -28,7 +29,6 @@ namespace Nocturne.Connectors.FreeStyle.Services
     public class LibreConnectorService : BaseConnectorService<LibreLinkUpConnectorConfiguration>
     {
         private readonly LibreLinkUpConnectorConfiguration _config;
-        private new readonly ILogger<LibreConnectorService> _logger;
         private readonly IRetryDelayStrategy _retryDelayStrategy;
         private readonly IRateLimitingStrategy _rateLimitingStrategy;
         private string? _authToken;
@@ -67,103 +67,20 @@ namespace Nocturne.Connectors.FreeStyle.Services
         public override string ConnectorSource => "libre";
 
         public LibreConnectorService(
-            LibreLinkUpConnectorConfiguration config,
-            ILogger<LibreConnectorService> logger,
-            IApiDataSubmitter apiDataSubmitter
-        )
-            : base(apiDataSubmitter, logger)
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public LibreConnectorService(
-            LibreLinkUpConnectorConfiguration config,
-            ILogger<LibreConnectorService> logger
-        )
-            : base()
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public LibreConnectorService(
-            LibreLinkUpConnectorConfiguration config,
-            ILogger<LibreConnectorService> logger,
-            HttpClient httpClient
-        )
-            : base(httpClient)
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public LibreConnectorService(
-            LibreLinkUpConnectorConfiguration config,
-            ILogger<LibreConnectorService> logger,
             HttpClient httpClient,
+            IOptions<LibreLinkUpConnectorConfiguration> config,
+            ILogger<LibreConnectorService> logger,
             IRetryDelayStrategy retryDelayStrategy,
-            IRateLimitingStrategy rateLimitingStrategy
-        )
-            : base(httpClient)
+            IRateLimitingStrategy rateLimitingStrategy,
+            IApiDataSubmitter? apiDataSubmitter = null)
+            : base(httpClient, logger, apiDataSubmitter)
         {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy =
-                retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
-            _rateLimitingStrategy =
-                rateLimitingStrategy
-                ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
-
-            ConfigureHttpClient();
+            _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
+            _retryDelayStrategy = retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
+            _rateLimitingStrategy = rateLimitingStrategy ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
         }
 
-        private void ConfigureHttpClient()
-        {
-            var server = !string.IsNullOrEmpty(_config.LibreServer)
-                ? _config.LibreServer
-                : KnownEndpoints.GetValueOrDefault(
-                    _config.LibreRegion.ToUpperInvariant(),
-                    KnownEndpoints[LibreLinkUpConstants.Configuration.DefaultRegion]
-                );
 
-            _httpClient.BaseAddress = new Uri($"https://{server}");
-            _httpClient.DefaultRequestHeaders.Add("Accept", LibreLinkUpConstants.Headers.Accept);
-            _httpClient.DefaultRequestHeaders.Add(
-                "Content-Type",
-                LibreLinkUpConstants.Headers.ContentType
-            );
-            _httpClient.DefaultRequestHeaders.Add(
-                "User-Agent",
-                LibreLinkUpConstants.Headers.UserAgent
-            );
-            _httpClient.DefaultRequestHeaders.Add("version", LibreLinkUpConstants.Headers.Version);
-            _httpClient.DefaultRequestHeaders.Add("product", LibreLinkUpConstants.Headers.Product);
-        }
 
         public override async Task<bool> AuthenticateAsync()
         {

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Core.Constants;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
@@ -27,9 +28,9 @@ namespace Nocturne.Connectors.Dexcom.Services
     public class DexcomConnectorService : BaseConnectorService<DexcomConnectorConfiguration>
     {
         private readonly DexcomConnectorConfiguration _config;
-        private new readonly ILogger<DexcomConnectorService> _logger;
         private readonly IRetryDelayStrategy _retryDelayStrategy;
         private readonly IRateLimitingStrategy _rateLimitingStrategy;
+        private readonly IConnectorFileService<DexcomEntry[]>? _fileService;
         private string? _sessionId;
         private DateTime _sessionExpiresAt;
         private int _failedRequestCount = 0;
@@ -79,95 +80,20 @@ namespace Nocturne.Connectors.Dexcom.Services
         public override string ServiceName => "Dexcom Share";
 
         public DexcomConnectorService(
-            DexcomConnectorConfiguration config,
-            ILogger<DexcomConnectorService> logger,
-            IApiDataSubmitter apiDataSubmitter
-        )
-            : base(apiDataSubmitter, logger)
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public DexcomConnectorService(
-            DexcomConnectorConfiguration config,
-            ILogger<DexcomConnectorService> logger
-        )
-            : base()
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public DexcomConnectorService(
-            DexcomConnectorConfiguration config,
-            ILogger<DexcomConnectorService> logger,
-            HttpClient httpClient
-        )
-            : base(httpClient)
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public DexcomConnectorService(
-            DexcomConnectorConfiguration config,
-            ILogger<DexcomConnectorService> logger,
             HttpClient httpClient,
+            IOptions<DexcomConnectorConfiguration> config,
+            ILogger<DexcomConnectorService> logger,
             IRetryDelayStrategy retryDelayStrategy,
-            IRateLimitingStrategy rateLimitingStrategy
-        )
-            : base(httpClient)
+            IRateLimitingStrategy rateLimitingStrategy,
+            IApiDataSubmitter? apiDataSubmitter = null)
+            : base(httpClient, logger, apiDataSubmitter)
         {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy =
-                retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
-            _rateLimitingStrategy =
-                rateLimitingStrategy
-                ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
-
-            ConfigureHttpClient();
+            _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
+            _retryDelayStrategy = retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
+            _rateLimitingStrategy = rateLimitingStrategy ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
         }
 
-        private void ConfigureHttpClient()
-        {
-            var server = !string.IsNullOrEmpty(_config.DexcomServer)
-                ? _config.DexcomServer
-                : KnownServers.GetValueOrDefault(
-                    _config.DexcomRegion.ToLowerInvariant(),
-                    KnownServers["us"]
-                );
 
-            _httpClient.BaseAddress = new Uri($"https://{server}");
-            _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-            _httpClient.DefaultRequestHeaders.Add("Content-Type", "application/json");
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Nocturne-Connect/1.0");
-        }
 
         public override async Task<bool> AuthenticateAsync()
         {
@@ -396,6 +322,40 @@ namespace Nocturne.Connectors.Dexcom.Services
 
         public override async Task<IEnumerable<Entry>> FetchGlucoseDataAsync(DateTime? since = null)
         {
+            // Use the base class helper for file I/O and data fetching
+            var entries = await FetchWithOptionalFileIOAsync(
+                _config,
+                async (s) => await FetchBatchDataAsync(s),
+                TransformBatchDataToEntries,
+                _fileService,
+                "dexcom_batch",
+                since
+            );
+
+            _logger.LogInformation(
+                "Retrieved {Count} glucose entries from Dexcom",
+                entries.Count()
+            );
+
+            return entries;
+        }
+
+        private IEnumerable<Entry> TransformBatchDataToEntries(DexcomEntry[] batchData)
+        {
+            if (batchData == null || batchData.Length == 0)
+            {
+                return Enumerable.Empty<Entry>();
+            }
+
+            return batchData
+                .Where(entry => entry != null && entry.Value > 0)
+                .Select(ConvertDexcomEntry)
+                .OrderBy(entry => entry.Date)
+                .ToList();
+        }
+
+        private async Task<DexcomEntry[]?> FetchBatchDataAsync(DateTime? since = null)
+        {
             try
             {
                 // Check if session is expired and re-authenticate if needed
@@ -405,24 +365,24 @@ namespace Nocturne.Connectors.Dexcom.Services
                     if (!await AuthenticateAsync())
                     {
                         _failedRequestCount++;
-                        return Enumerable.Empty<Entry>();
+                        return null;
                     }
-                } // Apply rate limiting
+                }
+
+                // Apply rate limiting
                 await _rateLimitingStrategy.ApplyDelayAsync(0);
 
-                return await FetchGlucoseDataWithRetryAsync(since);
+                return await FetchRawDataWithRetryAsync(since);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching glucose data from Dexcom Share");
                 _failedRequestCount++;
-                return Enumerable.Empty<Entry>();
+                return null;
             }
         }
 
-        private async Task<IEnumerable<Entry>> FetchGlucoseDataWithRetryAsync(
-            DateTime? since = null
-        )
+        private async Task<DexcomEntry[]?> FetchRawDataWithRetryAsync(DateTime? since = null)
         {
             const int maxRetries = 3;
             HttpRequestException? lastException = null;
@@ -477,7 +437,7 @@ namespace Nocturne.Connectors.Dexcom.Services
                             {
                                 _logger.LogError("Failed to re-authenticate with Dexcom Share");
                                 _failedRequestCount++;
-                                return Enumerable.Empty<Entry>();
+                                return null;
                             }
                         }
 
@@ -517,7 +477,7 @@ namespace Nocturne.Connectors.Dexcom.Services
                                 errorContent
                             );
                             _failedRequestCount++;
-                            return Enumerable.Empty<Entry>();
+                            return null;
                         }
                     }
                     else
@@ -525,29 +485,10 @@ namespace Nocturne.Connectors.Dexcom.Services
                         var jsonContent = await response.Content.ReadAsStringAsync();
                         var dexcomEntries = JsonSerializer.Deserialize<DexcomEntry[]>(jsonContent);
 
-                        if (dexcomEntries == null || dexcomEntries.Length == 0)
-                        {
-                            _logger.LogDebug("No glucose data returned from Dexcom Share");
-                            return Enumerable.Empty<Entry>();
-                        }
-
-                        var glucoseEntries = dexcomEntries
-                            .Where(entry => entry != null && entry.Value > 0)
-                            .Select(ConvertDexcomEntry)
-                            .Where(entry =>
-                                entry != null && (!since.HasValue || entry.Date > since.Value)
-                            )
-                            .OrderBy(entry => entry.Date)
-                            .ToList();
-
                         // Reset failed request count on successful fetch
                         _failedRequestCount = 0;
 
-                        _logger.LogInformation(
-                            "Successfully fetched {Count} glucose entries from Dexcom Share",
-                            glucoseEntries.Count
-                        );
-                        return glucoseEntries;
+                        return dexcomEntries ?? Array.Empty<DexcomEntry>();
                     }
                 }
                 catch (HttpRequestException ex)
@@ -577,7 +518,7 @@ namespace Nocturne.Connectors.Dexcom.Services
                         attempt + 1
                     );
                     _failedRequestCount++;
-                    return Enumerable.Empty<Entry>();
+                    return null;
                 }
                 catch (Exception ex)
                 {
@@ -587,7 +528,7 @@ namespace Nocturne.Connectors.Dexcom.Services
                         attempt + 1
                     );
                     _failedRequestCount++;
-                    return Enumerable.Empty<Entry>();
+                    return null;
                 }
             }
 
@@ -600,7 +541,7 @@ namespace Nocturne.Connectors.Dexcom.Services
                 throw lastException;
             }
 
-            return Enumerable.Empty<Entry>();
+            return null;
         }
 
         /// <summary>
@@ -683,7 +624,7 @@ namespace Nocturne.Connectors.Dexcom.Services
             }
         }
 
-        private class DexcomEntry
+        public class DexcomEntry
         {
             public string DT { get; set; } = string.Empty;
             public string ST { get; set; } = string.Empty;

@@ -7,9 +7,11 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
+using Nocturne.Connectors.Nightscout.Models;
 using Nocturne.Connectors.Nightscout.Models;
 using Nocturne.Core.Models;
 
@@ -22,9 +24,9 @@ namespace Nocturne.Connectors.Nightscout.Services
     public class NightscoutConnectorService : BaseConnectorService<NightscoutConnectorConfiguration>
     {
         private readonly NightscoutConnectorConfiguration _config;
-        private new readonly ILogger<NightscoutConnectorService> _logger;
         private readonly IRetryDelayStrategy _retryDelayStrategy;
         private readonly IRateLimitingStrategy _rateLimitingStrategy;
+        private readonly IConnectorFileService<Entry[]>? _fileService;
         private int _failedRequestCount = 0;
 
         /// <summary>
@@ -54,114 +56,20 @@ namespace Nocturne.Connectors.Nightscout.Services
         public override string ServiceName => "Nightscout";
 
         public NightscoutConnectorService(
-            NightscoutConnectorConfiguration config,
-            ILogger<NightscoutConnectorService> logger
-        )
-            : base()
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public NightscoutConnectorService(
-            NightscoutConnectorConfiguration config,
-            ILogger<NightscoutConnectorService> logger,
-            IApiDataSubmitter apiDataSubmitter
-        )
-            : base(apiDataSubmitter, logger)
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public NightscoutConnectorService(
-            NightscoutConnectorConfiguration config,
-            ILogger<NightscoutConnectorService> logger,
-            IRetryDelayStrategy retryDelayStrategy
-        )
-            : base()
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy =
-                retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public NightscoutConnectorService(
-            NightscoutConnectorConfiguration config,
+            HttpClient httpClient,
+            IOptions<NightscoutConnectorConfiguration> config,
             ILogger<NightscoutConnectorService> logger,
             IRetryDelayStrategy retryDelayStrategy,
-            IRateLimitingStrategy rateLimitingStrategy
-        )
-            : base()
+            IRateLimitingStrategy rateLimitingStrategy,
+            IApiDataSubmitter? apiDataSubmitter = null)
+            : base(httpClient, logger, apiDataSubmitter)
         {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy =
-                retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
-            _rateLimitingStrategy =
-                rateLimitingStrategy
-                ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
-
-            ConfigureHttpClient();
+            _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
+            _retryDelayStrategy = retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
+            _rateLimitingStrategy = rateLimitingStrategy ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
         }
 
-        public NightscoutConnectorService(
-            NightscoutConnectorConfiguration config,
-            ILogger<NightscoutConnectorService> logger,
-            HttpClient httpClient
-        )
-            : base(httpClient)
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
 
-            ConfigureHttpClient();
-        }
-
-        private void ConfigureHttpClient()
-        {
-            var sourceUrl = _config.SourceEndpoint.TrimEnd('/');
-            _httpClient.BaseAddress = new Uri(sourceUrl);
-            _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Nocturne-Connect/1.0");
-
-            // Add API secret header if provided
-            if (!string.IsNullOrEmpty(_config.SourceApiSecret))
-            {
-                var hashedSecret = HashApiSecret(_config.SourceApiSecret);
-                _httpClient.DefaultRequestHeaders.Add("API-SECRET", hashedSecret);
-            }
-        }
 
         /// <summary>
         /// Hash API secret using SHA1 to match Nightscout's expected format
@@ -309,23 +217,56 @@ namespace Nocturne.Connectors.Nightscout.Services
 
         public override async Task<IEnumerable<Entry>> FetchGlucoseDataAsync(DateTime? since = null)
         {
+            // Use the base class helper for file I/O and data fetching
+            var entries = await FetchWithOptionalFileIOAsync(
+                _config,
+                async (s) => await FetchBatchDataAsync(s),
+                TransformBatchDataToEntries,
+                _fileService,
+                "nightscout_batch",
+                since
+            );
+
+            _logger.LogInformation(
+                "Retrieved {Count} glucose entries from Nightscout",
+                entries.Count()
+            );
+
+            return entries;
+        }
+
+        private IEnumerable<Entry> TransformBatchDataToEntries(Entry[] batchData)
+        {
+            if (batchData == null || batchData.Length == 0)
+            {
+                return Enumerable.Empty<Entry>();
+            }
+
+            return batchData
+                .Where(entry => entry != null && (entry.Mgdl > 0 || entry.Sgv > 0))
+                .OrderByDescending(entry => entry.Date)
+                .ToList();
+        }
+
+        private async Task<Entry[]?> FetchBatchDataAsync(DateTime? since = null)
+        {
             try
             {
                 // Apply rate limiting
                 await _rateLimitingStrategy.ApplyDelayAsync(0);
                 // Use a much higher count to get more data per request
                 int hundredAndTwentyDays = 120 * 24 * 60 * 5;
-                return await FetchGlucoseDataWithRetryAsync(since, hundredAndTwentyDays);
+                return await FetchRawDataWithRetryAsync(since, hundredAndTwentyDays);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching glucose data from source Nightscout");
                 _failedRequestCount++;
-                return Enumerable.Empty<Entry>();
+                return null;
             }
         }
 
-        private async Task<IEnumerable<Entry>> FetchGlucoseDataWithRetryAsync(
+        private async Task<Entry[]?> FetchRawDataWithRetryAsync(
             DateTime? since = null,
             int count = 120 * 24 * 60 * 5 // Increase default limit to 100k to get more data per request
         )
@@ -402,28 +343,10 @@ namespace Nocturne.Connectors.Nightscout.Services
                         var jsonContent = await response.Content.ReadAsStringAsync();
                         var entries = JsonSerializer.Deserialize<Entry[]>(jsonContent);
 
-                        if (entries == null || entries.Length == 0)
-                        {
-                            _logger.LogDebug("No glucose data returned from source Nightscout");
-                            return Enumerable.Empty<Entry>();
-                        }
-
-                        var filteredEntries = entries
-                            .Where(entry => entry != null && (entry.Mgdl > 0 || entry.Sgv > 0))
-                            .Where(entry =>
-                                entry != null && (!since.HasValue || entry.Date > since.Value)
-                            )
-                            .OrderByDescending(entry => entry.Date)
-                            .ToList();
-
                         // Reset failed request count on successful fetch
                         _failedRequestCount = 0;
 
-                        _logger.LogInformation(
-                            "Successfully fetched {Count} glucose entries from source Nightscout",
-                            filteredEntries.Count
-                        );
-                        return filteredEntries;
+                        return entries ?? Array.Empty<Entry>();
                     }
                 }
                 catch (HttpRequestException ex)
@@ -478,7 +401,7 @@ namespace Nocturne.Connectors.Nightscout.Services
             {
                 throw lastException;
             }
-            return Enumerable.Empty<Entry>();
+            return null;
         }
 
         /// <summary>
@@ -693,9 +616,7 @@ namespace Nocturne.Connectors.Nightscout.Services
         {
             try
             {
-                _logger.LogInformation(
-                    "Starting Nightscout data sync using API data submitter"
-                );
+                _logger.LogInformation("Starting Nightscout data sync using API data submitter");
 
                 // Use the base class SyncDataAsync method which handles uploading to Nocturne API
                 var success = await SyncDataAsync(config, cancellationToken);

@@ -51,6 +51,31 @@ namespace Nocturne.Connectors.Core.Models
             if (!Enum.IsDefined(typeof(ConnectSource), ConnectSource))
                 throw new ArgumentException($"Invalid connector source: {ConnectSource}");
 
+            if (UseAsyncProcessing)
+            {
+                if (MessageTimeout <= TimeSpan.Zero)
+                    throw new ArgumentException("MessageTimeout must be greater than zero");
+
+                if (MaxRetryAttempts < 0)
+                    throw new ArgumentException("MaxRetryAttempts cannot be negative");
+
+                if (BatchSize <= 0)
+                    throw new ArgumentException("BatchSize must be greater than zero");
+
+                if (!string.IsNullOrEmpty(RoutingKeyPrefix))
+                {
+                    if (
+                        !System.Text.RegularExpressions.Regex.IsMatch(
+                            RoutingKeyPrefix,
+                            "^[a-zA-Z0-9.]*$"
+                        )
+                    )
+                        throw new ArgumentException(
+                            "RoutingKeyPrefix can only contain alphanumeric characters and dots"
+                        );
+                }
+            }
+
             ValidateSourceSpecificConfiguration();
         }
 

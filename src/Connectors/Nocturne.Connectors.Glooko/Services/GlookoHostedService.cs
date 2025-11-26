@@ -55,7 +55,23 @@ public class GlookoHostedService : BackgroundService
                     }
                     else
                     {
-                        _logger.LogWarning("Glooko data sync failed");
+                        _logger.LogWarning("Glooko health data sync failed");
+                    }
+
+                    // Also sync treatments (boluses, carbs, etc.)
+                    var treatmentsSuccess = await connectorService.FetchAndUploadTreatmentsAsync(
+                        config: _config
+                    );
+
+                    if (treatmentsSuccess)
+                    {
+                        _logger.LogInformation("Glooko treatments sync completed successfully");
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Glooko treatments sync failed (or no treatments found)"
+                        );
                     }
                 }
                 catch (Exception ex)

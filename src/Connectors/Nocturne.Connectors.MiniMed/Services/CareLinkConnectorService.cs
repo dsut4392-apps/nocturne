@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -26,7 +27,6 @@ namespace Nocturne.Connectors.MiniMed.Services
     public class CareLinkConnectorService : BaseConnectorService<CareLinkConnectorConfiguration>
     {
         private readonly CareLinkConnectorConfiguration _config;
-        private new readonly ILogger<CareLinkConnectorService> _logger;
         private readonly IRetryDelayStrategy _retryDelayStrategy;
         private readonly IRateLimitingStrategy _rateLimitingStrategy;
         private string? _authToken;
@@ -81,85 +81,20 @@ namespace Nocturne.Connectors.MiniMed.Services
         public override string ConnectorSource => "carelink";
 
         public CareLinkConnectorService(
-            CareLinkConnectorConfiguration config,
-            ILogger<CareLinkConnectorService> logger
-        )
-            : base()
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy = new ProductionRetryDelayStrategy();
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public CareLinkConnectorService(
-            CareLinkConnectorConfiguration config,
-            ILogger<CareLinkConnectorService> logger,
-            IRetryDelayStrategy retryDelayStrategy
-        )
-            : base()
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy =
-                retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
-            _rateLimitingStrategy = new ProductionRateLimitingStrategy(
-                LoggerFactory
-                    .Create(builder => builder.AddConsole())
-                    .CreateLogger<ProductionRateLimitingStrategy>()
-            );
-
-            ConfigureHttpClient();
-        }
-
-        public CareLinkConnectorService(
-            CareLinkConnectorConfiguration config,
+            HttpClient httpClient,
+            IOptions<CareLinkConnectorConfiguration> config,
             ILogger<CareLinkConnectorService> logger,
             IRetryDelayStrategy retryDelayStrategy,
-            IRateLimitingStrategy rateLimitingStrategy
-        )
-            : base()
+            IRateLimitingStrategy rateLimitingStrategy,
+            IApiDataSubmitter? apiDataSubmitter = null)
+            : base(httpClient, logger, apiDataSubmitter)
         {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryDelayStrategy =
-                retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
-            _rateLimitingStrategy =
-                rateLimitingStrategy
-                ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
-
-            ConfigureHttpClient();
+            _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
+            _retryDelayStrategy = retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
+            _rateLimitingStrategy = rateLimitingStrategy ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
         }
 
-        private void ConfigureHttpClient()
-        {
-            var server = KnownServers.GetValueOrDefault(
-                _config.CarelinkRegion.ToLowerInvariant(),
-                KnownServers["us"]
-            );
 
-            _httpClient.BaseAddress = new Uri($"https://{server}");
-            _httpClient.DefaultRequestHeaders.Add(
-                "Accept",
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-            );
-            _httpClient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br");
-            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en;q=0.9, *;q=0.8");
-            _httpClient.DefaultRequestHeaders.Add(
-                "User-Agent",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15"
-            );
-            _httpClient.DefaultRequestHeaders.Add(
-                "sec-ch-ua",
-                "\"Chromium\";v=\"112\", \"Google Chrome\";v=\"112\", \"Not:A-Brand\";v=\"99\""
-            );
-        }
 
         public override async Task<bool> AuthenticateAsync()
         {

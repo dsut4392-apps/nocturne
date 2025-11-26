@@ -155,6 +155,19 @@ public interface IPostgreSqlService
     );
 
     /// <summary>
+    /// Check for duplicate treatment in the database by ID or OriginalId
+    /// </summary>
+    /// <param name="id">Treatment ID (GUID)</param>
+    /// <param name="originalId">Original treatment ID (MongoDB ObjectId)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Existing treatment if duplicate found, null otherwise</returns>
+    Task<Treatment?> CheckForDuplicateTreatmentAsync(
+        string? id,
+        string? originalId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Get treatments with pagination
     /// </summary>
     /// <param name="count">Maximum number of treatments to return</param>

@@ -422,4 +422,10 @@ public class Treatment : ProcessableDocumentBase
     [JsonPropertyName("transmitterId")]
     [Sanitizable]
     public string? TransmitterId { get; set; }
+
+    /// <summary>
+    /// Gets or sets additional properties for the treatment
+    /// </summary>
+    [JsonPropertyName("additional_properties")]
+    public Dictionary<string, object>? AdditionalProperties { get; set; }
 }

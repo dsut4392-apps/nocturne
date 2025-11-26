@@ -60,6 +60,9 @@ builder.Configuration.AddJsonFile(
     reloadOnChange: true
 );
 
+// Ensure environment variables (injected by Aspire) take precedence over appsettings.json
+builder.Configuration.AddEnvironmentVariables();
+
 builder.AddServiceDefaults();
 
 // Configure PostgreSQL database

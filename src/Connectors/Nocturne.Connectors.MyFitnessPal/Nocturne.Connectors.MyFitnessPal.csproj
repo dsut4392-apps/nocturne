@@ -7,6 +7,12 @@
     <Description>MyFitnessPal data source connector service</Description>
     <Company>Nocturne</Company>
     <Product>Nocturne Connectors</Product>
+
+    <!-- Container publishing configuration for Aspire -->
+    <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
+    <ContainerImageName>myfitnespal-connector</ContainerImageName>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+    <ContainerWorkingDirectory>/app</ContainerWorkingDirectory>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Nocturne.Connectors.Core\Nocturne.Connectors.Core.csproj" />

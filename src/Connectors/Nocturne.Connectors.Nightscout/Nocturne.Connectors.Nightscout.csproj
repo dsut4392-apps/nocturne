@@ -7,6 +7,12 @@
     <Description>Nightscout-to-Nightscout data synchronization connector service</Description>
     <Company>Nocturne</Company>
     <Product>Nocturne Connectors</Product>
+
+    <!-- Container publishing configuration for Aspire -->
+    <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
+    <ContainerImageName>nightscout-connector</ContainerImageName>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+    <ContainerWorkingDirectory>/app</ContainerWorkingDirectory>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Core\Nocturne.Core.Models\Nocturne.Core.Models.csproj" />

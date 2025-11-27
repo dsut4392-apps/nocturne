@@ -9,6 +9,12 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591;NU1608;NU1701</NoWarn>
+
+    <!-- Container publishing configuration for Aspire -->
+    <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
+    <ContainerImageName>nocturne-api</ContainerImageName>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+    <ContainerWorkingDirectory>/app</ContainerWorkingDirectory>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Alexa.NET" />

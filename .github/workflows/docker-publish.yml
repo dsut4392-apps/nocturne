@@ -1,4 +1,4 @@
-name: Build and Publish Docker Images
+name: Build and Publish with Aspire
 
 on:
   push:
@@ -11,11 +11,16 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_REPOSITORY: ${{ github.repository }}
-  DOTNET_VERSION: '9.0.x'
+  DOTNET_VERSION: '10.0.x'
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -26,21 +31,31 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Install Aspire CLI
+        run: dotnet tool install --global aspire --prerelease
+
+      - name: Install Aspire workload
+        run: dotnet workload install aspire
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
           cache-dependency-path: src/Web/pnpm-lock.yaml
 
-      - name: Install dependencies
+      - name: Install web dependencies
         working-directory: src/Web
         run: pnpm install --frozen-lockfile
+
+      - name: Build bridge package
+        working-directory: src/Web/packages/bridge
+        run: pnpm run build
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -65,54 +80,148 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Build and push nocturne-api image
+      - name: Restore .NET dependencies
+        run: dotnet restore
+
+      # Build container images using .NET's built-in container support
+      # Aspire projects are standard .NET projects that can be published as containers
+      - name: Build and push Nocturne.API container
         if: github.event_name != 'pull_request'
-        run: |
-          IMAGE_TAG=${{ steps.version.outputs.version }}
-          REGISTRY=${{ env.REGISTRY }}
-          REPO=${{ env.IMAGE_REPOSITORY }}
-          IMAGE_NAME=${REGISTRY}/${REPO}/nocturne-api:${IMAGE_TAG}
-
-          echo "Building ${IMAGE_NAME}"
-          docker buildx build \
-            --platform linux/amd64 \
-            --tag ${IMAGE_NAME} \
-            --push \
-            --file src/API/Nocturne.API/Dockerfile \
-            .
-
-      - name: Build and push nocturne-web image
-        if: github.event_name != 'pull_request'
-        run: |
-          IMAGE_TAG=${{ steps.version.outputs.version }}
-          REGISTRY=${{ env.REGISTRY }}
-          REPO=${{ env.IMAGE_REPOSITORY }}
-          IMAGE_NAME=${REGISTRY}/${REPO}/nocturne-web:${IMAGE_TAG}
-
-          echo "Building ${IMAGE_NAME}"
-          docker buildx build \
-            --platform linux/amd64 \
-            --tag ${IMAGE_NAME} \
-            --push \
-            --file src/Web/packages/app/Dockerfile \
-            src/Web
-
-      - name: Publish Aspire manifest
-        working-directory: src/Aspire/Nocturne.Aspire.Host
+        working-directory: src/API/Nocturne.API
         run: |
           dotnet publish \
             --os linux \
             --arch x64 \
             -c Release \
-            -p:PublishProfile=DefaultContainer \
+            /t:PublishContainer \
             -p:ContainerRegistry=${{ env.REGISTRY }} \
-            -p:ContainerRepository=${{ env.IMAGE_REPOSITORY }} \
+            -p:ContainerImageName=${{ env.IMAGE_REPOSITORY }}/nocturne-api \
             -p:ContainerImageTag=${{ steps.version.outputs.version }}
 
-  publish-manifest:
+      # Build connector containers using .NET's built-in container support
+      - name: Build and push Dexcom connector
+        if: github.event_name != 'pull_request'
+        working-directory: src/Connectors/Nocturne.Connectors.Dexcom
+        run: |
+          dotnet publish \
+            --os linux \
+            --arch x64 \
+            -c Release \
+            /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerImageName=${{ env.IMAGE_REPOSITORY }}/dexcom-connector \
+            -p:ContainerImageTag=${{ steps.version.outputs.version }}
+
+      - name: Build and push Glooko connector
+        if: github.event_name != 'pull_request'
+        working-directory: src/Connectors/Nocturne.Connectors.Glooko
+        run: |
+          dotnet publish \
+            --os linux \
+            --arch x64 \
+            -c Release \
+            /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerImageName=${{ env.IMAGE_REPOSITORY }}/glooko-connector \
+            -p:ContainerImageTag=${{ steps.version.outputs.version }}
+
+      - name: Build and push FreeStyle connector
+        if: github.event_name != 'pull_request'
+        working-directory: src/Connectors/Nocturne.Connectors.FreeStyle
+        run: |
+          dotnet publish \
+            --os linux \
+            --arch x64 \
+            -c Release \
+            /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerImageName=${{ env.IMAGE_REPOSITORY }}/freestyle-connector \
+            -p:ContainerImageTag=${{ steps.version.outputs.version }}
+
+      - name: Build and push MiniMed connector
+        if: github.event_name != 'pull_request'
+        working-directory: src/Connectors/Nocturne.Connectors.MiniMed
+        run: |
+          dotnet publish \
+            --os linux \
+            --arch x64 \
+            -c Release \
+            /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerImageName=${{ env.IMAGE_REPOSITORY }}/minimed-connector \
+            -p:ContainerImageTag=${{ steps.version.outputs.version }}
+
+      - name: Build and push Nightscout connector
+        if: github.event_name != 'pull_request'
+        working-directory: src/Connectors/Nocturne.Connectors.Nightscout
+        run: |
+          dotnet publish \
+            --os linux \
+            --arch x64 \
+            -c Release \
+            /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerImageName=${{ env.IMAGE_REPOSITORY }}/nightscout-connector \
+            -p:ContainerImageTag=${{ steps.version.outputs.version }}
+
+      - name: Build and push MyFitnessPal connector
+        if: github.event_name != 'pull_request'
+        working-directory: src/Connectors/Nocturne.Connectors.MyFitnessPal
+        run: |
+          dotnet publish \
+            --os linux \
+            --arch x64 \
+            -c Release \
+            /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerImageName=${{ env.IMAGE_REPOSITORY }}/myfitnespal-connector \
+            -p:ContainerImageTag=${{ steps.version.outputs.version }}
+
+      # Build web app using standard Docker build (Node.js/Vite apps don't use .NET container publishing)
+      - name: Build and push Nocturne.Web container
+        if: github.event_name != 'pull_request'
+        run: |
+          # Create optimized Dockerfile for SvelteKit production build
+          cat > Dockerfile.web << 'EOF'
+          FROM node:20-alpine AS builder
+          WORKDIR /app
+          RUN npm install -g pnpm@9
+
+          # Copy workspace files
+          COPY src/Web/package.json src/Web/pnpm-lock.yaml src/Web/pnpm-workspace.yaml ./
+          COPY src/Web/packages ./packages
+
+          # Install dependencies and build
+          RUN pnpm install --frozen-lockfile
+          RUN pnpm --filter @nocturne/app run build
+
+          FROM node:20-alpine
+          WORKDIR /app
+
+          # Copy built artifacts
+          COPY --from=builder /app/packages/app/build ./build
+          COPY --from=builder /app/packages/app/package.json ./
+
+          ENV NODE_ENV=production
+          ENV PORT=5173
+          EXPOSE 5173
+
+          CMD ["node", "build"]
+          EOF
+
+          docker buildx build \
+            --platform linux/amd64 \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/nocturne-web:${{ steps.version.outputs.version }} \
+            --file Dockerfile.web \
+            --push \
+            .
+
+  publish-aspire-manifest:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -123,40 +232,146 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Generate deployment manifest
+      - name: Install Aspire CLI
+        run: dotnet tool install --global aspire --prerelease
+
+      - name: Install Aspire workload
+        run: dotnet workload install aspire
+
+      - name: Restore .NET dependencies
+        run: dotnet restore
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: src/Web/pnpm-lock.yaml
+
+      - name: Install web dependencies
+        working-directory: src/Web
+        run: pnpm install --frozen-lockfile
+
+      - name: Build bridge package
+        working-directory: src/Web/packages/bridge
+        run: pnpm run build
+
+      - name: Determine version tag
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          elif [[ "${{ github.ref }}" == refs/heads/master ]] || [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            VERSION=latest
+          else
+            VERSION=${GITHUB_REF#refs/heads/}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # Use Aspire's publish command to generate deployment manifests
+      - name: Generate Aspire deployment artifacts
         working-directory: src/Aspire/Nocturne.Aspire.Host
+        env:
+          ContainerRegistry: ${{ env.REGISTRY }}
+          ContainerRepository: ${{ env.IMAGE_REPOSITORY }}
+          IMAGE_TAG: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p ../../../release
-          dotnet run --project . -- \
+
+          # Generate docker-compose artifacts using Aspire CLI
+          aspire publish \
+            --project . \
+            --publisher docker-compose \
+            --output-path ../../../release
+
+          # Also generate the Aspire manifest for advanced deployments
+          aspire publish \
+            --project . \
             --publisher manifest \
-            --output-path ../../../release/aspire-manifest.json
+            --output-path ../../../release
 
-      - name: Create release artifacts
+      - name: Create deployment documentation
         run: |
-          cp .env.example release/
-          echo "# Aspire Deployment for Nocturne" > release/README.md
-          echo "" >> release/README.md
-          echo "Version: ${{ github.ref_name }}" >> release/README.md
-          echo "Registry: ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}" >> release/README.md
+          cat > release/README.md << 'EOF'
+          # Nocturne Aspire Deployment
 
-      - name: Upload release artifacts
+          Version: ${{ github.ref_name }}
+          Registry: ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
+
+          ## Quick Start
+
+          1. Copy `.env.example` to `.env` and configure your environment variables
+          2. Update image references in `docker-compose.yaml` to use version `${{ steps.version.outputs.version }}`
+          3. Run: `docker compose up -d`
+
+          ## Container Images
+
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/nocturne-api:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/nocturne-web:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/dexcom-connector:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/glooko-connector:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/freestyle-connector:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/minimed-connector:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/nightscout-connector:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/myfitnespal-connector:${{ steps.version.outputs.version }}`
+
+          ## Files in this release
+
+          - `docker-compose.yaml` - Docker Compose orchestration (generated by Aspire)
+          - `aspire-manifest.json` - Aspire deployment manifest (for advanced scenarios)
+          - `.env.example` - Environment variables template
+
+          ## Deployment Options
+
+          ### Docker Compose (Recommended)
+          ```bash
+          docker compose up -d
+          ```
+
+          ### Aspire Deploy (Advanced)
+          ```bash
+          aspire deploy --manifest aspire-manifest.json
+          ```
+          EOF
+
+          # Copy env example if it exists
+          if [ -f .env.example ]; then
+            cp .env.example release/
+          fi
+
+      - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: nocturne-aspire-manifest
+          name: nocturne-deployment-${{ steps.version.outputs.version }}
           path: release/
+          retention-days: 90
 
   security-scan:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
     strategy:
       matrix:
-        image-name: [nocturne-api, nocturne-web]
+        image-name:
+          - nocturne-api
+          - nocturne-web
+          - dexcom-connector
+          - glooko-connector
+          - freestyle-connector
+          - minimed-connector
+          - nightscout-connector
+          - myfitnespal-connector
 
     steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -176,31 +391,17 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Pull image for scanning
-        run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.image-name }}:${{ steps.version.outputs.version }}
-
       - name: Run Trivy vulnerability scanner
-        id: trivy
         uses: aquasecurity/trivy-action@master
-        continue-on-error: true
         with:
           image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.image-name }}:${{ steps.version.outputs.version }}'
           format: 'sarif'
-          output: 'trivy-results-${{ matrix.image-name }}.sarif'
-          exit-code: '0'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
 
-      - name: Check if SARIF file exists
-        id: check-sarif
-        run: |
-          if [ -f "trivy-results-${{ matrix.image-name }}.sarif" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Upload Trivy scan results to GitHub Security tab
+      - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
-        if: steps.check-sarif.outputs.exists == 'true'
+        if: always()
         with:
-          sarif_file: 'trivy-results-${{ matrix.image-name }}.sarif'
+          sarif_file: 'trivy-results.sarif'
+          category: ${{ matrix.image-name }}

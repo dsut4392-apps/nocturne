@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Glooko.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Glooko.Services;
 
 namespace Nocturne.Connectors.Glooko;

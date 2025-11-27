@@ -11,8 +11,7 @@ using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
-using Nocturne.Connectors.Nightscout.Models;
-using Nocturne.Connectors.Nightscout.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Core.Models;
 
 namespace Nocturne.Connectors.Nightscout.Services

@@ -13,7 +13,7 @@ using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
-using Nocturne.Connectors.MiniMed.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Core.Models;
 
 #nullable enable
@@ -107,7 +107,7 @@ namespace Nocturne.Connectors.MiniMed.Services
                 {
                     _logger.LogInformation(
                         "Authenticating with MiniMed CareLink for user: {Username} (attempt {Attempt}/{MaxRetries})",
-                        _config.CarelinkUsername,
+                        _config.CareLinkUsername,
                         attempt + 1,
                         maxRetries
                     );
@@ -229,7 +229,7 @@ namespace Nocturne.Connectors.MiniMed.Services
         {
             try
             {
-                var url = $"/patient/sso/login?country={_config.CarelinkCountryCode}&lang=en";
+                var url = $"/patient/sso/login?country={_config.CareLinkCountry}&lang=en";
                 var response = await _httpClient.GetAsync(url);
 
                 if (!response.IsSuccessStatusCode)
@@ -297,10 +297,10 @@ namespace Nocturne.Connectors.MiniMed.Services
                 {
                     { "sessionID", loginFlow.SessionId },
                     { "sessionData", loginFlow.SessionData },
-                    { "locale", _config.CarelinkCountryCode },
+                    { "locale", _config.CareLinkCountry },
                     { "action", "login" },
-                    { "username", _config.CarelinkUsername },
-                    { "password", _config.CarelinkPassword },
+                    { "username", _config.CareLinkUsername },
+                    { "password", _config.CareLinkPassword },
                 };
 
                 var formContent = new FormUrlEncodedContent(payload);
@@ -618,11 +618,11 @@ namespace Nocturne.Connectors.MiniMed.Services
             {
                 var payload = new
                 {
-                    username = _userProfile?.Username ?? _config.CarelinkUsername,
-                    role = string.IsNullOrEmpty(_config.CarelinkPatientUsername)
+                    username = _userProfile?.Username ?? _config.CareLinkUsername,
+                    role = string.IsNullOrEmpty(_config.CareLinkPatientUsername)
                         ? "patient"
                         : "carepartner",
-                    patientId = _config.CarelinkPatientUsername,
+                    patientId = _config.CareLinkPatientUsername,
                 };
 
                 var json = JsonSerializer.Serialize(payload);

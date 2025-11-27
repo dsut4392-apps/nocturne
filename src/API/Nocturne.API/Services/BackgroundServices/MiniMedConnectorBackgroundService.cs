@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using Nocturne.Connectors.MiniMed.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.MiniMed.Services;
 
 namespace Nocturne.API.Services.BackgroundServices;

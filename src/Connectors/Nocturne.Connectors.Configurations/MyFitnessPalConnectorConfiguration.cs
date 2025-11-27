@@ -5,11 +5,18 @@ using Nocturne.Connectors.Core.Models;
 
 #nullable enable
 
-namespace Nocturne.Connectors.MyFitnessPal.Models
+namespace Nocturne.Connectors.Configurations
 {
     /// <summary>
     /// Configuration specific to MyFitnessPal connector
     /// </summary>
+    [ConnectorRegistration(
+        connectorName: "MyFitnessPal",
+        projectTypeName: "Nocturne_Connectors_MyFitnessPal",
+        serviceName: "ServiceNames.MyFitnessPalConnector",
+        environmentPrefix: "ServiceNames.ConnectorEnvironment.MyFitnessPalPrefix",
+        connectSourceName: "ConnectSource.MyFitnessPal"
+    )]
     public class MyFitnessPalConnectorConfiguration : BaseConnectorConfiguration
     {
         public MyFitnessPalConnectorConfiguration()
@@ -22,6 +29,7 @@ namespace Nocturne.Connectors.MyFitnessPal.Models
         /// </summary>
         [Required]
         [EnvironmentVariable("CONNECT_MFP_USERNAME")]
+        [AspireParameter("mfp-username", "Username", secret: false, description: "MyFitnessPal username")]
         public string MyFitnessPalUsername { get; set; } = string.Empty;
 
         /// <summary>
@@ -29,17 +37,20 @@ namespace Nocturne.Connectors.MyFitnessPal.Models
         /// </summary>
         [Required]
         [EnvironmentVariable("CONNECT_MFP_PASSWORD")]
+        [AspireParameter("mfp-password", "Password", secret: true, description: "MyFitnessPal password")]
         public string MyFitnessPalPassword { get; set; } = string.Empty;
 
         /// <summary>
         /// MyFitnessPal API key (if available)
         /// </summary>
         [EnvironmentVariable("CONNECT_MFP_API_KEY")]
+        [AspireParameter("mfp-api-key", "ApiKey", secret: true, description: "MyFitnessPal API Key (optional)")]
         public string MyFitnessPalApiKey { get; set; } = string.Empty;
 
         /// <summary>
         /// Number of days to sync from MyFitnessPal (defaults to 7)
         /// </summary>
+        [AspireParameter("mfp-sync-days", "SyncDays", secret: false, description: "Number of days to sync", defaultValue: "7")]
         public int SyncDays { get; set; } = 7;
 
         protected override void ValidateSourceSpecificConfiguration()

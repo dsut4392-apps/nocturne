@@ -11,19 +11,19 @@ using Nocturne.API.Middleware;
 using Nocturne.API.Services;
 using Nocturne.API.Services.BackgroundServices;
 using Nocturne.API.Services.Compatibility;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Services;
-using Nocturne.Connectors.Dexcom.Models;
+
 using Nocturne.Connectors.Dexcom.Services;
-using Nocturne.Connectors.FreeStyle.Models;
 using Nocturne.Connectors.FreeStyle.Services;
-using Nocturne.Connectors.Glooko.Models;
+
 using Nocturne.Connectors.Glooko.Services;
-using Nocturne.Connectors.MiniMed.Models;
+
 using Nocturne.Connectors.MiniMed.Services;
-using Nocturne.Connectors.MyFitnessPal.Models;
+
 using Nocturne.Connectors.MyFitnessPal.Services;
-using Nocturne.Connectors.Nightscout.Models;
+
 using Nocturne.Connectors.Nightscout.Services;
 using Nocturne.Core.Constants;
 using Nocturne.Core.Contracts;

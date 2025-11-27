@@ -9,6 +9,7 @@ using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
 using Nocturne.Connectors.Glooko.Constants;
 using Nocturne.Connectors.Glooko.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Glooko.Services;
 
 namespace Nocturne.Connectors.Glooko;
@@ -30,9 +31,12 @@ public class Program
         // Register the fully bound configuration instance
         builder.Services.AddSingleton<IOptions<GlookoConnectorConfiguration>>(new OptionsWrapper<GlookoConnectorConfiguration>(glookoConfig));
 
-        var server = !string.IsNullOrEmpty(glookoConfig.GlookoServer)
-            ? glookoConfig.GlookoServer
-            : GlookoConstants.Configuration.DefaultServer;
+        var server = glookoConfig.GlookoServer?.ToUpperInvariant() switch
+        {
+            "US" => GlookoConstants.Servers.US,
+            "EU" => GlookoConstants.Servers.EU,
+            _ => GlookoConstants.Configuration.DefaultServer
+        };
 
         builder.Services.AddHttpClient<GlookoConnectorService>()
             .ConfigureGlookoClient(server);

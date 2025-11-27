@@ -1,0 +1,368 @@
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Text;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
+
+namespace Nocturne.Aspire.SourceGenerators
+{
+    /// <summary>
+    /// Source generator that creates Aspire connector extension methods from configuration classes
+    /// marked with [ConnectorRegistration] attribute.
+    /// </summary>
+    [Generator]
+    public class ConnectorExtensionsGenerator : IIncrementalGenerator
+    {
+        private const string ConnectorRegistrationAttributeFullName =
+            "Nocturne.Connectors.Core.Extensions.ConnectorRegistrationAttribute";
+        private const string AspireParameterAttributeFullName =
+            "Nocturne.Connectors.Core.Extensions.AspireParameterAttribute";
+
+        public void Initialize(IncrementalGeneratorInitializationContext context)
+        {
+            // Use CompilationProvider to access ALL referenced assemblies (including project references)
+            var connectorClasses = context
+                .CompilationProvider.SelectMany(
+                    static (compilation, _) => GetAllConnectorTypes(compilation)
+                )
+                .Collect();
+
+            // Generate extension methods for all connectors
+            context.RegisterSourceOutput(
+                connectorClasses,
+                static (spc, connectors) => GenerateExtensions(spc, connectors)
+            );
+        }
+
+        /// <summary>
+        /// Scans all referenced assemblies for types with [ConnectorRegistration] attribute.
+        /// This includes both project references and NuGet packages.
+        /// </summary>
+        private static IEnumerable<ConnectorInfo> GetAllConnectorTypes(Compilation compilation)
+        {
+            var connectors = new List<ConnectorInfo>();
+
+            // Get the ConnectorRegistrationAttribute type symbol
+            var attributeType = compilation.GetTypeByMetadataName(
+                ConnectorRegistrationAttributeFullName
+            );
+
+            if (attributeType == null)
+                return connectors;
+
+            // Scan ALL referenced assemblies (including project references)
+            foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
+            {
+                // Skip system assemblies for performance
+                if (assembly.Name.StartsWith("System") || assembly.Name.StartsWith("Microsoft"))
+                    continue;
+
+                foreach (var type in GetTypesInAssembly(assembly.GlobalNamespace))
+                {
+                    var connectorAttr = type.GetAttributes()
+                        .FirstOrDefault(a =>
+                            SymbolEqualityComparer.Default.Equals(a.AttributeClass, attributeType)
+                        );
+
+                    if (connectorAttr != null)
+                    {
+                        var connectorInfo = ExtractConnectorInfo(compilation, type, connectorAttr);
+                        if (connectorInfo != null)
+                            connectors.Add(connectorInfo);
+                    }
+                }
+            }
+
+            return connectors;
+        }
+
+        /// <summary>
+        /// Recursively walks the namespace tree to find all types in an assembly.
+        /// </summary>
+        private static IEnumerable<INamedTypeSymbol> GetTypesInAssembly(INamespaceSymbol ns)
+        {
+            foreach (var type in ns.GetTypeMembers())
+                yield return type;
+
+            foreach (var childNs in ns.GetNamespaceMembers())
+            {
+                foreach (var type in GetTypesInAssembly(childNs))
+                    yield return type;
+            }
+        }
+
+        /// <summary>
+        /// Extracts connector metadata from a type symbol with [ConnectorRegistration] attribute.
+        /// </summary>
+        private static ConnectorInfo? ExtractConnectorInfo(
+            Compilation compilation,
+            INamedTypeSymbol typeSymbol,
+            AttributeData connectorAttr
+        )
+        {
+            // Extract connector registration metadata
+            var connectorName = connectorAttr.ConstructorArguments[0].Value?.ToString();
+            var projectTypeName = connectorAttr.ConstructorArguments[1].Value?.ToString();
+            var serviceName = connectorAttr.ConstructorArguments[2].Value?.ToString();
+            var environmentPrefix = connectorAttr.ConstructorArguments[3].Value?.ToString();
+            var connectSourceName = connectorAttr.ConstructorArguments[4].Value?.ToString();
+
+            if (
+                connectorName == null
+                || projectTypeName == null
+                || serviceName == null
+                || environmentPrefix == null
+                || connectSourceName == null
+            )
+                return null;
+
+            // Get the AspireParameterAttribute type symbol
+            var paramAttributeType = compilation.GetTypeByMetadataName(
+                AspireParameterAttributeFullName
+            );
+            if (paramAttributeType == null)
+                return null;
+
+            var envVarAttributeType = compilation.GetTypeByMetadataName(
+                "Nocturne.Connectors.Core.Extensions.EnvironmentVariableAttribute"
+            );
+
+            // Find all properties with AspireParameterAttribute
+            var parameters = new List<ParameterInfo>();
+            foreach (var member in typeSymbol.GetMembers().OfType<IPropertySymbol>())
+            {
+                var paramAttr = member
+                    .GetAttributes()
+                    .FirstOrDefault(a =>
+                        SymbolEqualityComparer.Default.Equals(a.AttributeClass, paramAttributeType)
+                    );
+
+                if (paramAttr == null)
+                    continue;
+
+                var paramName = paramAttr.ConstructorArguments[0].Value?.ToString();
+                var configPath = paramAttr.ConstructorArguments[1].Value?.ToString();
+                var isSecret =
+                    paramAttr.ConstructorArguments.Length > 2
+                        ? (bool?)paramAttr.ConstructorArguments[2].Value ?? false
+                        : false;
+                var description =
+                    paramAttr.ConstructorArguments.Length > 3
+                        ? paramAttr.ConstructorArguments[3].Value?.ToString()
+                        : null;
+                var defaultValue =
+                    paramAttr.ConstructorArguments.Length > 4
+                        ? paramAttr.ConstructorArguments[4].Value?.ToString()
+                        : null;
+
+                // Check for EnvironmentVariableAttribute
+                string? envVarName = null;
+                if (envVarAttributeType != null)
+                {
+                    var envVarAttr = member
+                        .GetAttributes()
+                        .FirstOrDefault(a =>
+                            SymbolEqualityComparer.Default.Equals(
+                                a.AttributeClass,
+                                envVarAttributeType
+                            )
+                        );
+                    if (envVarAttr != null)
+                    {
+                        envVarName = envVarAttr.ConstructorArguments[0].Value?.ToString();
+                    }
+                }
+
+                if (paramName != null && configPath != null)
+                {
+                    parameters.Add(
+                        new ParameterInfo(
+                            PropertyName: member.Name,
+                            ParameterName: paramName,
+                            ConfigPath: configPath,
+                            IsSecret: isSecret,
+                            Description: description,
+                            DefaultValue: defaultValue,
+                            EnvironmentVariableName: envVarName
+                        )
+                    );
+                }
+            }
+
+            return new ConnectorInfo(
+                ConnectorName: connectorName,
+                ProjectTypeName: projectTypeName,
+                ServiceName: serviceName,
+                EnvironmentPrefix: environmentPrefix,
+                ConnectSourceName: connectSourceName,
+                Parameters: parameters.ToImmutableArray()
+            );
+        }
+
+        private static void GenerateExtensions(
+            SourceProductionContext context,
+            ImmutableArray<ConnectorInfo> connectors
+        )
+        {
+            // Always generate a diagnostic to show what we found
+            var diagnostic = Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    "NOCGEN001",
+                    "Connector Generator Status",
+                    $"Found {connectors.Length} connector(s) with [ConnectorRegistration] attribute",
+                    "NocturneSourceGenerators",
+                    DiagnosticSeverity.Warning,
+                    isEnabledByDefault: true
+                ),
+                Location.None
+            );
+            context.ReportDiagnostic(diagnostic);
+
+            if (connectors.IsEmpty)
+                return;
+
+            var sb = new StringBuilder();
+            sb.AppendLine("#nullable enable");
+            sb.AppendLine("using Aspire.Hosting;");
+            sb.AppendLine("using Aspire.Hosting.ApplicationModel;");
+            sb.AppendLine("using Microsoft.Extensions.Configuration;");
+            sb.AppendLine("using Nocturne.Core.Constants;");
+            sb.AppendLine("using Nocturne.Connectors.Core.Models;");
+            sb.AppendLine();
+            sb.AppendLine("namespace Nocturne.Aspire.Host.Extensions");
+            sb.AppendLine("{");
+            sb.AppendLine("    /// <summary>");
+            sb.AppendLine("    /// Auto-generated connector extension methods");
+            sb.AppendLine("    /// </summary>");
+            sb.AppendLine("    public static partial class ConnectorExtensions");
+            sb.AppendLine("    {");
+
+            foreach (var connector in connectors)
+            {
+                GenerateConnectorMethod(sb, connector);
+            }
+
+            sb.AppendLine("    }");
+            sb.AppendLine("}");
+
+            context.AddSource(
+                "ConnectorExtensions.g.cs",
+                SourceText.From(sb.ToString(), Encoding.UTF8)
+            );
+        }
+
+        private static void GenerateConnectorMethod(StringBuilder sb, ConnectorInfo connector)
+        {
+            var methodName = $"Add{connector.ConnectorName}Connector";
+
+            sb.AppendLine();
+            sb.AppendLine($"        public static IDistributedApplicationBuilder {methodName}(");
+            sb.AppendLine("            this IDistributedApplicationBuilder builder,");
+            sb.AppendLine("            IResourceBuilder<ProjectResource> api,");
+            sb.AppendLine("            IResourceBuilder<ParameterResource> apiSecret)");
+            sb.AppendLine("        {");
+            sb.AppendLine(
+                "            var connectors = builder.Configuration.GetSection(\"Parameters:Connectors\");"
+            );
+            sb.AppendLine(
+                $"            var enabled = connectors.GetValue<bool>(\"{connector.ConnectorName}:Enabled\", false);"
+            );
+            sb.AppendLine();
+            sb.AppendLine("            if (!enabled) return builder;");
+            sb.AppendLine();
+
+            // Generate parameter declarations
+            foreach (var param in connector.Parameters)
+            {
+                var varName = ToCamelCase(param.PropertyName);
+                var configValue =
+                    $"builder.Configuration[\"Parameters:Connectors:{connector.ConnectorName}:{param.ConfigPath}\"]";
+                var defaultVal = param.DefaultValue != null ? $"\"{param.DefaultValue}\"" : "\"\"";
+
+                sb.AppendLine($"            var {varName} = builder.AddParameter(");
+                sb.AppendLine($"                \"{param.ParameterName}\",");
+                sb.AppendLine($"                value: {configValue} ?? {defaultVal},");
+                sb.AppendLine($"                secret: {param.IsSecret.ToString().ToLower()})");
+
+                if (!string.IsNullOrEmpty(param.Description))
+                {
+                    sb.AppendLine(
+                        $"                .WithDescription(\"{EscapeString(param.Description)}\")"
+                    );
+                }
+
+                sb.AppendLine("                ;");
+                sb.AppendLine();
+            }
+
+            // Generate connector resource
+            sb.AppendLine("            var connector = builder");
+            sb.AppendLine(
+                $"                .AddProject<Projects.{connector.ProjectTypeName}>({connector.ServiceName})"
+            );
+            sb.AppendLine("                .WithHttpEndpoint(port: 0, name: \"http\")");
+            sb.AppendLine(
+                "                .WithEnvironment(\"NocturneApiUrl\", api.GetEndpoint(\"http\"))"
+            );
+            sb.AppendLine("                .WithEnvironment(\"ApiSecret\", apiSecret)");
+            sb.AppendLine("                .WaitFor(api)");
+            sb.AppendLine("                .WithReference(api);");
+
+            // Inject configuration as environment variables
+            foreach (var param in connector.Parameters)
+            {
+                if (!string.IsNullOrEmpty(param.EnvironmentVariableName))
+                {
+                    var varName = ToCamelCase(param.PropertyName);
+                    sb.AppendLine($"            connector.WithEnvironment(\"{param.EnvironmentVariableName}\", {varName});");
+                }
+            }
+            sb.AppendLine();
+
+            // Set parent relationships
+            foreach (var param in connector.Parameters)
+            {
+                var varName = ToCamelCase(param.PropertyName);
+                sb.AppendLine($"            {varName}.WithParentRelationship(connector);");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("            return builder;");
+            sb.AppendLine("        }");
+        }
+
+        private static string ToCamelCase(string str)
+        {
+            if (string.IsNullOrEmpty(str) || char.IsLower(str[0]))
+                return str;
+            return char.ToLower(str[0]) + str.Substring(1);
+        }
+
+        private static string EscapeString(string str)
+        {
+            return str.Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+        }
+
+        private record ConnectorInfo(
+            string ConnectorName,
+            string ProjectTypeName,
+            string ServiceName,
+            string EnvironmentPrefix,
+            string ConnectSourceName,
+            ImmutableArray<ParameterInfo> Parameters
+        );
+
+        private record ParameterInfo(
+            string PropertyName,
+            string ParameterName,
+            string ConfigPath,
+            bool IsSecret,
+            string? Description,
+            string? DefaultValue,
+            string? EnvironmentVariableName
+        );
+    }
+}

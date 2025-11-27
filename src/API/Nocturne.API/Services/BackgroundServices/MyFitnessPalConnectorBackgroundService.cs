@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.MyFitnessPal.Models;
 using Nocturne.Connectors.MyFitnessPal.Services;
 using Nocturne.Core.Constants;

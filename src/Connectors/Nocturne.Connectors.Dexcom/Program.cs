@@ -7,7 +7,7 @@ using Nocturne.Connectors.Core.Extensions;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
-using Nocturne.Connectors.Dexcom.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Dexcom.Services;
 
 namespace Nocturne.Connectors.Dexcom;
@@ -30,13 +30,16 @@ public class Program
         builder.Services.AddSingleton<IOptions<DexcomConnectorConfiguration>>(new OptionsWrapper<DexcomConnectorConfiguration>(dexcomConfig));
 
         // Configure typed HttpClient for DexcomConnectorService
+        string serverUrl;
+        if (dexcomConfig.DexcomServer.Equals("US", StringComparison.OrdinalIgnoreCase))
+            serverUrl = "share2.dexcom.com";
+        else if (dexcomConfig.DexcomServer.Equals("EU", StringComparison.OrdinalIgnoreCase) || dexcomConfig.DexcomServer.Equals("ous", StringComparison.OrdinalIgnoreCase))
+            serverUrl = "shareous1.dexcom.com";
+        else
+            serverUrl = dexcomConfig.DexcomServer;
+
         builder.Services.AddHttpClient<DexcomConnectorService>()
-            .ConfigureDexcomClient(
-                !string.IsNullOrEmpty(dexcomConfig.DexcomServer)
-                    ? dexcomConfig.DexcomServer
-                    : (dexcomConfig.DexcomRegion.ToLowerInvariant() == "ous"
-                        ? "shareous1.dexcom.com"
-                        : "share2.dexcom.com"));
+            .ConfigureDexcomClient(serverUrl);
 
         // Register strategies
         builder.Services.AddSingleton<IRetryDelayStrategy, ProductionRetryDelayStrategy>();

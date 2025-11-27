@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Core.Models;
-using Nocturne.Connectors.MiniMed.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.MiniMed.Services;
 
 namespace Nocturne.Connectors.MiniMed;

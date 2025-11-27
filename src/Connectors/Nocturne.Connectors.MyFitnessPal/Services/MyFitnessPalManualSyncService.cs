@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Nocturne.Connectors.Core.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.MyFitnessPal.Models;
 using Nocturne.Core.Constants;
 

@@ -7,7 +7,7 @@ using Nocturne.Connectors.Core.Extensions;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
-using Nocturne.Connectors.Nightscout.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Nightscout.Services;
 
 namespace Nocturne.Connectors.Nightscout;

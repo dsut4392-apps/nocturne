@@ -14,6 +14,7 @@ using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
 using Nocturne.Connectors.Glooko.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Core.Models;
 
 #nullable enable
@@ -99,7 +100,7 @@ namespace Nocturne.Connectors.Glooko.Services
                 {
                     userLogin = new
                     {
-                        email = _config.GlookoEmail,
+                        email = _config.GlookoUsername,
                         password = _config.GlookoPassword,
                     },
                     deviceInformation = new

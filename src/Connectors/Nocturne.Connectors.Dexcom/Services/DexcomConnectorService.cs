@@ -14,7 +14,7 @@ using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
 using Nocturne.Connectors.Dexcom.Constants;
-using Nocturne.Connectors.Dexcom.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Core.Models;
 
 #nullable enable

@@ -5,11 +5,18 @@ using Nocturne.Connectors.Core.Models;
 
 #nullable enable
 
-namespace Nocturne.Connectors.Dexcom.Models
+namespace Nocturne.Connectors.Configurations
 {
     /// <summary>
     /// Configuration specific to Dexcom Share connector
     /// </summary>
+    [ConnectorRegistration(
+        connectorName: "Dexcom",
+        projectTypeName: "Nocturne_Connectors_Dexcom",
+        serviceName: "ServiceNames.DexcomConnector",
+        environmentPrefix: "ServiceNames.ConnectorEnvironment.DexcomPrefix",
+        connectSourceName: "ConnectSource.Dexcom"
+    )]
     public class DexcomConnectorConfiguration : BaseConnectorConfiguration
     {
         public DexcomConnectorConfiguration()
@@ -21,38 +28,35 @@ namespace Nocturne.Connectors.Dexcom.Models
         /// Dexcom Share username
         /// </summary>
         [Required]
-        [EnvironmentVariable("CONNECT_SHARE_ACCOUNT_NAME")]
+        [EnvironmentVariable("CONNECT_DEXCOM_USERNAME")]
+        [AspireParameter("dexcom-username", "Username", secret: false, description: "Dexcom account username")]
         public string DexcomUsername { get; set; } = string.Empty;
 
         /// <summary>
         /// Dexcom Share password
         /// </summary>
         [Required]
-        [EnvironmentVariable("CONNECT_SHARE_PASSWORD")]
+        [EnvironmentVariable("CONNECT_DEXCOM_PASSWORD")]
+        [AspireParameter("dexcom-password", "Password", secret: true, description: "Dexcom account password")]
         public string DexcomPassword { get; set; } = string.Empty;
 
         /// <summary>
-        /// Dexcom region ("us" or "ous")
+        /// Dexcom server region (US or EU)
         /// </summary>
-        [EnvironmentVariable("CONNECT_SHARE_REGION")]
-        public string DexcomRegion { get; set; } = "us";
-
-        /// <summary>
-        /// Custom Dexcom server (optional, overrides region-based server selection)
-        /// </summary>
-        [EnvironmentVariable("CONNECT_SHARE_SERVER")]
-        public string DexcomServer { get; set; } = string.Empty;
+        [EnvironmentVariable("CONNECT_DEXCOM_SERVER")]
+        [AspireParameter("dexcom-server", "Server", secret: false, description: "Dexcom server (US or EU)", defaultValue: "US")]
+        public string DexcomServer { get; set; } = "US";
 
         protected override void ValidateSourceSpecificConfiguration()
         {
             if (string.IsNullOrWhiteSpace(DexcomUsername))
                 throw new ArgumentException(
-                    "CONNECT_SHARE_ACCOUNT_NAME is required when using Dexcom Share source"
+                    "CONNECT_DEXCOM_USERNAME is required when using Dexcom Share source"
                 );
 
             if (string.IsNullOrWhiteSpace(DexcomPassword))
                 throw new ArgumentException(
-                    "CONNECT_SHARE_PASSWORD is required when using Dexcom Share source"
+                    "CONNECT_DEXCOM_PASSWORD is required when using Dexcom Share source"
                 );
         }
     }

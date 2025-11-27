@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using Nocturne.Connectors.Nightscout.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Nightscout.Services;
 
 namespace Nocturne.API.Services.BackgroundServices;

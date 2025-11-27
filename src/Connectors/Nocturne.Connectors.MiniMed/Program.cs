@@ -7,7 +7,7 @@ using Nocturne.Connectors.Core.Extensions;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
-using Nocturne.Connectors.MiniMed.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.MiniMed.Services;
 
 namespace Nocturne.Connectors.MiniMed;
@@ -26,15 +26,9 @@ public class Program
         var careLinkConfig = new CareLinkConnectorConfiguration();
         builder.Configuration.BindConnectorConfiguration(careLinkConfig, "MiniMed");
 
-        var knownServers = new Dictionary<string, string>
-        {
-            { "us", "carelink.minimed.com" },
-            { "eu", "carelink.minimed.eu" },
-        };
-        var server = knownServers.GetValueOrDefault(
-            careLinkConfig.CarelinkRegion?.ToLowerInvariant() ?? "us",
-            knownServers["us"]
-        );
+        var server = careLinkConfig.CareLinkCountry.Equals("US", StringComparison.OrdinalIgnoreCase)
+            ? "carelink.minimed.com"
+            : "carelink.minimed.eu";
 
         // Register the fully bound configuration instance
         builder.Services.AddSingleton<IOptions<CareLinkConnectorConfiguration>>(new OptionsWrapper<CareLinkConnectorConfiguration>(careLinkConfig));

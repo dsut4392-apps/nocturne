@@ -2,8 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Models;
-using Nocturne.Connectors.FreeStyle.Models;
 using Nocturne.Connectors.FreeStyle.Services;
 
 namespace Nocturne.Connectors.FreeStyle;

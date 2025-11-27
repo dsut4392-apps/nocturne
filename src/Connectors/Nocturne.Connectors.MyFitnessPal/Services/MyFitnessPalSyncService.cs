@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Nocturne.Connectors.Core.Models;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.MyFitnessPal.Models;
 using Nocturne.Connectors.MyFitnessPal.Services;
 using Nocturne.Core.Constants;

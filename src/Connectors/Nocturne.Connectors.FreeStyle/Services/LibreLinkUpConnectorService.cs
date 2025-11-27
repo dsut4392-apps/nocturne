@@ -9,13 +9,13 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Constants;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
 using Nocturne.Connectors.FreeStyle;
 using Nocturne.Connectors.FreeStyle.Constants;
-using Nocturne.Connectors.FreeStyle.Models;
 using Nocturne.Core.Models;
 
 #nullable enable

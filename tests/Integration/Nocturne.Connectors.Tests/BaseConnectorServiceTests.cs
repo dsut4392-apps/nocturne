@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -133,7 +134,7 @@ public class TestConnectorConfiguration : BaseConnectorConfiguration
 public class TestConnectorService : BaseConnectorService<TestConnectorConfiguration>
 {
     public TestConnectorService(IApiDataSubmitter apiDataSubmitter, ILogger<BaseConnectorService<TestConnectorConfiguration>> logger)
-        : base(apiDataSubmitter, logger) { }
+        : base(new HttpClient(), logger, apiDataSubmitter) { }
 
     public override string ConnectorSource => "test-connector";
     public override string ServiceName => "Test Connector";

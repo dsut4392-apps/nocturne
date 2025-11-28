@@ -1,20 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
-using Nocturne.Connectors.Dexcom.Models;
 using Nocturne.Connectors.Dexcom.Services;
-using Nocturne.Connectors.FreeStyle.Models;
 using Nocturne.Connectors.FreeStyle.Services;
-using Nocturne.Connectors.Glooko.Models;
 using Nocturne.Connectors.Glooko.Services;
-using Nocturne.Connectors.MiniMed.Models;
 using Nocturne.Connectors.MiniMed.Services;
-using Nocturne.Connectors.Nightscout.Models;
 using Nocturne.Connectors.Nightscout.Services;
 using Nocturne.Core.Models;
 using Nocturne.Tools.Connect.Configuration;
@@ -358,7 +356,7 @@ public class ConnectorExecutionService
                 "glooko" => new GlookoConnectorConfiguration
                 {
                     ConnectSource = ConnectSource.Glooko,
-                    GlookoEmail = config.GlookoEmail ?? string.Empty,
+                    GlookoUsername = config.GlookoEmail ?? string.Empty,
                     GlookoPassword = config.GlookoPassword ?? string.Empty,
                     GlookoServer = config.GlookoServer,
                     GlookoTimezoneOffset = config.GlookoTimezoneOffset,
@@ -369,9 +367,9 @@ public class ConnectorExecutionService
                 "minimedcarelink" or "carelink" => new CareLinkConnectorConfiguration
                 {
                     ConnectSource = ConnectSource.CareLink,
-                    CarelinkUsername = config.CarelinkUsername ?? string.Empty,
-                    CarelinkPassword = config.CarelinkPassword ?? string.Empty,
-                    CarelinkRegion = config.CarelinkRegion,
+                    CareLinkUsername = config.CarelinkUsername ?? string.Empty,
+                    CareLinkPassword = config.CarelinkPassword ?? string.Empty,
+                    CareLinkCountry = config.CarelinkRegion ?? "US",
                     Mode = ConnectorMode.Standalone,
                     NightscoutUrl = config.NightscoutUrl,
                     NightscoutApiSecret = config.NightscoutApiSecret,
@@ -381,7 +379,7 @@ public class ConnectorExecutionService
                     ConnectSource = ConnectSource.Dexcom,
                     DexcomUsername = config.DexcomUsername ?? string.Empty,
                     DexcomPassword = config.DexcomPassword ?? string.Empty,
-                    DexcomRegion = config.DexcomRegion,
+                    DexcomServer = config.DexcomRegion ?? "US",
                     Mode = ConnectorMode.Standalone,
                     NightscoutUrl = config.NightscoutUrl,
                     NightscoutApiSecret = config.NightscoutApiSecret,
@@ -462,8 +460,13 @@ public class ConnectorExecutionService
     )
     {
         var service = new GlookoConnectorService(
-            config,
-            _loggerFactory.CreateLogger<GlookoConnectorService>()
+            new HttpClient(),
+            Options.Create(config),
+            _loggerFactory.CreateLogger<GlookoConnectorService>(),
+            new ProductionRetryDelayStrategy(),
+            new ProductionRateLimitingStrategy(_loggerFactory.CreateLogger<ProductionRateLimitingStrategy>()),
+            null, // IConnectorFileService
+            null  // IApiDataSubmitter
         );
         return new ConnectorServiceWrapper<GlookoConnectorConfiguration>(service);
     }
@@ -473,8 +476,12 @@ public class ConnectorExecutionService
     )
     {
         var service = new CareLinkConnectorService(
-            config,
-            _loggerFactory.CreateLogger<CareLinkConnectorService>()
+            new HttpClient(),
+            Options.Create(config),
+            _loggerFactory.CreateLogger<CareLinkConnectorService>(),
+            new ProductionRetryDelayStrategy(),
+            new ProductionRateLimitingStrategy(_loggerFactory.CreateLogger<ProductionRateLimitingStrategy>()),
+            null  // IApiDataSubmitter
         );
         return new ConnectorServiceWrapper<CareLinkConnectorConfiguration>(service);
     }
@@ -484,8 +491,12 @@ public class ConnectorExecutionService
     )
     {
         var service = new DexcomConnectorService(
-            config,
-            _loggerFactory.CreateLogger<DexcomConnectorService>()
+            new HttpClient(),
+            Options.Create(config),
+            _loggerFactory.CreateLogger<DexcomConnectorService>(),
+            new ProductionRetryDelayStrategy(),
+            new ProductionRateLimitingStrategy(_loggerFactory.CreateLogger<ProductionRateLimitingStrategy>()),
+            null  // IApiDataSubmitter
         );
         return new ConnectorServiceWrapper<DexcomConnectorConfiguration>(service);
     }
@@ -495,8 +506,12 @@ public class ConnectorExecutionService
     )
     {
         var service = new LibreConnectorService(
-            config,
-            _loggerFactory.CreateLogger<LibreConnectorService>()
+            new HttpClient(),
+            Options.Create(config),
+            _loggerFactory.CreateLogger<LibreConnectorService>(),
+            new ProductionRetryDelayStrategy(),
+            new ProductionRateLimitingStrategy(_loggerFactory.CreateLogger<ProductionRateLimitingStrategy>()),
+            null  // IApiDataSubmitter
         );
         return new ConnectorServiceWrapper<LibreLinkUpConnectorConfiguration>(service);
     }
@@ -506,8 +521,12 @@ public class ConnectorExecutionService
     )
     {
         var service = new NightscoutConnectorService(
-            config,
-            _loggerFactory.CreateLogger<NightscoutConnectorService>()
+            new HttpClient(),
+            Options.Create(config),
+            _loggerFactory.CreateLogger<NightscoutConnectorService>(),
+            new ProductionRetryDelayStrategy(),
+            new ProductionRateLimitingStrategy(_loggerFactory.CreateLogger<ProductionRateLimitingStrategy>()),
+            null  // IApiDataSubmitter
         );
         return new ConnectorServiceWrapper<NightscoutConnectorConfiguration>(service);
     }

@@ -1,16 +1,15 @@
 using System;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
-using Nocturne.Connectors.Dexcom.Models;
 using Nocturne.Connectors.Dexcom.Services;
-using Nocturne.Connectors.FreeStyle.Models;
 using Nocturne.Connectors.FreeStyle.Services;
-using Nocturne.Connectors.Glooko.Models;
 using Nocturne.Connectors.Glooko.Services;
-using Nocturne.Connectors.MiniMed.Models;
 using Nocturne.Connectors.MiniMed.Services;
 using Nocturne.Tools.Abstractions.Services;
 using Nocturne.Tools.Connect.Configuration;
@@ -58,7 +57,7 @@ public class ConnectorTestService
             var glookoConfig = new GlookoConnectorConfiguration
             {
                 ConnectSource = ConnectSource.Glooko,
-                GlookoEmail = config.GlookoEmail,
+                GlookoUsername = config.GlookoEmail,
                 GlookoPassword = config.GlookoPassword,
                 GlookoServer = config.GlookoServer,
                 Mode = ConnectorMode.Standalone,
@@ -67,8 +66,13 @@ public class ConnectorTestService
             };
 
             using var connector = new GlookoConnectorService(
-                glookoConfig,
-                _loggerFactory.CreateLogger<GlookoConnectorService>()
+                new HttpClient(),
+                Options.Create(glookoConfig),
+                _loggerFactory.CreateLogger<GlookoConnectorService>(),
+                new ProductionRetryDelayStrategy(),
+                new ProductionRateLimitingStrategy(_loggerFactory.CreateLogger<ProductionRateLimitingStrategy>()),
+                null, // IConnectorFileService
+                null  // IApiDataSubmitter
             );
 
             _logger.LogInformation(
@@ -134,17 +138,21 @@ public class ConnectorTestService
             var carelinkConfig = new CareLinkConnectorConfiguration
             {
                 ConnectSource = ConnectSource.CareLink,
-                CarelinkUsername = config.CarelinkUsername,
-                CarelinkPassword = config.CarelinkPassword,
-                CarelinkRegion = config.CarelinkRegion,
+                CareLinkUsername = config.CarelinkUsername,
+                CareLinkPassword = config.CarelinkPassword,
+                CareLinkCountry = config.CarelinkRegion,
                 Mode = ConnectorMode.Standalone,
                 NightscoutUrl = config.NightscoutUrl,
                 NightscoutApiSecret = config.NightscoutApiSecret,
             };
 
             using var connector = new CareLinkConnectorService(
-                carelinkConfig,
-                _loggerFactory.CreateLogger<CareLinkConnectorService>()
+                new HttpClient(),
+                Options.Create(carelinkConfig),
+                _loggerFactory.CreateLogger<CareLinkConnectorService>(),
+                new ProductionRetryDelayStrategy(),
+                new ProductionRateLimitingStrategy(_loggerFactory.CreateLogger<ProductionRateLimitingStrategy>()),
+                null  // IApiDataSubmitter
             );
 
             _logger.LogInformation(
@@ -212,15 +220,19 @@ public class ConnectorTestService
                 ConnectSource = ConnectSource.Dexcom,
                 DexcomUsername = config.DexcomUsername,
                 DexcomPassword = config.DexcomPassword,
-                DexcomRegion = config.DexcomRegion,
+                DexcomServer = config.DexcomRegion,
                 Mode = ConnectorMode.Standalone,
                 NightscoutUrl = config.NightscoutUrl,
                 NightscoutApiSecret = config.NightscoutApiSecret,
             };
 
             using var connector = new DexcomConnectorService(
-                dexcomConfig,
-                _loggerFactory.CreateLogger<DexcomConnectorService>()
+                new HttpClient(),
+                Options.Create(dexcomConfig),
+                _loggerFactory.CreateLogger<DexcomConnectorService>(),
+                new ProductionRetryDelayStrategy(),
+                new ProductionRateLimitingStrategy(_loggerFactory.CreateLogger<ProductionRateLimitingStrategy>()),
+                null  // IApiDataSubmitter
             );
 
             _logger.LogInformation(
@@ -295,8 +307,12 @@ public class ConnectorTestService
             };
 
             using var connector = new LibreConnectorService(
-                libreConfig,
-                _loggerFactory.CreateLogger<LibreConnectorService>()
+                new HttpClient(),
+                Options.Create(libreConfig),
+                _loggerFactory.CreateLogger<LibreConnectorService>(),
+                new ProductionRetryDelayStrategy(),
+                new ProductionRateLimitingStrategy(_loggerFactory.CreateLogger<ProductionRateLimitingStrategy>()),
+                null  // IApiDataSubmitter
             );
 
             _logger.LogInformation(

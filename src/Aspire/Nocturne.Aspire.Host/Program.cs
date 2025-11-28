@@ -218,14 +218,12 @@ class Program
             var bridgePackagePath = Path.Combine(solutionRoot, "src", "Web", "packages", "bridge");
             Console.WriteLine("[Aspire] Building @nocturne/bridge...");
 
-            // Use platform-appropriate shell
-            var isWindows = OperatingSystem.IsWindows();
             var buildProcess = new System.Diagnostics.Process
             {
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = isWindows ? "cmd" : "/bin/sh",
-                    Arguments = isWindows ? "/c pnpm run build" : "-c \"pnpm run build\"",
+                    FileName = "pnpm",
+                    Arguments = "run build",
                     WorkingDirectory = bridgePackagePath,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -235,12 +233,20 @@ class Program
             };
 
             buildProcess.Start();
-            buildProcess.WaitForExit();
+
+            // Read output streams asynchronously to avoid deadlock
+            // If the process output buffer fills up before WaitForExit() returns, it will block forever
+            var stdoutTask = buildProcess.StandardOutput.ReadToEndAsync();
+            var stderrTask = buildProcess.StandardError.ReadToEndAsync();
+
+            await buildProcess.WaitForExitAsync();
+
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
 
             if (buildProcess.ExitCode != 0)
             {
-                var error = buildProcess.StandardError.ReadToEnd();
-                throw new InvalidOperationException($"Failed to build @nocturne/bridge: {error}");
+                throw new InvalidOperationException($"Failed to build @nocturne/bridge: {stderr}");
             }
 
             Console.WriteLine("[Aspire] @nocturne/bridge built successfully");

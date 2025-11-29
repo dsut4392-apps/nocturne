@@ -128,9 +128,9 @@ public class DiscrepancyController : ControllerBase
         try
         {
             // Validate parameters
-            if (count <= 0 || count > 1000)
+            if (count <= 0)
             {
-                return BadRequest("Count must be between 1 and 1000");
+                return BadRequest("Count must be positive");
             }
 
             if (skip < 0)

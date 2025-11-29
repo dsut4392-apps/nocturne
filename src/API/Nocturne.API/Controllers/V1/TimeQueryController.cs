@@ -120,10 +120,10 @@ public class TimeQueryController : ControllerBase
         try
         {
             // Validate parameters
-            if (count < 0 || count > 1000)
+            if (count < 0)
             {
                 _logger.LogWarning("Invalid count parameter: {Count}", count);
-                return BadRequest($"Count must be between 0 and 1000, got {count}");
+                return BadRequest($"Count must be non-negative, got {count}");
             }
 
             // Extract query parameters for additional filtering
@@ -506,10 +506,10 @@ public class TimeQueryController : ControllerBase
         try
         {
             // Validate parameters
-            if (count < 0 || count > 1000)
+            if (count < 0)
             {
                 _logger.LogWarning("Invalid count parameter: {Count}", count);
-                return BadRequest($"Count must be between 0 and 1000, got {count}");
+                return BadRequest($"Count must be non-negative, got {count}");
             }
 
             if (string.IsNullOrWhiteSpace(storage) || string.IsNullOrWhiteSpace(field))

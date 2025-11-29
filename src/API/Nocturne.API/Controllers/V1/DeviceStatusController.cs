@@ -59,13 +59,13 @@ public class DeviceStatusController : ControllerBase
         try
         {
             // Validate parameters
-            if (count < 0 || count > 1000)
+            if (count < 0)
             {
                 _logger.LogWarning(
-                    "Invalid count parameter: {Count}. Must be between 0 and 1000",
+                    "Invalid count parameter: {Count}. Must be non-negative",
                     count
                 );
-                return BadRequest($"Count must be between 0 and 1000, got {count}");
+                return BadRequest($"Count must be non-negative, got {count}");
             }
 
             if (skip < 0)

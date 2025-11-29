@@ -199,6 +199,17 @@ public class TreatmentRepository
     }
 
     /// <summary>
+    /// Delete all demo treatments (treatments with IsDemo = true)
+    /// </summary>
+    public async Task<long> DeleteDemoTreatmentsAsync(CancellationToken cancellationToken = default)
+    {
+        var deletedCount = await _context
+            .Treatments.Where(t => t.IsDemo)
+            .ExecuteDeleteAsync(cancellationToken);
+        return deletedCount;
+    }
+
+    /// <summary>
     /// Get treatments with advanced filtering (simplified version for now)
     /// </summary>
     /// <remarks>

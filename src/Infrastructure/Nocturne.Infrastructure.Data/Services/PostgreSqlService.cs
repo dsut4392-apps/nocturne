@@ -292,6 +292,17 @@ public class PostgreSqlService : IPostgreSqlService
     }
 
     /// <summary>
+    /// Delete all demo treatments (treatments with IsDemo = true)
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Number of treatments deleted</returns>
+    public async Task<long> DeleteDemoTreatmentsAsync(CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Deleting all demo treatments");
+        return await _treatmentRepository.DeleteDemoTreatmentsAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Count treatments with optional filtering
     /// </summary>
     /// <param name="findQuery">Optional query filter</param>
@@ -382,7 +393,10 @@ public class PostgreSqlService : IPostgreSqlService
             );
             if (duplicate != null)
             {
-                _logger.LogDebug("Found duplicate treatment by OriginalId: {OriginalId}", originalId);
+                _logger.LogDebug(
+                    "Found duplicate treatment by OriginalId: {OriginalId}",
+                    originalId
+                );
                 return duplicate;
             }
         }
@@ -467,10 +481,7 @@ public class PostgreSqlService : IPostgreSqlService
             else
             {
                 skippedCount++;
-                _logger.LogDebug(
-                    "Skipping duplicate treatment: Id={Id}",
-                    treatment.Id ?? "null"
-                );
+                _logger.LogDebug("Skipping duplicate treatment: Id={Id}", treatment.Id ?? "null");
             }
         }
 

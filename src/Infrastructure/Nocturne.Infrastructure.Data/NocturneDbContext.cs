@@ -124,7 +124,13 @@ public class NocturneDbContext : DbContext
         // Composite index for duplicate detection
         modelBuilder
             .Entity<EntryEntity>()
-            .HasIndex(e => new { e.Device, e.Type, e.Sgv, e.Mills })
+            .HasIndex(e => new
+            {
+                e.Device,
+                e.Type,
+                e.Sgv,
+                e.Mills,
+            })
             .HasDatabaseName("ix_entries_duplicate_detection");
 
         // Treatments indexes - optimized for common queries
@@ -470,20 +476,62 @@ public class NocturneDbContext : DbContext
     private static void ConfigureEntities(ModelBuilder modelBuilder)
     {
         // Configure UUID Version 7 value generators for all entity primary keys
-        modelBuilder.Entity<EntryEntity>().Property(e => e.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<TreatmentEntity>().Property(t => t.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<DeviceStatusEntity>().Property(d => d.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<FoodEntity>().Property(f => f.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<SettingsEntity>().Property(s => s.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<ProfileEntity>().Property(p => p.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<ActivityEntity>().Property(a => a.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<DiscrepancyAnalysisEntity>().Property(d => d.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<DiscrepancyDetailEntity>().Property(d => d.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<AlertRuleEntity>().Property(a => a.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<AlertHistoryEntity>().Property(a => a.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<NotificationPreferencesEntity>().Property(n => n.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<EmergencyContactEntity>().Property(e => e.Id).HasValueGenerator<GuidV7ValueGenerator>();
-        modelBuilder.Entity<DeviceHealthEntity>().Property(d => d.Id).HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<EntryEntity>()
+            .Property(e => e.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<TreatmentEntity>()
+            .Property(t => t.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<DeviceStatusEntity>()
+            .Property(d => d.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<FoodEntity>()
+            .Property(f => f.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<SettingsEntity>()
+            .Property(s => s.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<ProfileEntity>()
+            .Property(p => p.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<ActivityEntity>()
+            .Property(a => a.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<DiscrepancyAnalysisEntity>()
+            .Property(d => d.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<DiscrepancyDetailEntity>()
+            .Property(d => d.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<AlertRuleEntity>()
+            .Property(a => a.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<AlertHistoryEntity>()
+            .Property(a => a.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<NotificationPreferencesEntity>()
+            .Property(n => n.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<EmergencyContactEntity>()
+            .Property(e => e.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<DeviceHealthEntity>()
+            .Property(d => d.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
 
         // Configure automatic timestamp updates
         modelBuilder
@@ -530,6 +578,8 @@ public class NocturneDbContext : DbContext
         modelBuilder.Entity<TreatmentEntity>().Property(t => t.BolusCalcJson).HasDefaultValue("{}");
 
         modelBuilder.Entity<TreatmentEntity>().Property(t => t.ProfileJson).HasDefaultValue("null");
+
+        modelBuilder.Entity<TreatmentEntity>().Property(t => t.IsDemo).HasDefaultValue(false);
 
         // Configure required fields and defaults
         modelBuilder.Entity<EntryEntity>().Property(e => e.Type).HasDefaultValue("sgv");

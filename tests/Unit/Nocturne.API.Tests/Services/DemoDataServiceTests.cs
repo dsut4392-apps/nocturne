@@ -13,12 +13,10 @@ namespace Nocturne.API.Tests.Services;
 /// </summary>
 public class DemoDataServiceTests
 {
-    private readonly Mock<IEntryService> _mockEntryService;
     private readonly Mock<ILogger<DemoDataService>> _mockLogger;
 
     public DemoDataServiceTests()
     {
-        _mockEntryService = new Mock<IEntryService>();
         _mockLogger = new Mock<ILogger<DemoDataService>>();
     }
 
@@ -38,13 +36,17 @@ public class DemoDataServiceTests
                     ["DemoMode:MinGlucose"] = config.MinGlucose.ToString(),
                     ["DemoMode:MaxGlucose"] = config.MaxGlucose.ToString(),
                     ["DemoMode:Device"] = config.Device,
+                    ["DemoMode:HistoryMonths"] = config.HistoryMonths.ToString(),
+                    ["DemoMode:BasalRate"] = config.BasalRate.ToString(),
+                    ["DemoMode:CarbRatio"] = config.CarbRatio.ToString(),
+                    ["DemoMode:CorrectionFactor"] = config.CorrectionFactor.ToString(),
                 }
             );
         }
 
         var configuration = configBuilder.Build();
 
-        return new DemoDataService(_mockEntryService.Object, configuration, _mockLogger.Object);
+        return new DemoDataService(configuration, _mockLogger.Object);
     }
 
     #region Configuration Tests
@@ -635,6 +637,206 @@ public class DemoDataServiceTests
         // Mills should correspond to the Date
         var expectedMills = new DateTimeOffset(entry.Date.Value).ToUnixTimeMilliseconds();
         Assert.Equal(expectedMills, entry.Mills);
+    }
+
+    #endregion
+
+    #region Historical Data Generation Tests
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void GenerateHistoricalData_ShouldGenerateEntriesAndTreatments()
+    {
+        // Arrange
+        var config = new DemoModeConfiguration
+        {
+            Enabled = true,
+            HistoryMonths = 1, // Just 1 month for faster tests
+            BasalRate = 1.0,
+            CarbRatio = 10.0,
+            CorrectionFactor = 50.0,
+        };
+        var service = CreateService(config);
+
+        // Act
+        var (entries, treatments) = service.GenerateHistoricalData();
+
+        // Assert
+        Assert.NotEmpty(entries);
+        Assert.NotEmpty(treatments);
+
+        // Should have approximately 288 entries per day (5-minute intervals)
+        // For 1 month (~30 days), expect around 8,600+ entries
+        Assert.True(entries.Count > 8000, $"Expected more than 8000 entries, got {entries.Count}");
+
+        // All entries should be marked as demo
+        Assert.All(entries, e => Assert.True(e.IsDemo));
+
+        // All treatments should be marked as demo
+        Assert.All(treatments, t => Assert.True(t.IsDemo));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void GenerateHistoricalData_ShouldGenerateRealisticMeals()
+    {
+        // Arrange
+        var config = new DemoModeConfiguration { Enabled = true, HistoryMonths = 1 };
+        var service = CreateService(config);
+
+        // Act
+        var (_, treatments) = service.GenerateHistoricalData();
+
+        // Assert
+        var mealBoluses = treatments.Where(t => t.EventType == "Meal Bolus").ToList();
+        Assert.NotEmpty(mealBoluses);
+
+        // Each meal should have carbs and insulin
+        Assert.All(
+            mealBoluses,
+            m =>
+            {
+                Assert.True(m.Carbs > 0, "Meal bolus should have carbs");
+                Assert.True(m.Insulin > 0, "Meal bolus should have insulin");
+                Assert.NotNull(m.FoodType);
+            }
+        );
+
+        // Should have variety of food types (Breakfast, Lunch, Dinner, Snack)
+        var foodTypes = mealBoluses.Select(m => m.FoodType).Distinct().ToList();
+        Assert.Contains("Breakfast", foodTypes);
+        Assert.Contains("Lunch", foodTypes);
+        Assert.Contains("Dinner", foodTypes);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void GenerateHistoricalData_ShouldGenerateBasalTreatments()
+    {
+        // Arrange
+        var config = new DemoModeConfiguration
+        {
+            Enabled = true,
+            HistoryMonths = 1,
+            BasalRate = 1.0,
+        };
+        var service = CreateService(config);
+
+        // Act
+        var (_, treatments) = service.GenerateHistoricalData();
+
+        // Assert
+        var basalTreatments = treatments.Where(t => t.EventType == "Temp Basal").ToList();
+        Assert.NotEmpty(basalTreatments);
+
+        // Basal treatments should have rate and duration
+        Assert.All(
+            basalTreatments,
+            b =>
+            {
+                Assert.True(b.Rate >= 0, "Basal rate should be non-negative");
+                Assert.True(b.Duration > 0, "Basal duration should be positive");
+            }
+        );
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void GenerateHistoricalData_ShouldGenerateCorrectionTreatments()
+    {
+        // Arrange
+        var config = new DemoModeConfiguration { Enabled = true, HistoryMonths = 1 };
+        var service = CreateService(config);
+
+        // Act
+        var (_, treatments) = service.GenerateHistoricalData();
+
+        // Assert
+        var corrections = treatments
+            .Where(t => t.EventType == "Correction Bolus" || t.EventType == "Carb Correction")
+            .ToList();
+
+        // There should be some corrections over a month
+        Assert.NotEmpty(corrections);
+
+        // Carb corrections should have carbs
+        var carbCorrections = corrections.Where(c => c.EventType == "Carb Correction");
+        Assert.All(carbCorrections, c => Assert.True(c.Carbs > 0));
+
+        // Correction boluses should have insulin
+        var correctionBoluses = corrections.Where(c => c.EventType == "Correction Bolus");
+        Assert.All(correctionBoluses, c => Assert.True(c.Insulin > 0));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void GenerateHistoricalData_EntriesShouldCoverDateRange()
+    {
+        // Arrange
+        var config = new DemoModeConfiguration { Enabled = true, HistoryMonths = 1 };
+        var service = CreateService(config);
+        var expectedStartDate = DateTime.UtcNow.AddMonths(-1).Date;
+        var expectedEndDate = DateTime.UtcNow.Date;
+
+        // Act
+        var (entries, _) = service.GenerateHistoricalData();
+
+        // Assert
+        var minDate = entries.Min(e => e.Date);
+        var maxDate = entries.Max(e => e.Date);
+
+        Assert.NotNull(minDate);
+        Assert.NotNull(maxDate);
+
+        // First entry should be close to expected start
+        Assert.True(
+            Math.Abs((minDate.Value.Date - expectedStartDate).TotalDays) <= 1,
+            $"Expected entries to start around {expectedStartDate}, but started at {minDate.Value.Date}"
+        );
+
+        // Last entry should be close to expected end
+        Assert.True(
+            Math.Abs((maxDate.Value.Date - expectedEndDate).TotalDays) <= 1,
+            $"Expected entries to end around {expectedEndDate}, but ended at {maxDate.Value.Date}"
+        );
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void GenerateHistoricalData_GlucoseValuesShouldBeRealistic()
+    {
+        // Arrange
+        var config = new DemoModeConfiguration
+        {
+            Enabled = true,
+            HistoryMonths = 1,
+            MinGlucose = 40,
+            MaxGlucose = 400,
+        };
+        var service = CreateService(config);
+
+        // Act
+        var (entries, _) = service.GenerateHistoricalData();
+
+        // Assert
+        // All glucose values should be within realistic bounds
+        Assert.All(
+            entries,
+            e =>
+            {
+                Assert.True(
+                    e.Sgv >= 40 && e.Sgv <= 400,
+                    $"SGV {e.Sgv} is out of realistic range [40, 400]"
+                );
+            }
+        );
+
+        // Should have variety in glucose values
+        var distinctValues = entries.Select(e => Math.Round(e.Sgv ?? 0, 0)).Distinct().Count();
+        Assert.True(
+            distinctValues > 50,
+            $"Expected more glucose variety, got {distinctValues} unique values"
+        );
     }
 
     #endregion

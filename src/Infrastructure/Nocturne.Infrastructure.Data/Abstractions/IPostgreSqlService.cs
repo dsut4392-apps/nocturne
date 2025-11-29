@@ -252,6 +252,13 @@ public interface IPostgreSqlService
     );
 
     /// <summary>
+    /// Delete all demo treatments (treatments with IsDemo = true)
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Number of treatments deleted</returns>
+    Task<long> DeleteDemoTreatmentsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get the current active profile
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>

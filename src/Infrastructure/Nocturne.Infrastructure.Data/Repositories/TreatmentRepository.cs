@@ -87,11 +87,33 @@ public class TreatmentRepository
     )
     {
         var entities = treatments.Select(TreatmentMapper.ToEntity).ToList();
+        var resultEntities = new List<TreatmentEntity>();
 
-        _context.Treatments.AddRange(entities);
+        foreach (var entity in entities)
+        {
+            // Check if a treatment with this ID already exists
+            var existingEntity = await _context.Treatments.FirstOrDefaultAsync(
+                t => t.Id == entity.Id,
+                cancellationToken
+            );
+
+            if (existingEntity != null)
+            {
+                // Update existing entity instead of inserting a duplicate
+                _context.Entry(existingEntity).CurrentValues.SetValues(entity);
+                resultEntities.Add(existingEntity);
+            }
+            else
+            {
+                // Add new entity
+                _context.Treatments.Add(entity);
+                resultEntities.Add(entity);
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
-        return entities.Select(TreatmentMapper.ToDomainModel);
+        return resultEntities.Select(TreatmentMapper.ToDomainModel);
     }
 
     /// <summary>
@@ -215,10 +237,15 @@ public class TreatmentRepository
             {
                 DateField = "Mills",
                 UseEpochDates = true,
-                DefaultDateRange = TimeSpan.FromDays(4)
+                DefaultDateRange = TimeSpan.FromDays(4),
             };
 
-            query = await _queryParser.ApplyQueryAsync(query, findQuery, options, cancellationToken);
+            query = await _queryParser.ApplyQueryAsync(
+                query,
+                findQuery,
+                options,
+                cancellationToken
+            );
         }
         else
         {
@@ -227,7 +254,7 @@ public class TreatmentRepository
             {
                 DateField = "Mills",
                 UseEpochDates = true,
-                DefaultDateRange = TimeSpan.FromDays(4)
+                DefaultDateRange = TimeSpan.FromDays(4),
             };
 
             query = _queryParser.ApplyDefaultDateFilter(query, findQuery, dateString, options);
@@ -267,10 +294,15 @@ public class TreatmentRepository
                 DateField = "Mills",
                 UseEpochDates = true,
                 DefaultDateRange = TimeSpan.FromDays(4),
-                DisableDefaultDateFilter = true // Count queries don't need auto date filtering
+                DisableDefaultDateFilter = true, // Count queries don't need auto date filtering
             };
 
-            query = await _queryParser.ApplyQueryAsync(query, findQuery, options, cancellationToken);
+            query = await _queryParser.ApplyQueryAsync(
+                query,
+                findQuery,
+                options,
+                cancellationToken
+            );
         }
 
         return await query.CountAsync(cancellationToken);

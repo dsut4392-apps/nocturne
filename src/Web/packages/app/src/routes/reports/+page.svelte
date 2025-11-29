@@ -518,22 +518,30 @@
     <!-- Additional Statistics Grid -->
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       <Card class="border bg-card p-4 text-center">
-        <div class="text-2xl font-bold tabular-nums">{stats?.mean?.toFixed(0) ?? "–"}</div>
+        <div class="text-2xl font-bold tabular-nums">
+          {stats?.mean?.toFixed(0) ?? "–"}
+        </div>
         <div class="text-xs font-medium text-muted-foreground">Average</div>
         <div class="text-[10px] text-muted-foreground/60">mg/dL</div>
       </Card>
       <Card class="border bg-card p-4 text-center">
-        <div class="text-2xl font-bold tabular-nums">{stats?.median?.toFixed(0) ?? "–"}</div>
+        <div class="text-2xl font-bold tabular-nums">
+          {stats?.median?.toFixed(0) ?? "–"}
+        </div>
         <div class="text-xs font-medium text-muted-foreground">Median</div>
         <div class="text-[10px] text-muted-foreground/60">mg/dL</div>
       </Card>
       <Card class="border bg-card p-4 text-center">
-        <div class="text-2xl font-bold tabular-nums">{stats?.min?.toFixed(0) ?? "–"}</div>
+        <div class="text-2xl font-bold tabular-nums">
+          {stats?.min?.toFixed(0) ?? "–"}
+        </div>
         <div class="text-xs font-medium text-muted-foreground">Lowest</div>
         <div class="text-[10px] text-muted-foreground/60">mg/dL</div>
       </Card>
       <Card class="border bg-card p-4 text-center">
-        <div class="text-2xl font-bold tabular-nums">{stats?.max?.toFixed(0) ?? "–"}</div>
+        <div class="text-2xl font-bold tabular-nums">
+          {stats?.max?.toFixed(0) ?? "–"}
+        </div>
         <div class="text-xs font-medium text-muted-foreground">Highest</div>
         <div class="text-[10px] text-muted-foreground/60">mg/dL</div>
       </Card>
@@ -637,7 +645,9 @@
                         <div class={styles.reportBg()}>
                           <ReportIcon class={styles.reportIcon()} />
                         </div>
-                        <div class="flex flex-wrap items-center justify-end gap-1.5">
+                        <div
+                          class="flex flex-wrap items-center justify-end gap-1.5"
+                        >
                           {#if report.forClinic}
                             <Badge variant="outline" class="text-[10px]">
                               <Stethoscope class="mr-1 h-3 w-3" />
@@ -724,7 +734,9 @@
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div class="space-y-2">
           <div class="flex items-center gap-2">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10"
+            >
               <Target class="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <h3 class="font-semibold">Time in Range</h3>
@@ -736,7 +748,9 @@
         </div>
         <div class="space-y-2">
           <div class="flex items-center gap-2">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10">
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10"
+            >
               <Gauge class="h-4 w-4 text-rose-600 dark:text-rose-400" />
             </div>
             <h3 class="font-semibold">Estimated A1C</h3>
@@ -749,8 +763,12 @@
         </div>
         <div class="space-y-2">
           <div class="flex items-center gap-2">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10">
-              <TrendingUp class="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10"
+            >
+              <TrendingUp
+                class="h-4 w-4 text-violet-600 dark:text-violet-400"
+              />
             </div>
             <h3 class="font-semibold">Variability (CV)</h3>
           </div>
@@ -761,7 +779,9 @@
         </div>
         <div class="space-y-2">
           <div class="flex items-center gap-2">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10">
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10"
+            >
               <Shield class="h-4 w-4 text-sky-600 dark:text-sky-400" />
             </div>
             <h3 class="font-semibold">Data Quality</h3>

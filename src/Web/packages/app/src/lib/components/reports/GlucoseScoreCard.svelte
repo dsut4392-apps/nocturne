@@ -13,7 +13,8 @@
         excellent: {
           card: "border-green-200 dark:border-green-800",
           strip: "bg-green-500",
-          badge: "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
+          badge:
+            "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
           value: "text-green-700 dark:text-green-300",
         },
         good: {
@@ -25,13 +26,15 @@
         fair: {
           card: "border-yellow-200 dark:border-yellow-800",
           strip: "bg-yellow-500",
-          badge: "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
+          badge:
+            "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
           value: "text-yellow-700 dark:text-yellow-300",
         },
         "needs-attention": {
           card: "border-orange-200 dark:border-orange-800",
           strip: "bg-orange-500",
-          badge: "bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+          badge:
+            "bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
           value: "text-orange-700 dark:text-orange-300",
         },
         critical: {
@@ -47,7 +50,9 @@
     },
   });
 
-  export type ScoreCardStatus = VariantProps<typeof scoreCardVariants>["status"];
+  export type ScoreCardStatus = VariantProps<
+    typeof scoreCardVariants
+  >["status"];
 </script>
 
 <script lang="ts">
@@ -111,7 +116,10 @@
     critical: "Critical",
   };
 
-  const statusIcons: Record<NonNullable<ScoreCardStatus>, typeof CheckCircle2> = {
+  const statusIcons: Record<
+    NonNullable<ScoreCardStatus>,
+    typeof CheckCircle2
+  > = {
     excellent: CheckCircle2,
     good: CheckCircle2,
     fair: Info,

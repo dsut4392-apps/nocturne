@@ -10,24 +10,31 @@
     variants: {
       type: {
         success: {
-          container: "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/50 dark:bg-emerald-950/20",
+          container:
+            "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/50 dark:bg-emerald-950/20",
           icon: "text-emerald-600 dark:text-emerald-400",
-          badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+          badge:
+            "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
         },
         warning: {
-          container: "border-amber-200 bg-amber-50/50 dark:border-amber-800/50 dark:bg-amber-950/20",
+          container:
+            "border-amber-200 bg-amber-50/50 dark:border-amber-800/50 dark:bg-amber-950/20",
           icon: "text-amber-600 dark:text-amber-400",
-          badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+          badge:
+            "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
         },
         info: {
-          container: "border-sky-200 bg-sky-50/50 dark:border-sky-800/50 dark:bg-sky-950/20",
+          container:
+            "border-sky-200 bg-sky-50/50 dark:border-sky-800/50 dark:bg-sky-950/20",
           icon: "text-sky-600 dark:text-sky-400",
           badge: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300",
         },
         action: {
-          container: "border-violet-200 bg-violet-50/50 dark:border-violet-800/50 dark:bg-violet-950/20",
+          container:
+            "border-violet-200 bg-violet-50/50 dark:border-violet-800/50 dark:bg-violet-950/20",
           icon: "text-violet-600 dark:text-violet-400",
-          badge: "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
+          badge:
+            "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
         },
       },
     },
@@ -259,7 +266,9 @@
             </div>
             <div class="min-w-0 flex-1 space-y-1.5">
               <div class="flex flex-wrap items-center gap-2">
-                <h4 class="text-sm font-semibold text-foreground">{insight.title}</h4>
+                <h4 class="text-sm font-semibold text-foreground">
+                  {insight.title}
+                </h4>
                 <Badge variant="outline" class={styles.badge()}>
                   <CategoryIcon class="mr-1 h-3 w-3" />
                   {insight.category}

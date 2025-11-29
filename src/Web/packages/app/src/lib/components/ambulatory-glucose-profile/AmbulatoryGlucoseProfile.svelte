@@ -166,7 +166,9 @@
     padding={{ top: 20, right: 20, bottom: 40, left: 20 }}
   ></AreaChart>
 {:else}
-  <div class="flex h-full w-full items-center justify-center text-muted-foreground">
+  <div
+    class="flex h-full w-full items-center justify-center text-muted-foreground"
+  >
     <div class="text-center">
       <BarChart3 class="mx-auto h-10 w-10 opacity-30" />
       <p class="mt-2 font-medium">No pattern data</p>

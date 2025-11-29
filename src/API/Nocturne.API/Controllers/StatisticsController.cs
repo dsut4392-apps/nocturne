@@ -18,16 +18,19 @@ public class StatisticsController : ControllerBase
     private readonly IStatisticsService _statisticsService;
     private readonly ICacheService _cacheService;
     private readonly IPostgreSqlService _postgreSqlService;
+    private readonly IServiceProvider _serviceProvider;
 
     public StatisticsController(
         IStatisticsService statisticsService,
         ICacheService cacheService,
-        IPostgreSqlService postgreSqlService
+        IPostgreSqlService postgreSqlService,
+        IServiceProvider serviceProvider
     )
     {
         _statisticsService = statisticsService;
         _cacheService = cacheService;
         _postgreSqlService = postgreSqlService;
+        _serviceProvider = serviceProvider;
     }
 
     /// <summary>
@@ -379,13 +382,21 @@ public class StatisticsController : ControllerBase
             var result = new MultiPeriodStatistics { LastUpdated = now };
 
             // Calculate statistics for each period
+            // Create a new scope for each period to avoid DbContext concurrency issues
             var tasks = periods.Select(async days =>
             {
+                // Create a new scope to get a fresh DbContext instance for this parallel task
+                using var scope = _serviceProvider.CreateScope();
+                var postgreSqlService =
+                    scope.ServiceProvider.GetRequiredService<IPostgreSqlService>();
+                var statisticsService =
+                    scope.ServiceProvider.GetRequiredService<IStatisticsService>();
+
                 var startDate = now.AddDays(-days);
                 var endDate = now;
 
                 // Get entries for this period
-                var entries = await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
+                var entries = await postgreSqlService.GetEntriesWithAdvancedFilterAsync(
                     type: "sgv",
                     count: 10000, // Large number to get all entries in period
                     dateString: startDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
@@ -398,7 +409,7 @@ public class StatisticsController : ControllerBase
                     .ToList();
 
                 // Get treatments for this period
-                var treatments = await _postgreSqlService.GetTreatmentsAsync(
+                var treatments = await postgreSqlService.GetTreatmentsAsync(
                     count: 10000,
                     cancellationToken: cancellationToken
                 );
@@ -421,14 +432,14 @@ public class StatisticsController : ControllerBase
 
                 if (hasSufficientData)
                 {
-                    analytics = _statisticsService.AnalyzeGlucoseData(
+                    analytics = statisticsService.AnalyzeGlucoseData(
                         filteredEntries,
                         filteredTreatments
                     );
 
                     if (filteredTreatments.Any())
                     {
-                        treatmentSummary = _statisticsService.CalculateTreatmentSummary(
+                        treatmentSummary = statisticsService.CalculateTreatmentSummary(
                             filteredTreatments
                         );
                     }

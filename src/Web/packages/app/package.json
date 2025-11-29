@@ -58,7 +58,7 @@
     "globals": "^16.3.0",
     "happy-dom": "^18.0.1",
     "jsonwebtoken": "^9.0.2",
-    "layerchart": "2.0.0-next.36",
+    "layerchart": "2.0.0-next.40",
     "mocha": "^11.7.1",
     "mode-watcher": "^1.1.0",
     "mongo-url-parser": "^1.0.2",

@@ -22,6 +22,7 @@ public class TreatmentServiceTests
     private readonly Mock<ISignalRBroadcastService> _mockBroadcastService;
     private readonly Mock<ICacheService> _mockCacheService;
     private readonly Mock<IOptions<CacheConfiguration>> _mockCacheConfig;
+    private readonly Mock<IDemoModeService> _mockDemoModeService;
     private readonly Mock<ILogger<TreatmentService>> _mockLogger;
     private readonly TreatmentService _treatmentService;
 
@@ -31,15 +32,18 @@ public class TreatmentServiceTests
         _mockBroadcastService = new Mock<ISignalRBroadcastService>();
         _mockCacheService = new Mock<ICacheService>();
         _mockCacheConfig = new Mock<IOptions<CacheConfiguration>>();
+        _mockDemoModeService = new Mock<IDemoModeService>();
         _mockLogger = new Mock<ILogger<TreatmentService>>();
 
         _mockCacheConfig.Setup(x => x.Value).Returns(new CacheConfiguration());
+        _mockDemoModeService.Setup(x => x.IsEnabled).Returns(false);
 
         _treatmentService = new TreatmentService(
             _mockPostgreSqlService.Object,
             _mockBroadcastService.Object,
             _mockCacheService.Object,
             _mockCacheConfig.Object,
+            _mockDemoModeService.Object,
             _mockLogger.Object
         );
     }

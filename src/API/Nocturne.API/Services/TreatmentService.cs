@@ -1,10 +1,10 @@
-using Nocturne.Infrastructure.Cache.Constants;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Infrastructure.Cache.Abstractions;
 using Nocturne.Infrastructure.Cache.Configuration;
+using Nocturne.Infrastructure.Cache.Constants;
 using Nocturne.Infrastructure.Cache.Keys;
 using Nocturne.Infrastructure.Data.Abstractions;
 
@@ -19,6 +19,7 @@ public class TreatmentService : ITreatmentService
     private readonly ISignalRBroadcastService _broadcastService;
     private readonly ICacheService _cacheService;
     private readonly CacheConfiguration _cacheConfig;
+    private readonly IDemoModeService _demoModeService;
     private readonly ILogger<TreatmentService> _logger;
     private const string CollectionName = "treatments";
     private const string DefaultTenantId = "default"; // TODO: Replace with actual tenant context
@@ -28,6 +29,7 @@ public class TreatmentService : ITreatmentService
         ISignalRBroadcastService broadcastService,
         ICacheService cacheService,
         IOptions<CacheConfiguration> cacheConfig,
+        IDemoModeService demoModeService,
         ILogger<TreatmentService> logger
     )
     {
@@ -35,7 +37,90 @@ public class TreatmentService : ITreatmentService
         _broadcastService = broadcastService;
         _cacheService = cacheService;
         _cacheConfig = cacheConfig.Value;
+        _demoModeService = demoModeService;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Builds a find query that filters by demo mode.
+    /// This ensures filtering happens at the database level for efficiency.
+    /// </summary>
+    /// <param name="existingQuery">Optional existing query to merge with</param>
+    /// <returns>A JSON find query string with is_demo filter</returns>
+    private string BuildDemoModeFilterQuery(string? existingQuery = null)
+    {
+        var isDemoValue = _demoModeService.IsEnabled ? "true" : "false";
+        var demoFilter = $"\"is_demo\":{isDemoValue}";
+
+        if (string.IsNullOrWhiteSpace(existingQuery) || existingQuery == "{}")
+        {
+            return "{" + demoFilter + "}";
+        }
+
+        // Merge with existing query - insert demo filter into existing JSON object
+        var trimmed = existingQuery.Trim();
+        if (trimmed.StartsWith("{") && trimmed.EndsWith("}"))
+        {
+            var inner = trimmed.Substring(1, trimmed.Length - 2).Trim();
+            if (string.IsNullOrEmpty(inner))
+            {
+                return "{" + demoFilter + "}";
+            }
+            return "{" + demoFilter + "," + inner + "}";
+        }
+
+        // If query doesn't look like JSON, just return demo filter
+        return "{" + demoFilter + "}";
+    }
+
+    /// <summary>
+    /// Filters treatments based on demo mode status (legacy client-side filtering).
+    /// This is kept for backward compatibility but database-level filtering is preferred.
+    /// </summary>
+    private IEnumerable<Treatment> FilterTreatmentsByDemoMode(IEnumerable<Treatment> treatments)
+    {
+        var treatmentsList = treatments.ToList();
+        var demoTreatments = treatmentsList.Where(t => t.IsDemo == true).ToList();
+        var nonDemoTreatments = treatmentsList.Where(t => t.IsDemo != true).ToList();
+
+        _logger.LogDebug(
+            "FilterTreatmentsByDemoMode: DemoModeEnabled={DemoMode}, TotalTreatments={Total}, DemoTreatments={Demo}, NonDemoTreatments={NonDemo}",
+            _demoModeService.IsEnabled,
+            treatmentsList.Count,
+            demoTreatments.Count,
+            nonDemoTreatments.Count
+        );
+
+        if (_demoModeService.IsEnabled)
+        {
+            // In demo mode, ONLY return demo treatments - never fall back to real data
+            if (demoTreatments.Count > 0)
+            {
+                _logger.LogDebug(
+                    "Demo mode ON: Returning {Count} demo treatments",
+                    demoTreatments.Count
+                );
+                return demoTreatments;
+            }
+            else
+            {
+                // No demo treatments available - return empty to avoid exposing real data
+                _logger.LogWarning(
+                    "Demo mode is enabled but no demo treatments found. Returning empty results. "
+                        + "Ensure the Demo Service is running and generating data."
+                );
+                return Enumerable.Empty<Treatment>();
+            }
+        }
+        else
+        {
+            // Not in demo mode, only show non-demo treatments
+            _logger.LogDebug(
+                "Demo mode OFF: Returning {Count} non-demo treatments",
+                nonDemoTreatments.Count
+            );
+            return nonDemoTreatments;
+        }
     }
 
     /// <inheritdoc />
@@ -49,51 +134,62 @@ public class TreatmentService : ITreatmentService
         var actualCount = count ?? 10;
         var actualSkip = skip ?? 0;
 
+        // Build query with demo mode filter at database level
+        var findQuery = BuildDemoModeFilterQuery(find);
+
         // If find query is provided, use advanced filtering (no caching for filtered queries)
         if (!string.IsNullOrEmpty(find))
         {
             _logger.LogDebug(
-                "Using advanced filter for treatments with findQuery: {FindQuery}, count: {Count}, skip: {Skip}",
-                find,
+                "Using advanced filter for treatments with findQuery: {FindQuery}, count: {Count}, skip: {Skip}, demoMode: {DemoMode}",
+                findQuery,
                 actualCount,
-                actualSkip
+                actualSkip,
+                _demoModeService.IsEnabled
             );
-            return await _postgreSqlService.GetTreatmentsWithAdvancedFilterAsync(
+            var treatments = await _postgreSqlService.GetTreatmentsWithAdvancedFilterAsync(
                 count: actualCount,
                 skip: actualSkip,
-                findQuery: find,
+                findQuery: findQuery,
                 reverseResults: false,
                 cancellationToken: cancellationToken
             );
+            return treatments;
         }
 
         // Cache recent treatments for common queries (skip = 0 and common counts)
+        // Include demo mode in cache key to avoid mixing demo/non-demo data
         if (actualSkip == 0 && IsCommonTreatmentCount(actualCount))
         {
             // Determine time range based on common patterns (default to 24 hours for treatments)
             var hours = DetermineTimeRangeHours(actualCount);
-            var cacheKey = CacheKeyBuilder.BuildRecentTreatmentsKey(
-                DefaultTenantId,
-                hours,
-                actualCount
+            var demoSuffix = _demoModeService.IsEnabled ? ":demo" : "";
+            var cacheKey =
+                CacheKeyBuilder.BuildRecentTreatmentsKey(DefaultTenantId, hours, actualCount)
+                + demoSuffix;
+            var cacheTtl = TimeSpan.FromSeconds(
+                CacheConstants.Defaults.RecentTreatmentsExpirationSeconds
             );
-            var cacheTtl = TimeSpan.FromSeconds(CacheConstants.Defaults.RecentTreatmentsExpirationSeconds);
 
             return await _cacheService.GetOrSetAsync(
                 cacheKey,
                 async () =>
                 {
                     _logger.LogDebug(
-                        "Cache MISS for recent treatments (count: {Count}, hours: {Hours}), fetching from database",
+                        "Cache MISS for recent treatments (count: {Count}, hours: {Hours}, demoMode: {DemoMode}), fetching from database with filter: {Filter}",
                         actualCount,
-                        hours
+                        hours,
+                        _demoModeService.IsEnabled,
+                        findQuery
                     );
-                    var treatments = await _postgreSqlService.GetTreatmentsAsync(
-                        actualCount,
-                        actualSkip,
-                        cancellationToken
+                    var treatments = await _postgreSqlService.GetTreatmentsWithAdvancedFilterAsync(
+                        count: actualCount,
+                        skip: actualSkip,
+                        findQuery: findQuery,
+                        reverseResults: false,
+                        cancellationToken: cancellationToken
                     );
-                    return treatments.ToList(); // Materialize to avoid multiple enumerations
+                    return treatments.ToList();
                 },
                 cacheTtl,
                 cancellationToken
@@ -101,11 +197,14 @@ public class TreatmentService : ITreatmentService
         }
 
         // Non-cached path for non-standard queries
-        return await _postgreSqlService.GetTreatmentsAsync(
-            actualCount,
-            actualSkip,
-            cancellationToken
+        var allTreatments = await _postgreSqlService.GetTreatmentsWithAdvancedFilterAsync(
+            count: actualCount,
+            skip: actualSkip,
+            findQuery: findQuery,
+            reverseResults: false,
+            cancellationToken: cancellationToken
         );
+        return allTreatments;
     }
 
     /// <inheritdoc />
@@ -115,29 +214,42 @@ public class TreatmentService : ITreatmentService
         CancellationToken cancellationToken = default
     )
     {
+        // Build query with demo mode filter at database level
+        var findQuery = BuildDemoModeFilterQuery(null);
+
         // Cache recent treatments for common queries (skip = 0 and common counts)
+        // Include demo mode in cache key to avoid mixing demo/non-demo data
         if (skip == 0 && IsCommonTreatmentCount(count))
         {
             // Determine time range based on common patterns (default to 24 hours for treatments)
             var hours = DetermineTimeRangeHours(count);
-            var cacheKey = CacheKeyBuilder.BuildRecentTreatmentsKey(DefaultTenantId, hours, count);
-            var cacheTtl = TimeSpan.FromSeconds(CacheConstants.Defaults.RecentTreatmentsExpirationSeconds);
+            var demoSuffix = _demoModeService.IsEnabled ? ":demo" : "";
+            var cacheKey =
+                CacheKeyBuilder.BuildRecentTreatmentsKey(DefaultTenantId, hours, count)
+                + demoSuffix;
+            var cacheTtl = TimeSpan.FromSeconds(
+                CacheConstants.Defaults.RecentTreatmentsExpirationSeconds
+            );
 
             return await _cacheService.GetOrSetAsync(
                 cacheKey,
                 async () =>
                 {
                     _logger.LogDebug(
-                        "Cache MISS for recent treatments (count: {Count}, hours: {Hours}), fetching from database",
+                        "Cache MISS for recent treatments (count: {Count}, hours: {Hours}, demoMode: {DemoMode}), fetching from database with filter: {Filter}",
                         count,
-                        hours
+                        hours,
+                        _demoModeService.IsEnabled,
+                        findQuery
                     );
-                    var treatments = await _postgreSqlService.GetTreatmentsAsync(
-                        count,
-                        skip,
-                        cancellationToken
+                    var treatments = await _postgreSqlService.GetTreatmentsWithAdvancedFilterAsync(
+                        count: count,
+                        skip: skip,
+                        findQuery: findQuery,
+                        reverseResults: false,
+                        cancellationToken: cancellationToken
                     );
-                    return treatments.ToList(); // Materialize to avoid multiple enumerations
+                    return treatments.ToList();
                 },
                 cacheTtl,
                 cancellationToken
@@ -145,7 +257,14 @@ public class TreatmentService : ITreatmentService
         }
 
         // Non-cached path for non-standard queries
-        return await _postgreSqlService.GetTreatmentsAsync(count, skip, cancellationToken);
+        var allTreatments = await _postgreSqlService.GetTreatmentsWithAdvancedFilterAsync(
+            count: count,
+            skip: skip,
+            findQuery: findQuery,
+            reverseResults: false,
+            cancellationToken: cancellationToken
+        );
+        return allTreatments;
     }
 
     /// <summary>

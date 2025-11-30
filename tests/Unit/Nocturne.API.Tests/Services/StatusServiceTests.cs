@@ -15,6 +15,7 @@ namespace Nocturne.API.Tests.Services;
 public class StatusServiceTests
 {
     private readonly Mock<ICacheService> _mockCacheService;
+    private readonly Mock<IDemoModeService> _mockDemoModeService;
     private readonly Mock<ILogger<StatusService>> _mockLogger;
     private readonly IConfiguration _configuration;
     private readonly StatusService _statusService;
@@ -22,7 +23,9 @@ public class StatusServiceTests
     public StatusServiceTests()
     {
         _mockCacheService = new Mock<ICacheService>();
+        _mockDemoModeService = new Mock<IDemoModeService>();
         _mockLogger = new Mock<ILogger<StatusService>>();
+        _mockDemoModeService.Setup(x => x.IsEnabled).Returns(false);
 
         // Setup default configuration values using real ConfigurationBuilder
         var configData = new Dictionary<string, string?>
@@ -57,6 +60,7 @@ public class StatusServiceTests
         _statusService = new StatusService(
             _configuration,
             _mockCacheService.Object,
+            _mockDemoModeService.Object,
             _mockLogger.Object
         );
     }
@@ -151,6 +155,7 @@ public class StatusServiceTests
         var customService = new StatusService(
             customConfiguration,
             _mockCacheService.Object,
+            _mockDemoModeService.Object,
             _mockLogger.Object
         );
 
@@ -328,6 +333,7 @@ public class StatusServiceTests
         var customService = new StatusService(
             customConfiguration,
             _mockCacheService.Object,
+            _mockDemoModeService.Object,
             _mockLogger.Object
         );
 
@@ -376,6 +382,7 @@ public class StatusServiceTests
         var customService = new StatusService(
             customConfiguration,
             _mockCacheService.Object,
+            _mockDemoModeService.Object,
             _mockLogger.Object
         );
 
@@ -419,6 +426,7 @@ public class StatusServiceTests
         var customService = new StatusService(
             customConfiguration,
             _mockCacheService.Object,
+            _mockDemoModeService.Object,
             _mockLogger.Object
         );
 
@@ -465,6 +473,7 @@ public class StatusServiceTests
         var customService = new StatusService(
             customConfiguration,
             _mockCacheService.Object,
+            _mockDemoModeService.Object,
             _mockLogger.Object
         );
 
@@ -496,6 +505,7 @@ public class StatusServiceTests
         var customService = new StatusService(
             customConfiguration,
             _mockCacheService.Object,
+            _mockDemoModeService.Object,
             _mockLogger.Object
         );
 
@@ -550,6 +560,7 @@ public class StatusServiceTests
         var nullConfigService = new StatusService(
             emptyConfiguration,
             _mockCacheService.Object,
+            _mockDemoModeService.Object,
             _mockLogger.Object
         );
 

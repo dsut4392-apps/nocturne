@@ -176,6 +176,65 @@ class Program
         builder.AddNightscoutConnector(api, apiSecret);
         builder.AddMyFitnessPalConnector(api, apiSecret);
 
+        // Add Demo Data Service (optional, for demonstrations and testing)
+        var demoEnabled = builder.Configuration.GetValue<bool>(
+            "Parameters:DemoMode:Enabled",
+            false
+        );
+        IResourceBuilder<ProjectResource>? demoService = null;
+
+        if (demoEnabled)
+        {
+            Console.WriteLine("[Aspire] Demo mode enabled - adding Demo Data Service");
+
+            demoService = builder
+                .AddProject<Projects.Nocturne_Services_Demo>(ServiceNames.DemoService)
+                .WithHttpEndpoint(port: 0, name: "http")
+                .WaitFor(
+                    managedDatabase
+                        ?? (IResourceBuilder<IResourceWithConnectionString>)remoteDatabase!
+                );
+
+            // Configure database connection for demo service
+            if (managedDatabase != null)
+            {
+                demoService.WithReference(managedDatabase);
+            }
+            else if (remoteDatabase != null)
+            {
+                demoService.WithReference(remoteDatabase);
+            }
+
+            // Pass demo configuration
+            demoService
+                .WithEnvironment("DemoMode__Enabled", "true")
+                .WithEnvironment(
+                    "DemoMode__ClearOnStartup",
+                    builder.Configuration["Parameters:DemoMode:ClearOnStartup"] ?? "true"
+                )
+                .WithEnvironment(
+                    "DemoMode__RegenerateOnStartup",
+                    builder.Configuration["Parameters:DemoMode:RegenerateOnStartup"] ?? "true"
+                )
+                .WithEnvironment(
+                    "DemoMode__HistoryMonths",
+                    builder.Configuration["Parameters:DemoMode:HistoryMonths"] ?? "3"
+                )
+                .WithEnvironment(
+                    "DemoMode__IntervalMinutes",
+                    builder.Configuration["Parameters:DemoMode:IntervalMinutes"] ?? "5"
+                );
+
+            // API should reference demo service for health monitoring
+            api.WithEnvironment("DemoService__Url", demoService.GetEndpoint("http"))
+                .WithEnvironment("DemoService__Enabled", "true");
+        }
+        else
+        {
+            // Tell API that demo mode is disabled
+            api.WithEnvironment("DemoService__Enabled", "false");
+        }
+
         // Compatibility Proxy parameters (for "try before you buy" migration testing)
         var compatProxyEnabled = builder.Configuration.GetValue<bool>(
             "Parameters:CompatibilityProxy:Enabled",

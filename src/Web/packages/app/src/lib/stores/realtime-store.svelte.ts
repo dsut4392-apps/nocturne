@@ -117,18 +117,25 @@ export class RealtimeStore {
     try {
       // Fetch historical data first
       if (this.apiClient) {
-        const historicalEntries = await this.apiClient.entries.getEntries2(
-          undefined,
-          1000
-        );
+        const [historicalEntries, historicalTreatments] = await Promise.all([
+          this.apiClient.entries.getEntries2(undefined, 1000),
+          this.apiClient.treatments.getTreatments2(undefined, 500),
+        ]);
+
         if (historicalEntries && historicalEntries.length > 0) {
           this.entries = historicalEntries.sort(
             (a: Entry, b: Entry) => (b.mills || 0) - (a.mills || 0)
           );
         }
+
+        if (historicalTreatments && historicalTreatments.length > 0) {
+          this.treatments = historicalTreatments.sort(
+            (a: Treatment, b: Treatment) => (b.mills || 0) - (a.mills || 0)
+          );
+        }
       }
     } catch (error) {
-      console.error("Failed to fetch historical entries:", error);
+      console.error("Failed to fetch historical data:", error);
       toast.error("Failed to load historical data");
     }
 

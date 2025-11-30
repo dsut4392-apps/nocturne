@@ -11,6 +11,7 @@ public static class ServiceNames
     public const string NocturneWeb = "nocturne-web";
     public const string WebSocketBridge = "websocket-bridge";
     public const string CompatibilityProxy = "compatibility-proxy";
+    public const string DemoService = "demo-service";
 
     // Data Services
     public const string MongoDb = "nightscout-mongodb";

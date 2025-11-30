@@ -13,16 +13,19 @@ public class StatusService : IStatusService
 {
     private readonly IConfiguration _configuration;
     private readonly ICacheService _cacheService;
+    private readonly IDemoModeService _demoModeService;
     private readonly ILogger<StatusService> _logger;
 
     public StatusService(
         IConfiguration configuration,
         ICacheService cacheService,
+        IDemoModeService demoModeService,
         ILogger<StatusService> logger
     )
     {
         _configuration = configuration;
         _cacheService = cacheService;
+        _demoModeService = demoModeService;
         _logger = logger;
     }
 
@@ -31,17 +34,25 @@ public class StatusService : IStatusService
     /// </summary>
     public async Task<StatusResponse> GetSystemStatusAsync()
     {
-        const string cacheKey = "status:system";
+        // Include demo mode in cache key to ensure correct status is returned
+        var demoSuffix = _demoModeService.IsEnabled ? ":demo" : "";
+        var cacheKey = "status:system" + demoSuffix;
         var cacheTtl = TimeSpan.FromMinutes(2);
 
         var cachedStatus = await _cacheService.GetAsync<StatusResponse>(cacheKey);
         if (cachedStatus != null)
         {
-            _logger.LogDebug("Cache HIT for system status");
+            _logger.LogDebug(
+                "Cache HIT for system status (demoMode: {DemoMode})",
+                _demoModeService.IsEnabled
+            );
             return cachedStatus;
         }
 
-        _logger.LogDebug("Cache MISS for system status, generating response");
+        _logger.LogDebug(
+            "Cache MISS for system status (demoMode: {DemoMode}), generating response",
+            _demoModeService.IsEnabled
+        );
         var status = await GenerateSystemStatusAsync();
 
         if (status != null)
@@ -71,6 +82,20 @@ public class StatusService : IStatusService
 
         var version = GetVersionString();
         var serverTime = DateTime.UtcNow;
+        var settings = await GetPublicSettingsAsync();
+
+        // Add demo mode settings if enabled
+        if (_demoModeService.IsEnabled)
+        {
+            settings["demoMode"] = new Dictionary<string, object>
+            {
+                ["enabled"] = true,
+                ["realTimeUpdates"] = true,
+                ["showDemoIndicators"] = true,
+            };
+            settings["runtimeState"] = "demo";
+        }
+
         var response = new StatusResponse
         {
             Status = "ok",
@@ -80,13 +105,14 @@ public class StatusService : IStatusService
             ApiEnabled = true,
             CareportalEnabled = _configuration.GetValue<bool>("Features:CareportalEnabled", true),
             Head = GetGitCommitHash(),
-            Settings = await GetPublicSettingsAsync(),
+            Settings = settings,
         };
 
         _logger.LogDebug(
-            "Status response generated for site: {SiteName}, version: {Version}",
+            "Status response generated for site: {SiteName}, version: {Version}, demoMode: {DemoMode}",
             response.Name,
-            response.Version
+            response.Version,
+            _demoModeService.IsEnabled
         );
 
         return response;

@@ -1,9 +1,9 @@
-using Nocturne.Infrastructure.Cache.Constants;
 using Microsoft.Extensions.Options;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Infrastructure.Cache.Abstractions;
 using Nocturne.Infrastructure.Cache.Configuration;
+using Nocturne.Infrastructure.Cache.Constants;
 using Nocturne.Infrastructure.Cache.Keys;
 using Nocturne.Infrastructure.Data.Abstractions;
 
@@ -18,6 +18,7 @@ public class EntryService : IEntryService
     private readonly ISignalRBroadcastService _broadcastService;
     private readonly ICacheService _cacheService;
     private readonly CacheConfiguration _cacheConfig;
+    private readonly IDemoModeService _demoModeService;
     private readonly ILogger<EntryService> _logger;
     private const string CollectionName = "entries";
     private const string DefaultTenantId = "default"; // TODO: Replace with actual tenant context
@@ -27,6 +28,7 @@ public class EntryService : IEntryService
         ISignalRBroadcastService broadcastService,
         ICacheService cacheService,
         IOptions<CacheConfiguration> cacheConfig,
+        IDemoModeService demoModeService,
         ILogger<EntryService> logger
     )
     {
@@ -34,6 +36,7 @@ public class EntryService : IEntryService
         _broadcastService = broadcastService;
         _cacheService = cacheService;
         _cacheConfig = cacheConfig.Value;
+        _demoModeService = demoModeService;
         _logger = logger;
     }
 
@@ -48,33 +51,40 @@ public class EntryService : IEntryService
         var actualCount = count ?? 10;
         var actualSkip = skip ?? 0;
 
+        // Build query with demo mode filter at database level
+        var findQuery = BuildDemoModeFilterQuery(find);
+
         // Cache recent entries for common queries (skip = 0 and common counts)
+        // Include demo mode in cache key to avoid mixing demo/non-demo data
         if (actualSkip == 0 && IsCommonEntryCount(actualCount))
         {
-            var cacheKey = CacheKeyBuilder.BuildRecentEntriesKey(
-                DefaultTenantId,
-                actualCount,
-                find
+            var demoSuffix = _demoModeService.IsEnabled ? ":demo" : "";
+            var cacheKey =
+                CacheKeyBuilder.BuildRecentEntriesKey(DefaultTenantId, actualCount, find)
+                + demoSuffix;
+            var cacheTtl = TimeSpan.FromSeconds(
+                CacheConstants.Defaults.RecentEntriesExpirationSeconds
             );
-            var cacheTtl = TimeSpan.FromSeconds(CacheConstants.Defaults.RecentEntriesExpirationSeconds);
 
             return await _cacheService.GetOrSetAsync(
                 cacheKey,
                 async () =>
                 {
                     _logger.LogDebug(
-                        "Cache MISS for recent entries (count: {Count}, type: {Type}), fetching from database",
+                        "Cache MISS for recent entries (count: {Count}, type: {Type}, demoMode: {DemoMode}), fetching from database with filter: {Filter}",
                         actualCount,
-                        find ?? "all"
+                        find ?? "all",
+                        _demoModeService.IsEnabled,
+                        findQuery
                     );
                     var entries = await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
                         type: "sgv", // Default to SGV entries
                         count: actualCount,
                         skip: actualSkip,
-                        findQuery: find,
+                        findQuery: findQuery,
                         cancellationToken: cancellationToken
                     );
-                    return entries.ToList(); // Materialize to avoid multiple enumerations
+                    return entries.ToList();
                 },
                 cacheTtl,
                 cancellationToken
@@ -82,13 +92,14 @@ public class EntryService : IEntryService
         }
 
         // Non-cached path for non-standard queries
-        return await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
+        var allEntries = await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
             type: "sgv", // Default to SGV entries
             count: actualCount,
             skip: actualSkip,
-            findQuery: find,
+            findQuery: findQuery,
             cancellationToken: cancellationToken
         );
+        return allEntries;
     }
 
     /// <inheritdoc />
@@ -99,28 +110,39 @@ public class EntryService : IEntryService
         CancellationToken cancellationToken
     )
     {
+        // Build query with demo mode filter at database level
+        var findQuery = BuildDemoModeFilterQuery(null);
+
         // Cache recent entries for common queries (skip = 0 and common counts)
+        // Include demo mode in cache key to avoid mixing demo/non-demo data
         if (skip == 0 && IsCommonEntryCount(count))
         {
-            var cacheKey = CacheKeyBuilder.BuildRecentEntriesKey(DefaultTenantId, count, type);
-            var cacheTtl = TimeSpan.FromSeconds(CacheConstants.Defaults.RecentEntriesExpirationSeconds);
+            var demoSuffix = _demoModeService.IsEnabled ? ":demo" : "";
+            var cacheKey =
+                CacheKeyBuilder.BuildRecentEntriesKey(DefaultTenantId, count, type) + demoSuffix;
+            var cacheTtl = TimeSpan.FromSeconds(
+                CacheConstants.Defaults.RecentEntriesExpirationSeconds
+            );
 
             return await _cacheService.GetOrSetAsync(
                 cacheKey,
                 async () =>
                 {
                     _logger.LogDebug(
-                        "Cache MISS for recent entries (count: {Count}, type: {Type}), fetching from database",
+                        "Cache MISS for recent entries (count: {Count}, type: {Type}, demoMode: {DemoMode}), fetching from database with filter: {Filter}",
                         count,
-                        type ?? "all"
+                        type ?? "all",
+                        _demoModeService.IsEnabled,
+                        findQuery
                     );
-                    var entries = await _postgreSqlService.GetEntriesAsync(
+                    var entries = await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
                         type,
                         count,
                         skip,
-                        cancellationToken
+                        findQuery,
+                        cancellationToken: cancellationToken
                     );
-                    return entries.ToList(); // Materialize to avoid multiple enumerations
+                    return entries.ToList();
                 },
                 cacheTtl,
                 cancellationToken
@@ -128,7 +150,14 @@ public class EntryService : IEntryService
         }
 
         // Non-cached path for non-standard queries
-        return await _postgreSqlService.GetEntriesAsync(type, count, skip, cancellationToken);
+        var allEntries = await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
+            type,
+            count,
+            skip,
+            findQuery,
+            cancellationToken: cancellationToken
+        );
+        return allEntries;
     }
 
     /// <summary>
@@ -139,6 +168,85 @@ public class EntryService : IEntryService
     private static bool IsCommonEntryCount(int count)
     {
         return count is 10 or 50 or 100;
+    }
+
+    /// <summary>
+    /// Builds a find query that filters by demo mode.
+    /// This ensures filtering happens at the database level for efficiency.
+    /// </summary>
+    /// <param name="existingQuery">Optional existing query to merge with</param>
+    /// <returns>A JSON find query string with is_demo filter</returns>
+    private string BuildDemoModeFilterQuery(string? existingQuery = null)
+    {
+        var isDemoValue = _demoModeService.IsEnabled ? "true" : "false";
+        var demoFilter = $"\"is_demo\":{isDemoValue}";
+
+        if (string.IsNullOrWhiteSpace(existingQuery) || existingQuery == "{}")
+        {
+            return "{" + demoFilter + "}";
+        }
+
+        // Merge with existing query - insert demo filter into existing JSON object
+        var trimmed = existingQuery.Trim();
+        if (trimmed.StartsWith("{") && trimmed.EndsWith("}"))
+        {
+            var inner = trimmed.Substring(1, trimmed.Length - 2).Trim();
+            if (string.IsNullOrEmpty(inner))
+            {
+                return "{" + demoFilter + "}";
+            }
+            return "{" + demoFilter + "," + inner + "}";
+        }
+
+        // If query doesn't look like JSON, just return demo filter
+        return "{" + demoFilter + "}";
+    }
+
+    /// <summary>
+    /// Filters entries based on demo mode status (legacy client-side filtering).
+    /// This is kept for backward compatibility but database-level filtering is preferred.
+    /// </summary>
+    private IEnumerable<Entry> FilterEntriesByDemoMode(IEnumerable<Entry> entries)
+    {
+        var entriesList = entries.ToList();
+        var demoEntries = entriesList.Where(e => e.IsDemo == true).ToList();
+        var nonDemoEntries = entriesList.Where(e => e.IsDemo != true).ToList();
+
+        _logger.LogDebug(
+            "FilterEntriesByDemoMode: DemoModeEnabled={DemoMode}, TotalEntries={Total}, DemoEntries={Demo}, NonDemoEntries={NonDemo}",
+            _demoModeService.IsEnabled,
+            entriesList.Count,
+            demoEntries.Count,
+            nonDemoEntries.Count
+        );
+
+        if (_demoModeService.IsEnabled)
+        {
+            // In demo mode, ONLY return demo entries - never fall back to real data
+            if (demoEntries.Count > 0)
+            {
+                _logger.LogDebug("Demo mode ON: Returning {Count} demo entries", demoEntries.Count);
+                return demoEntries;
+            }
+            else
+            {
+                // No demo entries available - return empty to avoid exposing real data
+                _logger.LogWarning(
+                    "Demo mode is enabled but no demo entries found. Returning empty results. "
+                        + "Ensure the Demo Service is running and generating data."
+                );
+                return Enumerable.Empty<Entry>();
+            }
+        }
+        else
+        {
+            // Not in demo mode, only show non-demo entries
+            _logger.LogDebug(
+                "Demo mode OFF: Returning {Count} non-demo entries",
+                nonDemoEntries.Count
+            );
+            return nonDemoEntries;
+        }
     }
 
     /// <inheritdoc />
@@ -415,18 +523,36 @@ public class EntryService : IEntryService
     /// <inheritdoc />
     public async Task<Entry?> GetCurrentEntryAsync(CancellationToken cancellationToken = default)
     {
-        const string cacheKey = "entries:current";
+        var demoSuffix = _demoModeService.IsEnabled ? ":demo" : "";
+        var cacheKey = "entries:current" + demoSuffix;
         var cacheTtl = TimeSpan.FromSeconds(CacheConstants.Defaults.CurrentEntryExpirationSeconds);
 
         var cachedEntry = await _cacheService.GetAsync<Entry>(cacheKey, cancellationToken);
         if (cachedEntry != null)
         {
-            _logger.LogDebug("Cache HIT for current entry");
+            _logger.LogDebug(
+                "Cache HIT for current entry (demoMode: {DemoMode})",
+                _demoModeService.IsEnabled
+            );
             return cachedEntry;
         }
 
-        _logger.LogDebug("Cache MISS for current entry, fetching from database");
-        var entry = await _postgreSqlService.GetCurrentEntryAsync(cancellationToken);
+        _logger.LogDebug(
+            "Cache MISS for current entry (demoMode: {DemoMode}), fetching from database",
+            _demoModeService.IsEnabled
+        );
+
+        // Use database-level filtering by demo mode
+        var findQuery = BuildDemoModeFilterQuery(null);
+        var entries = await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
+            type: "sgv",
+            count: 1,
+            skip: 0,
+            findQuery: findQuery,
+            cancellationToken: cancellationToken
+        );
+
+        var entry = entries.FirstOrDefault();
 
         if (entry != null)
         {
@@ -445,15 +571,18 @@ public class EntryService : IEntryService
         CancellationToken cancellationToken = default
     )
     {
-        return await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
+        // Add demo mode filter to the existing query
+        var findQuery = BuildDemoModeFilterQuery(find);
+        var entries = await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
             null,
             count,
             skip,
-            find,
+            findQuery,
             null,
             false,
             cancellationToken
         );
+        return entries;
     }
 
     /// <inheritdoc />
@@ -467,14 +596,17 @@ public class EntryService : IEntryService
         CancellationToken cancellationToken = default
     )
     {
-        return await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
+        // Add demo mode filter to the existing query
+        var demoFilteredQuery = BuildDemoModeFilterQuery(findQuery);
+        var entries = await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
             type,
             count,
             skip,
-            findQuery,
+            demoFilteredQuery,
             dateString,
             reverseResults,
             cancellationToken
         );
+        return entries;
     }
 }

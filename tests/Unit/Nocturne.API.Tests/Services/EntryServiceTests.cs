@@ -20,6 +20,7 @@ public class EntryServiceTests
     private readonly Mock<ISignalRBroadcastService> _mockSignalRBroadcastService;
     private readonly Mock<ICacheService> _mockCacheService;
     private readonly Mock<IOptions<CacheConfiguration>> _mockCacheConfig;
+    private readonly Mock<IDemoModeService> _mockDemoModeService;
     private readonly Mock<ILogger<EntryService>> _mockLogger;
     private readonly EntryService _entryService;
 
@@ -29,15 +30,18 @@ public class EntryServiceTests
         _mockSignalRBroadcastService = new Mock<ISignalRBroadcastService>();
         _mockCacheService = new Mock<ICacheService>();
         _mockCacheConfig = new Mock<IOptions<CacheConfiguration>>();
+        _mockDemoModeService = new Mock<IDemoModeService>();
         _mockLogger = new Mock<ILogger<EntryService>>();
 
         _mockCacheConfig.Setup(x => x.Value).Returns(new CacheConfiguration());
+        _mockDemoModeService.Setup(x => x.IsEnabled).Returns(false);
 
         _entryService = new EntryService(
             _mockPostgreSqlService.Object,
             _mockSignalRBroadcastService.Object,
             _mockCacheService.Object,
             _mockCacheConfig.Object,
+            _mockDemoModeService.Object,
             _mockLogger.Object
         );
     }

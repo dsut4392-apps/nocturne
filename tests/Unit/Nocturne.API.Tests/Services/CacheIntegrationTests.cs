@@ -21,6 +21,7 @@ public class CacheIntegrationTests
     private readonly Mock<ISignalRBroadcastService> _mockSignalRBroadcastService;
     private readonly Mock<ICacheService> _mockCacheService;
     private readonly Mock<IOptions<CacheConfiguration>> _mockCacheConfig;
+    private readonly Mock<IDemoModeService> _mockDemoModeService;
     private readonly Mock<ILogger<EntryService>> _mockEntryLogger;
     private readonly Mock<ILogger<StatusService>> _mockStatusLogger;
 
@@ -30,10 +31,12 @@ public class CacheIntegrationTests
         _mockSignalRBroadcastService = new Mock<ISignalRBroadcastService>();
         _mockCacheService = new Mock<ICacheService>();
         _mockCacheConfig = new Mock<IOptions<CacheConfiguration>>();
+        _mockDemoModeService = new Mock<IDemoModeService>();
         _mockEntryLogger = new Mock<ILogger<EntryService>>();
         _mockStatusLogger = new Mock<ILogger<StatusService>>();
 
         _mockCacheConfig.Setup(x => x.Value).Returns(new CacheConfiguration());
+        _mockDemoModeService.Setup(x => x.IsEnabled).Returns(false);
     }
 
     [Fact]
@@ -59,6 +62,7 @@ public class CacheIntegrationTests
             _mockSignalRBroadcastService.Object,
             _mockCacheService.Object,
             _mockCacheConfig.Object,
+            _mockDemoModeService.Object,
             _mockEntryLogger.Object
         );
 
@@ -108,6 +112,7 @@ public class CacheIntegrationTests
             _mockSignalRBroadcastService.Object,
             _mockCacheService.Object,
             _mockCacheConfig.Object,
+            _mockDemoModeService.Object,
             _mockEntryLogger.Object
         );
 
@@ -168,6 +173,7 @@ public class CacheIntegrationTests
             _mockSignalRBroadcastService.Object,
             _mockCacheService.Object,
             _mockCacheConfig.Object,
+            _mockDemoModeService.Object,
             _mockEntryLogger.Object
         );
 
@@ -221,6 +227,7 @@ public class CacheIntegrationTests
         var statusService = new StatusService(
             mockConfiguration,
             _mockCacheService.Object,
+            _mockDemoModeService.Object,
             _mockStatusLogger.Object
         );
 
@@ -284,6 +291,7 @@ public class CacheIntegrationTests
         var statusService = new StatusService(
             mockConfiguration,
             _mockCacheService.Object,
+            _mockDemoModeService.Object,
             _mockStatusLogger.Object
         );
 

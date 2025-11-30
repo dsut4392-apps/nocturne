@@ -1,61 +1,46 @@
-using Nocturne.Core.Contracts;
+using Microsoft.Extensions.Options;
 using Nocturne.Core.Models;
+using Nocturne.Services.Demo.Configuration;
 
-namespace Nocturne.API.Services;
+namespace Nocturne.Services.Demo.Services;
 
-public class DemoModeConfiguration
+/// <summary>
+/// Interface for generating demo glucose and treatment data.
+/// </summary>
+public interface IDemoDataGenerator
 {
-    public bool Enabled { get; set; } = false;
-    public bool FilterNonDemoData { get; set; } = true; // When true, only show demo data when demo mode is enabled
-    public int IntervalMinutes { get; set; } = 5;
-    public int InitialGlucose { get; set; } = 120;
-    public int WalkVariance { get; set; } = 10;
-    public int MinGlucose { get; set; } = 70;
-    public int MaxGlucose { get; set; } = 250;
-    public string Device { get; set; } = "demo-cgm";
-    public int HistoryMonths { get; set; } = 3;
-    public double BasalRate { get; set; } = 1.0;
-    public double CarbRatio { get; set; } = 10.0;
-    public double CorrectionFactor { get; set; } = 50.0;
-}
+    /// <summary>
+    /// Whether the generator is currently running.
+    /// </summary>
+    bool IsRunning { get; }
 
-public interface IDemoDataService
-{
-    Task<Entry> GenerateEntryAsync(CancellationToken cancellationToken = default);
-    bool IsEnabled { get; }
-    bool ShouldFilterNonDemoData { get; }
+    /// <summary>
+    /// Gets the current configuration.
+    /// </summary>
     DemoModeConfiguration GetConfiguration();
-    Task<DemoDataGenerationResult> PrepopulateHistoricalDataAsync(
-        CancellationToken cancellationToken = default
-    );
-    Task<DemoDataCleanupResult> CleanupDemoDataAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Generates a single glucose entry for the current time.
+    /// </summary>
+    Entry GenerateCurrentEntry();
+
+    /// <summary>
+    /// Generates historical data for the configured time period.
+    /// </summary>
     (List<Entry> Entries, List<Treatment> Treatments) GenerateHistoricalData();
 }
 
-public class DemoDataGenerationResult
+/// <summary>
+/// Generates realistic demo CGM and treatment data using pharmacokinetic models.
+/// </summary>
+public class DemoDataGenerator : IDemoDataGenerator
 {
-    public int EntriesGenerated { get; set; }
-    public int TreatmentsGenerated { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
-    public TimeSpan Duration { get; set; }
-}
-
-public class DemoDataCleanupResult
-{
-    public long EntriesDeleted { get; set; }
-    public long TreatmentsDeleted { get; set; }
-}
-
-public class DemoDataService : IDemoDataService
-{
-    private readonly ILogger<DemoDataService> _logger;
+    private readonly ILogger<DemoDataGenerator> _logger;
     private readonly DemoModeConfiguration _config;
     private readonly Random _random = new();
     private double _currentGlucose;
     private readonly object _lock = new();
 
-    // Scenarios for realistic glucose patterns
     private enum DayScenario
     {
         Normal,
@@ -67,31 +52,24 @@ public class DemoDataService : IDemoDataService
         PoorSleep,
     }
 
-    public DemoDataService(IConfiguration configuration, ILogger<DemoDataService> logger)
+    public bool IsRunning { get; internal set; }
+
+    public DemoDataGenerator(
+        IOptions<DemoModeConfiguration> config,
+        ILogger<DemoDataGenerator> logger
+    )
     {
         _logger = logger;
-        _config =
-            configuration.GetSection("DemoMode").Get<DemoModeConfiguration>()
-            ?? new DemoModeConfiguration();
+        _config = config.Value;
         _currentGlucose = _config.InitialGlucose;
     }
 
-    public bool IsEnabled => _config.Enabled;
-
-    public bool ShouldFilterNonDemoData => IsEnabled && _config.FilterNonDemoData;
-
     public DemoModeConfiguration GetConfiguration() => _config;
 
-    public Task<Entry> GenerateEntryAsync(CancellationToken cancellationToken = default)
+    public Entry GenerateCurrentEntry()
     {
-        if (!_config.Enabled)
-        {
-            throw new InvalidOperationException("Demo mode is not enabled");
-        }
-
         lock (_lock)
         {
-            // Generate glucose change using drunken walk algorithm
             var change = GenerateRandomWalk();
             _currentGlucose = Math.Max(
                 _config.MinGlucose,
@@ -102,7 +80,7 @@ public class DemoDataService : IDemoDataService
             var mills = new DateTimeOffset(now).ToUnixTimeMilliseconds();
             var direction = CalculateDirection(change);
 
-            var entry = new Entry
+            return new Entry
             {
                 Type = "sgv",
                 Device = _config.Device,
@@ -121,67 +99,7 @@ public class DemoDataService : IDemoDataService
                 CreatedAt = now.ToString("o"),
                 ModifiedAt = now,
             };
-
-            _logger.LogDebug(
-                "Generated demo entry: SGV={Sgv}, Direction={Direction}, Change={Change}",
-                entry.Sgv,
-                entry.Direction,
-                change
-            );
-
-            return Task.FromResult(entry);
         }
-    }
-
-    public async Task<DemoDataGenerationResult> PrepopulateHistoricalDataAsync(
-        CancellationToken cancellationToken = default
-    )
-    {
-        var startTime = DateTime.UtcNow;
-        var result = new DemoDataGenerationResult();
-
-        var endDate = DateTime.UtcNow;
-        var startDate = endDate.AddMonths(-_config.HistoryMonths);
-
-        result.StartDate = startDate;
-        result.EndDate = endDate;
-
-        var entries = new List<Entry>();
-        var treatments = new List<Treatment>();
-
-        _logger.LogInformation(
-            "Starting demo data prepopulation from {StartDate} to {EndDate}",
-            startDate,
-            endDate
-        );
-
-        // Generate data day by day
-        var currentDay = startDate.Date;
-        while (currentDay <= endDate.Date)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var dayScenario = SelectDayScenario(currentDay);
-            var (dayEntries, dayTreatments) = GenerateDayData(currentDay, dayScenario);
-
-            entries.AddRange(dayEntries);
-            treatments.AddRange(dayTreatments);
-
-            currentDay = currentDay.AddDays(1);
-        }
-
-        result.EntriesGenerated = entries.Count;
-        result.TreatmentsGenerated = treatments.Count;
-        result.Duration = DateTime.UtcNow - startTime;
-
-        _logger.LogInformation(
-            "Generated {Entries} entries and {Treatments} treatments in {Duration}",
-            result.EntriesGenerated,
-            result.TreatmentsGenerated,
-            result.Duration
-        );
-
-        return await Task.FromResult(result);
     }
 
     public (List<Entry> Entries, List<Treatment> Treatments) GenerateHistoricalData()
@@ -192,7 +110,12 @@ public class DemoDataService : IDemoDataService
         var entries = new List<Entry>();
         var treatments = new List<Treatment>();
 
-        // Generate data day by day
+        _logger.LogInformation(
+            "Generating historical demo data from {StartDate} to {EndDate}",
+            startDate,
+            endDate
+        );
+
         var currentDay = startDate.Date;
         while (currentDay <= endDate.Date)
         {
@@ -205,27 +128,18 @@ public class DemoDataService : IDemoDataService
             currentDay = currentDay.AddDays(1);
         }
 
-        return (entries, treatments);
-    }
-
-    public async Task<DemoDataCleanupResult> CleanupDemoDataAsync(
-        CancellationToken cancellationToken = default
-    )
-    {
-        // This method prepares the cleanup result - actual deletion happens in the background service
-        // since we don't have direct repository access here
-        return await Task.FromResult(
-            new DemoDataCleanupResult { EntriesDeleted = 0, TreatmentsDeleted = 0 }
+        _logger.LogInformation(
+            "Generated {EntryCount} entries and {TreatmentCount} treatments",
+            entries.Count,
+            treatments.Count
         );
+
+        return (entries, treatments);
     }
 
     private DayScenario SelectDayScenario(DateTime date)
     {
-        // Weight the scenarios for realistic distribution
-        // ~60% normal days, 10% each for problematic days
         var roll = _random.Next(100);
-
-        // Add some weekly patterns - weekends more likely to have unusual days
         var isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
 
         if (isWeekend)
@@ -233,7 +147,7 @@ public class DemoDataService : IDemoDataService
             return roll switch
             {
                 < 40 => DayScenario.Normal,
-                < 55 => DayScenario.HighDay, // More likely on weekends (eating out, sleeping in)
+                < 55 => DayScenario.HighDay,
                 < 65 => DayScenario.Exercise,
                 < 75 => DayScenario.PoorSleep,
                 < 85 => DayScenario.LowDay,
@@ -262,41 +176,42 @@ public class DemoDataService : IDemoDataService
         var entries = new List<Entry>();
         var treatments = new List<Treatment>();
 
-        // Get scenario-specific parameters
         var scenarioParams = GetScenarioParameters(scenario);
-
-        // Start with fasting glucose based on scenario
         var glucose = scenarioParams.FastingGlucose + (_random.NextDouble() - 0.5) * 20;
 
-        // Generate 5-minute interval entries (288 per day)
         var currentTime = date;
         var endTime = date.AddDays(1);
 
-        // Pre-plan meals and activities for the day
         var mealPlan = GenerateMealPlan(date, scenario);
         var basalAdjustments = GenerateBasalAdjustments(date, scenario);
 
-        // Track meal effects
-        var mealEffects =
-            new List<(DateTime Time, double CarbsRemaining, double InsulinRemaining)>();
+        var insulinEvents = new List<(DateTime Time, double Units)>();
+        var carbEvents = new List<(DateTime Time, double Carbs, double GlycemicIndex)>();
+
+        // Pre-populate insulin and carb events from meal plan
+        foreach (var meal in mealPlan)
+        {
+            carbEvents.Add((meal.MealTime, meal.Carbs, meal.GlycemicIndex));
+
+            var bolusTime = meal.MealTime.AddMinutes(meal.BolusOffsetMinutes);
+            var bolus = CalculateMealBolus(meal.Carbs, glucose, scenarioParams);
+            insulinEvents.Add((bolusTime, bolus));
+
+            treatments.Add(CreateCarbTreatment(meal.MealTime, meal.Carbs, meal.FoodType));
+            treatments.Add(
+                CreateBolusTreatment(
+                    bolusTime,
+                    bolus,
+                    meal.FoodType == "Snack" ? "Snack Bolus" : "Meal Bolus"
+                )
+            );
+        }
+
+        double glucoseMomentum = 0;
+        double lastGlucose = glucose;
 
         while (currentTime < endTime)
         {
-            // Check for meals at this time
-            var meal = mealPlan.FirstOrDefault(m =>
-                Math.Abs((m.Time - currentTime).TotalMinutes) < 2.5
-            );
-            if (meal.Carbs > 0)
-            {
-                // Generate meal bolus treatment
-                var bolus = CalculateMealBolus(meal.Carbs, glucose, scenarioParams);
-                treatments.Add(CreateMealTreatment(currentTime, meal.Carbs, bolus, meal.FoodType));
-
-                // Add meal effect for glucose simulation
-                mealEffects.Add((currentTime, meal.Carbs, bolus));
-            }
-
-            // Check for basal adjustments
             var basalAdj = basalAdjustments.FirstOrDefault(b =>
                 Math.Abs((b.Time - currentTime).TotalMinutes) < 2.5
             );
@@ -307,23 +222,28 @@ public class DemoDataService : IDemoDataService
                 );
             }
 
-            // Apply meal and insulin effects
-            glucose = SimulateGlucose(glucose, currentTime, mealEffects, scenarioParams, scenario);
+            glucose = SimulateGlucosePhysiological(
+                glucose,
+                currentTime,
+                insulinEvents,
+                carbEvents,
+                scenarioParams,
+                scenario,
+                ref glucoseMomentum
+            );
 
-            // Clamp glucose to realistic range
             glucose = Math.Max(40, Math.Min(400, glucose));
 
-            // Handle low glucose - generate correction treatment
+            // Handle low glucose correction
             if (glucose < 70 && _random.NextDouble() < 0.7)
             {
-                var correctionCarbs = _random.Next(10, 20);
+                var correctionCarbs = _random.Next(12, 20);
                 treatments.Add(CreateCarbCorrectionTreatment(currentTime, correctionCarbs));
-                // Boost glucose from carb correction
-                glucose += correctionCarbs * 3; // ~3 mg/dL per gram of fast carbs
+                carbEvents.Add((currentTime, correctionCarbs, 1.5));
             }
 
-            // Handle high glucose - generate correction bolus
-            if (glucose > 200 && _random.NextDouble() < 0.5)
+            // Handle high glucose correction
+            if (glucose > 200 && _random.NextDouble() < 0.4)
             {
                 var correctionBolus = Math.Round(
                     (glucose - 120) / scenarioParams.CorrectionFactor,
@@ -332,25 +252,152 @@ public class DemoDataService : IDemoDataService
                 if (correctionBolus >= 0.5)
                 {
                     treatments.Add(CreateCorrectionBolusTreatment(currentTime, correctionBolus));
-                    mealEffects.Add((currentTime, 0, correctionBolus));
+                    insulinEvents.Add((currentTime, correctionBolus));
                 }
             }
 
-            // Create entry
-            var previousGlucose = entries.Count > 0 ? entries[^1].Sgv ?? entries[^1].Mgdl : glucose;
-            var delta = glucose - previousGlucose;
+            var delta = glucose - lastGlucose;
             entries.Add(CreateEntry(currentTime, glucose, delta));
+            lastGlucose = glucose;
 
             currentTime = currentTime.AddMinutes(5);
 
-            // Clean up old meal effects
-            mealEffects.RemoveAll(m => (currentTime - m.Time).TotalHours > 6);
+            // Clean up old events
+            insulinEvents.RemoveAll(e =>
+                (currentTime - e.Time).TotalMinutes > _config.InsulinDurationMinutes + 30
+            );
+            carbEvents.RemoveAll(e =>
+                (currentTime - e.Time).TotalMinutes > _config.CarbAbsorptionDurationMinutes + 30
+            );
         }
 
-        // Generate scheduled basal entries for the day
         treatments.AddRange(GenerateScheduledBasal(date, scenarioParams));
 
         return (entries, treatments);
+    }
+
+    private double SimulateGlucosePhysiological(
+        double currentGlucose,
+        DateTime time,
+        List<(DateTime Time, double Units)> insulinEvents,
+        List<(DateTime Time, double Carbs, double GlycemicIndex)> carbEvents,
+        ScenarioParameters @params,
+        DayScenario scenario,
+        ref double momentum
+    )
+    {
+        var glucose = currentGlucose;
+        var hour = time.Hour + time.Minute / 60.0;
+
+        var insulinActivity = CalculateInsulinActivity(time, insulinEvents, @params);
+        var (_, carbAbsorptionRate) = CalculateCarbEffect(time, carbEvents, @params);
+
+        var basalEffect = @params.BasalMultiplier * 0.02;
+        var homeostasis = (100 - glucose) * 0.002;
+
+        var dawnEffect = 0.0;
+        if (hour >= 3 && hour < 8)
+        {
+            dawnEffect = @params.DawnPhenomenonStrength * 0.8 * Math.Sin((hour - 3) * Math.PI / 5);
+        }
+
+        var exerciseEffect = 0.0;
+        if (@params.HasExercise)
+        {
+            if (hour >= 16 && hour < 18)
+                exerciseEffect = -0.4;
+            else if (hour >= 18 && hour < 22)
+                exerciseEffect = -0.1;
+        }
+
+        var netChange =
+            carbAbsorptionRate
+            - insulinActivity
+            + basalEffect
+            + homeostasis
+            + dawnEffect
+            + exerciseEffect;
+        var noise = (_random.NextDouble() - 0.5) * 1.5;
+
+        var targetChange = netChange + noise;
+        momentum = momentum * 0.7 + targetChange * 0.3;
+        glucose += momentum;
+
+        if (scenario == DayScenario.SickDay)
+            glucose += (_random.NextDouble() - 0.3) * 1.5;
+        else if (scenario == DayScenario.StressDay && _random.NextDouble() < 0.05)
+            glucose += _random.Next(5, 15);
+
+        return glucose;
+    }
+
+    private double CalculateInsulinActivity(
+        DateTime currentTime,
+        List<(DateTime Time, double Units)> insulinEvents,
+        ScenarioParameters @params
+    )
+    {
+        double totalActivity = 0;
+        var peakTime = _config.InsulinPeakMinutes;
+        var dia = _config.InsulinDurationMinutes;
+
+        foreach (var (eventTime, units) in insulinEvents)
+        {
+            var minutesSince = (currentTime - eventTime).TotalMinutes;
+            if (minutesSince < 0 || minutesSince > dia)
+                continue;
+
+            var tau = peakTime / 1.4;
+            var S = 1 / (1 - tau / dia + (1 + tau / dia) * Math.Exp(-dia / tau));
+            var activity = S * (minutesSince / (tau * tau)) * Math.Exp(-minutesSince / tau);
+            var glucoseEffect =
+                activity
+                * units
+                * @params.InsulinSensitivityMultiplier
+                * (_config.InsulinSensitivityFactor / 60.0);
+            totalActivity += glucoseEffect;
+        }
+
+        return totalActivity;
+    }
+
+    private (double COB, double AbsorptionRate) CalculateCarbEffect(
+        DateTime currentTime,
+        List<(DateTime Time, double Carbs, double GlycemicIndex)> carbEvents,
+        ScenarioParameters @params
+    )
+    {
+        double totalCOB = 0;
+        double totalAbsorptionRate = 0;
+        var peakTime = _config.CarbAbsorptionPeakMinutes;
+        var duration = _config.CarbAbsorptionDurationMinutes;
+
+        foreach (var (eventTime, carbs, gi) in carbEvents)
+        {
+            var minutesSince = (currentTime - eventTime).TotalMinutes;
+            if (minutesSince < 0 || minutesSince > duration * gi)
+                continue;
+
+            var adjustedPeak = peakTime / gi;
+            var adjustedDuration = duration / gi;
+            var k = 2.0;
+
+            if (minutesSince > 0)
+            {
+                var normalizedTime = minutesSince / adjustedPeak;
+                var absorptionRate =
+                    Math.Pow(normalizedTime, k - 1) * Math.Exp(-normalizedTime * (k - 1));
+                var absorbed = carbs * (1 - Math.Exp(-minutesSince / (adjustedDuration / 3)));
+                var remaining = Math.Max(0, carbs - absorbed);
+
+                totalCOB += remaining;
+                var glucosePerCarb = 3.5 / @params.InsulinSensitivityMultiplier;
+                totalAbsorptionRate +=
+                    absorptionRate * (carbs / adjustedDuration) * glucosePerCarb * gi;
+            }
+        }
+
+        return (totalCOB, totalAbsorptionRate);
     }
 
     private ScenarioParameters GetScenarioParameters(DayScenario scenario)
@@ -369,7 +416,7 @@ public class DemoDataService : IDemoDataService
             DayScenario.HighDay => new ScenarioParameters
             {
                 FastingGlucose = 140 + _random.Next(0, 40),
-                CarbRatio = _config.CarbRatio * 0.8, // Need more insulin
+                CarbRatio = _config.CarbRatio * 0.8,
                 CorrectionFactor = _config.CorrectionFactor * 0.8,
                 BasalMultiplier = 1.2,
                 InsulinSensitivityMultiplier = 0.7,
@@ -378,7 +425,7 @@ public class DemoDataService : IDemoDataService
             DayScenario.LowDay => new ScenarioParameters
             {
                 FastingGlucose = 80 + _random.Next(-10, 15),
-                CarbRatio = _config.CarbRatio * 1.3, // Need less insulin
+                CarbRatio = _config.CarbRatio * 1.3,
                 CorrectionFactor = _config.CorrectionFactor * 1.3,
                 BasalMultiplier = 0.7,
                 InsulinSensitivityMultiplier = 1.4,
@@ -433,14 +480,19 @@ public class DemoDataService : IDemoDataService
         };
     }
 
-    private List<(DateTime Time, double Carbs, string FoodType)> GenerateMealPlan(
-        DateTime date,
-        DayScenario scenario
-    )
-    {
-        var meals = new List<(DateTime Time, double Carbs, string FoodType)>();
+    private record MealEvent(
+        DateTime MealTime,
+        double Carbs,
+        string FoodType,
+        int BolusOffsetMinutes,
+        double GlycemicIndex
+    );
 
-        // Breakfast (6-9 AM)
+    private List<MealEvent> GenerateMealPlan(DateTime date, DayScenario scenario)
+    {
+        var meals = new List<MealEvent>();
+
+        // Breakfast
         var breakfastHour = 6 + _random.Next(0, 4);
         var breakfastMinute = _random.Next(0, 12) * 5;
         var breakfastCarbs =
@@ -448,44 +500,87 @@ public class DemoDataService : IDemoDataService
             : scenario == DayScenario.HighDay ? _random.Next(50, 80)
             : _random.Next(30, 60);
         meals.Add(
-            (date.AddHours(breakfastHour).AddMinutes(breakfastMinute), breakfastCarbs, "Breakfast")
+            new MealEvent(
+                date.AddHours(breakfastHour).AddMinutes(breakfastMinute),
+                breakfastCarbs,
+                "Breakfast",
+                _random.Next(-15, 5),
+                1.0 + (_random.NextDouble() - 0.5) * 0.4
+            )
         );
 
-        // Lunch (11 AM - 1 PM)
+        // Lunch
         var lunchHour = 11 + _random.Next(0, 3);
         var lunchMinute = _random.Next(0, 12) * 5;
         var lunchCarbs =
             scenario == DayScenario.LowDay ? _random.Next(30, 50)
             : scenario == DayScenario.HighDay ? _random.Next(60, 100)
             : _random.Next(40, 70);
-        meals.Add((date.AddHours(lunchHour).AddMinutes(lunchMinute), lunchCarbs, "Lunch"));
+        meals.Add(
+            new MealEvent(
+                date.AddHours(lunchHour).AddMinutes(lunchMinute),
+                lunchCarbs,
+                "Lunch",
+                _random.Next(-10, 20),
+                1.0 + (_random.NextDouble() - 0.5) * 0.3
+            )
+        );
 
-        // Dinner (5-8 PM)
+        // Dinner
         var dinnerHour = 17 + _random.Next(0, 4);
         var dinnerMinute = _random.Next(0, 12) * 5;
         var dinnerCarbs =
             scenario == DayScenario.LowDay ? _random.Next(35, 55)
             : scenario == DayScenario.HighDay ? _random.Next(70, 120)
             : _random.Next(50, 90);
-        meals.Add((date.AddHours(dinnerHour).AddMinutes(dinnerMinute), dinnerCarbs, "Dinner"));
+        meals.Add(
+            new MealEvent(
+                date.AddHours(dinnerHour).AddMinutes(dinnerMinute),
+                dinnerCarbs,
+                "Dinner",
+                _random.NextDouble() < 0.4 ? _random.Next(-10, 5) : _random.Next(5, 25),
+                1.0 + (_random.NextDouble() - 0.5) * 0.5
+            )
+        );
 
-        // Snacks (random, 50% chance for each)
+        // Snacks
         if (_random.NextDouble() < 0.5)
         {
-            var snack1Hour = 10 + _random.NextDouble(); // Mid-morning
-            meals.Add((date.AddHours(snack1Hour), _random.Next(10, 25), "Snack"));
+            meals.Add(
+                new MealEvent(
+                    date.AddHours(10 + _random.NextDouble()),
+                    _random.Next(10, 25),
+                    "Snack",
+                    _random.Next(0, 15),
+                    1.2
+                )
+            );
         }
 
         if (_random.NextDouble() < 0.5)
         {
-            var snack2Hour = 15 + _random.NextDouble(); // Afternoon
-            meals.Add((date.AddHours(snack2Hour), _random.Next(10, 25), "Snack"));
+            meals.Add(
+                new MealEvent(
+                    date.AddHours(15 + _random.NextDouble()),
+                    _random.Next(10, 25),
+                    "Snack",
+                    _random.Next(0, 15),
+                    1.2
+                )
+            );
         }
 
         if (_random.NextDouble() < 0.3)
         {
-            var snack3Hour = 21 + _random.NextDouble(); // Evening snack
-            meals.Add((date.AddHours(snack3Hour), _random.Next(10, 20), "Snack"));
+            meals.Add(
+                new MealEvent(
+                    date.AddHours(21 + _random.NextDouble()),
+                    _random.Next(10, 20),
+                    "Snack",
+                    _random.Next(0, 10),
+                    1.0
+                )
+            );
         }
 
         return meals;
@@ -500,21 +595,18 @@ public class DemoDataService : IDemoDataService
 
         if (scenario == DayScenario.Exercise)
         {
-            // Reduce basal before/during exercise
-            var exerciseHour = _random.Next(16, 20); // Afternoon/evening exercise
-            adjustments.Add((date.AddHours(exerciseHour - 1), _config.BasalRate * 0.5, 120)); // -50% for 2 hours
+            var exerciseHour = _random.Next(16, 20);
+            adjustments.Add((date.AddHours(exerciseHour - 1), _config.BasalRate * 0.5, 120));
         }
 
         if (scenario == DayScenario.LowDay && _random.NextDouble() < 0.5)
         {
-            // Reduce basal when running low
             var lowHour = _random.Next(10, 16);
             adjustments.Add((date.AddHours(lowHour), _config.BasalRate * 0.6, 60));
         }
 
         if (scenario == DayScenario.HighDay && _random.NextDouble() < 0.5)
         {
-            // Increase basal when running high
             var highHour = _random.Next(10, 18);
             adjustments.Add((date.AddHours(highHour), _config.BasalRate * 1.3, 120));
         }
@@ -526,18 +618,15 @@ public class DemoDataService : IDemoDataService
     {
         var basalTreatments = new List<Treatment>();
 
-        // Generate hourly basal segments with circadian rhythm
         for (var hour = 0; hour < 24; hour++)
         {
             var baseRate = _config.BasalRate * @params.BasalMultiplier;
-
-            // Apply circadian rhythm - higher in early morning (dawn phenomenon)
             var circadianMultiplier = hour switch
             {
                 >= 3 and < 8 => 1.0
                     + (@params.DawnPhenomenonStrength * (1 - Math.Abs(hour - 5.5) / 2.5)),
-                >= 12 and < 14 => 1.1, // Slight increase around lunch
-                >= 22 or < 3 => 0.9, // Slightly lower at night
+                >= 12 and < 14 => 1.1,
+                >= 22 or < 3 => 0.9,
                 _ => 1.0,
             };
 
@@ -562,80 +651,6 @@ public class DemoDataService : IDemoDataService
         return basalTreatments;
     }
 
-    private double SimulateGlucose(
-        double currentGlucose,
-        DateTime time,
-        List<(DateTime Time, double CarbsRemaining, double InsulinRemaining)> mealEffects,
-        ScenarioParameters @params,
-        DayScenario scenario
-    )
-    {
-        var glucose = currentGlucose;
-
-        // Base random walk with scenario-adjusted variance
-        var baseVariance = scenario switch
-        {
-            DayScenario.SickDay => 15,
-            DayScenario.HighDay => 12,
-            DayScenario.LowDay => 8,
-            DayScenario.StressDay => 10,
-            _ => 8,
-        };
-
-        glucose += GenerateRandomWalk(baseVariance);
-
-        // Apply dawn phenomenon (3-8 AM)
-        var hour = time.Hour + time.Minute / 60.0;
-        if (hour >= 3 && hour < 8)
-        {
-            var dawnEffect =
-                @params.DawnPhenomenonStrength * 3 * Math.Sin((hour - 3) * Math.PI / 5);
-            glucose += dawnEffect;
-        }
-
-        // Apply meal effects (carb absorption)
-        foreach (var effect in mealEffects.ToList())
-        {
-            var minutesSinceMeal = (time - effect.Time).TotalMinutes;
-            if (minutesSinceMeal > 0 && minutesSinceMeal < 240) // 4-hour absorption window
-            {
-                // Simple carb absorption curve (peaks around 45-60 minutes)
-                var carbAbsorptionRate =
-                    Math.Exp(-Math.Pow(minutesSinceMeal - 50, 2) / 2000) * 0.15;
-                glucose += effect.CarbsRemaining * carbAbsorptionRate;
-
-                // Insulin effect (peaks around 60-90 minutes, lasts longer)
-                if (effect.InsulinRemaining > 0 && minutesSinceMeal > 15)
-                {
-                    var insulinEffectRate =
-                        Math.Exp(-Math.Pow(minutesSinceMeal - 75, 2) / 3000) * 0.2;
-                    glucose -=
-                        effect.InsulinRemaining
-                        * @params.InsulinSensitivityMultiplier
-                        * insulinEffectRate
-                        * @params.CorrectionFactor
-                        / 10;
-                }
-            }
-        }
-
-        // Exercise effect (if applicable)
-        if (@params.HasExercise)
-        {
-            if (hour >= 16 && hour < 19) // During exercise window
-            {
-                glucose -= 2; // Glucose drops during exercise
-            }
-            else if (hour >= 19 && hour < 24) // Post-exercise insulin sensitivity
-            {
-                // Increased random variability post-exercise
-                glucose += (_random.NextDouble() - 0.6) * 5;
-            }
-        }
-
-        return glucose;
-    }
-
     private double CalculateMealBolus(
         double carbs,
         double currentGlucose,
@@ -643,17 +658,9 @@ public class DemoDataService : IDemoDataService
     )
     {
         var carbBolus = carbs / @params.CarbRatio;
-
-        // Correction if running high
-        var correctionBolus = 0.0;
-        if (currentGlucose > 120)
-        {
-            correctionBolus = (currentGlucose - 120) / @params.CorrectionFactor;
-        }
-
-        // Add some natural variation in dosing (people aren't perfect)
-        var variation = 1.0 + (_random.NextDouble() - 0.5) * 0.2; // ±10% variation
-
+        var correctionBolus =
+            currentGlucose > 120 ? (currentGlucose - 120) / @params.CorrectionFactor : 0.0;
+        var variation = 1.0 + (_random.NextDouble() - 0.5) * 0.2;
         return Math.Round((carbBolus + correctionBolus) * variation, 1);
     }
 
@@ -683,22 +690,27 @@ public class DemoDataService : IDemoDataService
         };
     }
 
-    private Treatment CreateMealTreatment(
-        DateTime time,
-        double carbs,
-        double insulin,
-        string foodType
-    )
+    private Treatment CreateCarbTreatment(DateTime time, double carbs, string foodType)
     {
-        var mills = new DateTimeOffset(time).ToUnixTimeMilliseconds();
-
         return new Treatment
         {
-            EventType = "Meal Bolus",
+            EventType = "Carbs",
             Carbs = carbs,
-            Insulin = insulin,
             FoodType = foodType,
-            Mills = mills,
+            Mills = new DateTimeOffset(time).ToUnixTimeMilliseconds(),
+            Created_at = time.ToString("o"),
+            EnteredBy = "demo-user",
+            IsDemo = true,
+        };
+    }
+
+    private Treatment CreateBolusTreatment(DateTime time, double insulin, string eventType)
+    {
+        return new Treatment
+        {
+            EventType = eventType,
+            Insulin = insulin,
+            Mills = new DateTimeOffset(time).ToUnixTimeMilliseconds(),
             Created_at = time.ToString("o"),
             EnteredBy = "demo-user",
             IsDemo = true,
@@ -707,13 +719,11 @@ public class DemoDataService : IDemoDataService
 
     private Treatment CreateCorrectionBolusTreatment(DateTime time, double insulin)
     {
-        var mills = new DateTimeOffset(time).ToUnixTimeMilliseconds();
-
         return new Treatment
         {
             EventType = "Correction Bolus",
             Insulin = insulin,
-            Mills = mills,
+            Mills = new DateTimeOffset(time).ToUnixTimeMilliseconds(),
             Created_at = time.ToString("o"),
             EnteredBy = "demo-user",
             IsDemo = true,
@@ -722,13 +732,11 @@ public class DemoDataService : IDemoDataService
 
     private Treatment CreateCarbCorrectionTreatment(DateTime time, double carbs)
     {
-        var mills = new DateTimeOffset(time).ToUnixTimeMilliseconds();
-
         return new Treatment
         {
             EventType = "Carb Correction",
             Carbs = carbs,
-            Mills = mills,
+            Mills = new DateTimeOffset(time).ToUnixTimeMilliseconds(),
             Created_at = time.ToString("o"),
             EnteredBy = "demo-user",
             Notes = "Low treatment",
@@ -738,14 +746,12 @@ public class DemoDataService : IDemoDataService
 
     private Treatment CreateTempBasalTreatment(DateTime time, double rate, int duration)
     {
-        var mills = new DateTimeOffset(time).ToUnixTimeMilliseconds();
-
         return new Treatment
         {
             EventType = "Temp Basal",
             Rate = rate,
             Duration = duration,
-            Mills = mills,
+            Mills = new DateTimeOffset(time).ToUnixTimeMilliseconds(),
             Created_at = time.ToString("o"),
             EnteredBy = "demo-pump",
             IsDemo = true,
@@ -755,18 +761,14 @@ public class DemoDataService : IDemoDataService
     private double GenerateRandomWalk(double variance = 0)
     {
         var v = variance > 0 ? variance : _config.WalkVariance;
-        // Box-Muller transform for normal distribution
         var u1 = _random.NextDouble();
         var u2 = _random.NextDouble();
         var z0 = Math.Sqrt(-2 * Math.Log(u1)) * Math.Cos(2 * Math.PI * u2);
-
-        // Scale by variance
         return z0 * v;
     }
 
     private Direction CalculateDirection(double change)
     {
-        // Convert glucose change to direction enum
         return change switch
         {
             > 10 => Direction.DoubleUp,

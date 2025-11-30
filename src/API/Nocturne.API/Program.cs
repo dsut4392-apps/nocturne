@@ -14,16 +14,11 @@ using Nocturne.API.Services.Compatibility;
 using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Services;
-
 using Nocturne.Connectors.Dexcom.Services;
 using Nocturne.Connectors.FreeStyle.Services;
-
 using Nocturne.Connectors.Glooko.Services;
-
 using Nocturne.Connectors.MiniMed.Services;
-
 using Nocturne.Connectors.MyFitnessPal.Services;
-
 using Nocturne.Connectors.Nightscout.Services;
 using Nocturne.Core.Constants;
 using Nocturne.Core.Contracts;
@@ -229,6 +224,10 @@ builder.Services.AddSignalR();
 // Register SignalR broadcast service
 builder.Services.AddScoped<ISignalRBroadcastService, SignalRBroadcastService>();
 
+// Register demo mode service for querying demo mode status
+// This service is used by EntryService, TreatmentService, and StatusService to filter data
+builder.Services.AddSingleton<IDemoModeService, DemoModeService>();
+
 // Register domain services for WebSocket broadcasting
 builder.Services.AddScoped<ITreatmentService, TreatmentService>();
 builder.Services.AddScoped<IEntryService, EntryService>();
@@ -239,10 +238,11 @@ builder.Services.AddScoped<IActivityService, ActivityService>();
 
 // Note: Processing status service is registered by AddNocturneMemoryCache
 
-// Register demo data services
-builder.Services.AddScoped<IDemoDataService, DemoDataService>();
-builder.Services.AddHostedService<DemoDataBackgroundService>();
-builder.Services.AddHostedService<DemoDataCleanupService>();
+// Register demo service health monitor
+// Demo data generation is handled by the separate Nocturne.Services.Demo service
+// The API only monitors the demo service health and cleans up demo data when the service stops
+builder.Services.AddHttpClient("DemoServiceHealth");
+builder.Services.AddHostedService<DemoServiceHealthMonitor>();
 
 // Configure device health settings
 builder.Services.Configure<DeviceHealthOptions>(

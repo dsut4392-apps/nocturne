@@ -74,8 +74,11 @@ dotnet test --filter "Category!=Integration&Category!=Performance"
 cd tests/Infrastructure/Docker && docker-compose -f docker-compose.test.yml up -d
 dotnet test --filter "Category=Integration"
 
-# Generate TypeScript API client
-cd src/API/Nocturne.API && nswag run nswag.json
+# Generate TypeScript API client (uses NSwag with .NET 10)
+dotnet build -t:GenerateClient src/API/Nocturne.API
+
+# Or from the web app directory
+cd src/Web/packages/app && pnpm run generate-api-client
 ```
 
 **VS Code Tasks**: Use `start-aspire`, `start-api`, `build` from Command Palette.

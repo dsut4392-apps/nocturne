@@ -9,7 +9,6 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591;NU1608;NU1701</NoWarn>
-
     <!-- Container publishing configuration for Aspire -->
     <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
     <ContainerRepository>nocturne-api</ContainerRepository>
@@ -36,8 +35,18 @@
     <PackageReference Include="Yarp.ReverseProxy" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\..\..\appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\..\appsettings.json')" />
-    <Content Include="..\..\..\appsettings.Development.json" Link="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\..\appsettings.Development.json')" />
+    <Content
+      Include="..\..\..\appsettings.json"
+      Link="appsettings.json"
+      CopyToOutputDirectory="PreserveNewest"
+      Condition="Exists('..\..\..\appsettings.json')"
+    />
+    <Content
+      Include="..\..\..\appsettings.Development.json"
+      Link="appsettings.Development.json"
+      CopyToOutputDirectory="PreserveNewest"
+      Condition="Exists('..\..\..\appsettings.Development.json')"
+    />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Aspire\Nocturne.Aspire.ServiceDefaults\Nocturne.Aspire.ServiceDefaults.csproj" />
@@ -55,9 +64,12 @@
     <ProjectReference Include="..\..\Connectors\Nocturne.Connectors.Nightscout\Nocturne.Connectors.Nightscout.csproj" />
     <ProjectReference Include="..\..\Connectors\Nocturne.Connectors.MyFitnessPal\Nocturne.Connectors.MyFitnessPal.csproj" />
   </ItemGroup>
-  <!-- NSwag TypeScript Client Generation - Manual only -->
+  <!-- NSwag TypeScript Client Generation -->
   <!-- Use: dotnet build -t:GenerateClient to generate TypeScript client -->
   <Target Name="GenerateClient">
-    <Exec Command="nswag run nswag.json" ContinueOnError="false" />
+    <Exec
+      Command="$(NSwagExe_Net100) run nswag.json"
+      WorkingDirectory="$(MSBuildProjectDirectory)"
+    />
   </Target>
 </Project>

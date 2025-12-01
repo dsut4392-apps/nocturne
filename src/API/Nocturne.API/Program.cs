@@ -58,6 +58,13 @@ builder.Configuration.AddJsonFile(
 // Ensure environment variables (injected by Aspire) take precedence over appsettings.json
 builder.Configuration.AddEnvironmentVariables();
 
+// Configure Kestrel to allow larger request bodies for analytics endpoints
+// 90 days of demo data can exceed the 30MB default limit
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100 MB
+});
+
 builder.AddServiceDefaults();
 
 // Configure PostgreSQL database
@@ -155,6 +162,15 @@ builder.Services.AddScoped<IIobService, IobService>();
 builder.Services.AddScoped<ICobService, CobService>();
 builder.Services.AddScoped<IAr2Service, Ar2Service>();
 builder.Services.AddScoped<IBolusWizardService, BolusWizardService>();
+
+// oref Rust WASM service - provides high-performance IOB/COB/determine-basal calculations
+builder.Services.AddOrefService(options =>
+{
+    // Look for WASM file in standard locations
+    options.WasmPath = "oref.wasm";
+    options.Enabled = true;
+});
+
 builder.Services.AddScoped<IDirectionService, DirectionService>();
 builder.Services.AddScoped<INotificationV2Service, NotificationV2Service>();
 builder.Services.AddScoped<INotificationV1Service, NotificationV1Service>();

@@ -25,7 +25,7 @@ public class DemoModeConfiguration
     /// <summary>
     /// Maximum variance in glucose change per interval.
     /// </summary>
-    public int WalkVariance { get; set; } = 10;
+    public int WalkVariance { get; set; } = 15;
 
     /// <summary>
     /// Minimum glucose value in mg/dL.
@@ -48,19 +48,20 @@ public class DemoModeConfiguration
     public int HistoryDays { get; set; } = 90;
 
     /// <summary>
-    /// Base basal rate for insulin calculations.
+    /// Base basal rate for insulin calculations (U/hr).
     /// </summary>
     public double BasalRate { get; set; } = 1.0;
 
     /// <summary>
-    /// Insulin-to-carb ratio.
+    /// Target glucose level in mg/dL for the AID system to aim for.
     /// </summary>
-    public double CarbRatio { get; set; } = 10.0;
+    public double TargetGlucose { get; set; } = 110.0;
 
     /// <summary>
-    /// Correction factor (insulin sensitivity).
+    /// Insulin-to-carb ratio (grams of carbs per 1 unit of insulin).
+    /// Average adult T1D: 8-12 grams per unit.
     /// </summary>
-    public double CorrectionFactor { get; set; } = 50.0;
+    public double CarbRatio { get; set; } = 10.0;
 
     // Pharmacokinetic parameters for realistic simulation
 
@@ -72,7 +73,7 @@ public class DemoModeConfiguration
     /// <summary>
     /// Total duration of insulin action (DIA) in minutes.
     /// </summary>
-    public double InsulinDurationMinutes { get; set; } = 240.0;
+    public double InsulinDurationMinutes { get; set; } = 180.0;
 
     /// <summary>
     /// Time in minutes when carb absorption peaks.
@@ -85,9 +86,17 @@ public class DemoModeConfiguration
     public double CarbAbsorptionDurationMinutes { get; set; } = 180.0;
 
     /// <summary>
-    /// Insulin sensitivity factor - mg/dL drop per unit of insulin.
+    /// Insulin sensitivity factor (ISF) - mg/dL drop per unit of insulin.
+    /// This is the single source of truth for correction calculations.
+    /// Average adult T1D: 30-50 mg/dL per unit.
     /// </summary>
-    public double InsulinSensitivityFactor { get; set; } = 50.0;
+    public double InsulinSensitivityFactor { get; set; } = 40.0;
+
+    /// <summary>
+    /// Duration of temp basal adjustments in minutes.
+    /// AID systems typically use 5-30 minute intervals.
+    /// </summary>
+    public int TempBasalDurationMinutes { get; set; } = 10;
 
     /// <summary>
     /// Whether to clear existing demo data on service startup.

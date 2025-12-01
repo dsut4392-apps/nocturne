@@ -32,21 +32,12 @@
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="ShiroTrie" />
+    <PackageReference Include="Wasmtime" />
     <PackageReference Include="Yarp.ReverseProxy" />
   </ItemGroup>
   <ItemGroup>
-    <Content
-      Include="..\..\..\appsettings.json"
-      Link="appsettings.json"
-      CopyToOutputDirectory="PreserveNewest"
-      Condition="Exists('..\..\..\appsettings.json')"
-    />
-    <Content
-      Include="..\..\..\appsettings.Development.json"
-      Link="appsettings.Development.json"
-      CopyToOutputDirectory="PreserveNewest"
-      Condition="Exists('..\..\..\appsettings.Development.json')"
-    />
+    <Content Include="..\..\..\appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\..\appsettings.json')" />
+    <Content Include="..\..\..\appsettings.Development.json" Link="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\..\appsettings.Development.json')" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Aspire\Nocturne.Aspire.ServiceDefaults\Nocturne.Aspire.ServiceDefaults.csproj" />

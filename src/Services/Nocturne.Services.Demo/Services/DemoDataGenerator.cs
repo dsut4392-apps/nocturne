@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Services.Demo.Configuration;
 
@@ -31,11 +32,13 @@ public interface IDemoDataGenerator
 }
 
 /// <summary>
-/// Generates realistic demo CGM and treatment data using pharmacokinetic models.
+/// Generates realistic demo CGM and treatment data using oref pharmacokinetic models.
+/// Uses the same insulin curves and carb absorption algorithms as OpenAPS/Loop.
 /// </summary>
 public class DemoDataGenerator : IDemoDataGenerator
 {
     private readonly ILogger<DemoDataGenerator> _logger;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly DemoModeConfiguration _config;
     private readonly Random _random = new();
     private double _currentGlucose;
@@ -56,12 +59,38 @@ public class DemoDataGenerator : IDemoDataGenerator
 
     public DemoDataGenerator(
         IOptions<DemoModeConfiguration> config,
-        ILogger<DemoDataGenerator> logger
+        ILogger<DemoDataGenerator> logger,
+        ILoggerFactory loggerFactory
     )
     {
         _logger = logger;
+        _loggerFactory = loggerFactory;
         _config = config.Value;
         _currentGlucose = _config.InitialGlucose;
+    }
+
+    /// <summary>
+    /// Creates an OrefProfile from the current configuration and scenario parameters.
+    /// </summary>
+    private OrefProfile CreateOrefProfile(ScenarioParameters scenarioParams)
+    {
+        return new OrefProfile
+        {
+            Dia = _config.InsulinDurationMinutes / 60.0,
+            CurrentBasal = _config.BasalRate * scenarioParams.BasalMultiplier,
+            MaxIob = 10.0,
+            MaxBasal = 4.0,
+            MinBg = 80,
+            MaxBg = 120,
+            Sens = _config.InsulinSensitivityFactor * scenarioParams.InsulinSensitivityMultiplier,
+            CarbRatio = _config.CarbRatio / scenarioParams.InsulinSensitivityMultiplier,
+            Curve = "rapid-acting",
+            Peak = (int)_config.InsulinPeakMinutes,
+            Min5mCarbimpact = 8,
+            MaxCob = 120,
+            AutosensMin = 0.7,
+            AutosensMax = 1.2,
+        };
     }
 
     public DemoModeConfiguration GetConfiguration() => _config;
@@ -152,30 +181,30 @@ public class DemoDataGenerator : IDemoDataGenerator
         var roll = _random.Next(100);
         var isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
 
-        // T1D management is hard - fewer "normal" days, more challenging days
+        // T1D management with modern AID - more normal days than challenging days
         if (isWeekend)
         {
             return roll switch
             {
-                < 25 => DayScenario.Normal,
-                < 45 => DayScenario.HighDay,
-                < 60 => DayScenario.Exercise,
-                < 75 => DayScenario.PoorSleep,
-                < 88 => DayScenario.LowDay,
-                < 95 => DayScenario.StressDay,
-                _ => DayScenario.SickDay,
+                < 40 => DayScenario.Normal,       // 40% normal weekends
+                < 55 => DayScenario.HighDay,      // 15% high
+                < 70 => DayScenario.Exercise,     // 15% exercise
+                < 80 => DayScenario.PoorSleep,    // 10% poor sleep
+                < 90 => DayScenario.LowDay,       // 10% low
+                < 97 => DayScenario.StressDay,    // 7% stress
+                _ => DayScenario.SickDay,         // 3% sick
             };
         }
 
         return roll switch
         {
-            < 35 => DayScenario.Normal, // Only ~35% truly "normal" days
-            < 55 => DayScenario.HighDay, // High days are common
-            < 70 => DayScenario.LowDay,
-            < 80 => DayScenario.Exercise,
-            < 90 => DayScenario.StressDay,
-            < 96 => DayScenario.PoorSleep,
-            _ => DayScenario.SickDay,
+            < 50 => DayScenario.Normal,           // 50% truly "normal" days with AID
+            < 65 => DayScenario.HighDay,          // 15% high days
+            < 78 => DayScenario.LowDay,           // 13% low days  
+            < 88 => DayScenario.Exercise,         // 10% exercise
+            < 94 => DayScenario.StressDay,        // 6% stress
+            < 98 => DayScenario.PoorSleep,        // 4% poor sleep
+            _ => DayScenario.SickDay,             // 2% sick
         };
     }
 
@@ -196,18 +225,20 @@ public class DemoDataGenerator : IDemoDataGenerator
 
         var scenarioParams = GetScenarioParameters(scenario);
 
+        // Create oref profile for this scenario
+        var orefProfile = CreateOrefProfile(scenarioParams);
+
+        // Create oref physiology simulator for this day
+        var simulator = new OrefPhysiologySimulator(
+            _loggerFactory.CreateLogger<OrefPhysiologySimulator>(),
+            orefProfile
+        );
+
         // Start from previous day's ending glucose if available, otherwise use fasting glucose
-        // This ensures smooth transitions between days
         double glucose;
         if (previousDayEndingGlucose.HasValue)
         {
-            // Blend the previous day's ending glucose with the scenario's expected fasting glucose
-            // This creates a gradual overnight drift toward the day's expected pattern
-            var targetFasting = scenarioParams.FastingGlucose + (_random.NextDouble() - 0.5) * 20;
             glucose = previousDayEndingGlucose.Value;
-
-            // Calculate how much we expect to drift overnight (6 hours from midnight to ~6am)
-            // We'll apply this drift gradually during the overnight hours
         }
         else
         {
@@ -220,17 +251,16 @@ public class DemoDataGenerator : IDemoDataGenerator
         var mealPlan = GenerateMealPlan(date, scenario);
         var basalAdjustments = GenerateBasalAdjustments(date, scenario);
 
-        var insulinEvents = new List<(DateTime Time, double Units)>();
-        var carbEvents = new List<(DateTime Time, double Carbs, double GlycemicIndex)>();
-
-        // Pre-populate insulin and carb events from meal plan
+        // Pre-populate insulin and carb events from meal plan into oref simulator
         foreach (var meal in mealPlan)
         {
-            carbEvents.Add((meal.MealTime, meal.Carbs, meal.GlycemicIndex));
+            // Add carbs to simulator with absorption time based on glycemic index
+            var absorptionHours = _config.CarbAbsorptionDurationMinutes / 60.0 / meal.GlycemicIndex;
+            simulator.AddCarbs(meal.MealTime, meal.Carbs, absorptionHours);
 
             var bolusTime = meal.MealTime.AddMinutes(meal.BolusOffsetMinutes);
             var bolus = CalculateMealBolus(meal.Carbs, glucose, scenarioParams);
-            insulinEvents.Add((bolusTime, bolus));
+            simulator.AddInsulinDose(bolusTime, bolus);
 
             treatments.Add(CreateCarbTreatment(meal.MealTime, meal.Carbs, meal.FoodType));
             treatments.Add(
@@ -243,8 +273,12 @@ public class DemoDataGenerator : IDemoDataGenerator
         }
 
         // Use previous day's momentum for continuity if available
-        double glucoseMomentum = previousDayMomentum * 0.5; // Decay momentum slightly at day boundary
+        double glucoseMomentum = previousDayMomentum * 0.5;
         double lastGlucose = glucose;
+
+        // Track IOB to prevent insulin stacking
+        double estimatedIob = 0;
+        var targetGlucose = _config.TargetGlucose;
 
         while (currentTime < endTime)
         {
@@ -256,43 +290,165 @@ public class DemoDataGenerator : IDemoDataGenerator
                 treatments.Add(
                     CreateTempBasalTreatment(currentTime, basalAdj.Rate, basalAdj.Duration)
                 );
+                // Add temp basal to simulator
+                simulator.AddInsulinDose(
+                    currentTime,
+                    basalAdj.Rate * basalAdj.Duration / 60.0,
+                    isTempBasal: true,
+                    duration: basalAdj.Duration
+                );
             }
 
-            glucose = SimulateGlucosePhysiological(
+            // Use oref simulator for glucose prediction
+            glucose = SimulateGlucoseWithOref(
                 glucose,
                 currentTime,
-                insulinEvents,
-                carbEvents,
+                simulator,
                 scenarioParams,
                 scenario,
                 ref glucoseMomentum
             );
 
-            // Allow wider range - T1D can go very high and very low
-            glucose = Math.Max(35, Math.Min(450, glucose));
+            // Clamp to realistic CGM range
+            glucose = Math.Max(40, Math.Min(_config.MaxGlucose, glucose));
 
-            // Handle low glucose correction - but not always caught in time
-            if (glucose < 65 && _random.NextDouble() < 0.5)
+            // Decay estimated IOB based on configured DIA
+            // For 4-hour (240 min) DIA: decay ~2% per 5 min interval
+            var iobDecayRate = 1.0 - (5.0 / _config.InsulinDurationMinutes);
+            estimatedIob *= iobDecayRate;
+
+            // === REACTIVE GLUCOSE MANAGEMENT (simulates AID/closed-loop behavior) ===
+
+            var hour = currentTime.Hour;
+            var isWakingHours = hour >= 7 && hour < 22; // 7am to 10pm
+            var tempBasalDuration = _config.TempBasalDurationMinutes;
+
+            // Handle LOW glucose - treat with fast carbs
+            if (glucose < 70)
             {
-                // Sometimes overcorrect lows, sometimes undercorrect
-                var correctionCarbs = _random.Next(8, 35);
+                var correctionCarbs = glucose < 55 ? _random.Next(15, 25) : _random.Next(10, 18);
                 treatments.Add(CreateCarbCorrectionTreatment(currentTime, correctionCarbs));
-                carbEvents.Add((currentTime, correctionCarbs, 1.6)); // Fast carbs for lows
+                simulator.AddCarbs(currentTime, correctionCarbs, 0.4); // Very fast carbs
             }
-
-            // Handle high glucose correction - less aggressive, people don't always correct
-            if (glucose > 220 && _random.NextDouble() < 0.25)
+            // Handle HIGH glucose - aggressive AID-style insulin delivery
+            // Real AID systems are aggressive about bringing glucose down
+            else if (glucose > targetGlucose + 10)
             {
-                var correctionBolus = Math.Round(
-                    (glucose - 130) / scenarioParams.CorrectionFactor,
-                    1
-                );
-                // Sometimes under-dose corrections
-                correctionBolus *= 0.6 + _random.NextDouble() * 0.6;
-                if (correctionBolus >= 0.5)
+                // Calculate how much insulin would be needed to bring glucose to target
+                var glucoseAboveTarget = glucose - targetGlucose;
+                // Use ISF adjusted by scenario's insulin sensitivity multiplier
+                var effectiveIsf =
+                    _config.InsulinSensitivityFactor * scenarioParams.InsulinSensitivityMultiplier;
+                var insulinNeeded = glucoseAboveTarget / effectiveIsf;
+
+                // Account for IOB - don't stack insulin too much
+                var insulinToDeliver = Math.Max(0, insulinNeeded - estimatedIob * 0.6);
+
+                // HIGH TEMP BASAL - modest increase (typical AID systems use 1.0-1.5x)
+                // Only add temp basal every 30 minutes to reduce basal contribution
+                if (currentTime.Minute == 0 || currentTime.Minute == 30)
                 {
-                    treatments.Add(CreateCorrectionBolusTreatment(currentTime, correctionBolus));
-                    insulinEvents.Add((currentTime, correctionBolus));
+                    // Scale from 1.1x to 1.4x basal rate based on how high glucose is
+                    var tempBasalMultiplier = 1.1 + Math.Min(0.3, glucoseAboveTarget / 150.0);
+                    var highTempRate = _config.BasalRate * tempBasalMultiplier;
+                    
+                    treatments.Add(
+                        CreateTempBasalTreatment(
+                            currentTime,
+                            Math.Round(highTempRate, 2),
+                            30
+                        )
+                    );
+                    // Add to simulator for glucose effect (only the extra insulin above scheduled)
+                    var extraInsulin =
+                        (highTempRate - _config.BasalRate) * (30 / 60.0);
+                    simulator.AddInsulinDose(
+                        currentTime,
+                        extraInsulin,
+                        isTempBasal: true,
+                        duration: 30
+                    );
+                    estimatedIob += extraInsulin;
+                }
+
+                // MANUAL CORRECTION BOLUS - during waking hours, user may manually correct
+                if (isWakingHours && glucose > targetGlucose + 30 && _random.NextDouble() < 0.25)
+                {
+                    // Manual correction uses exact ISF formula
+                    var manualCorrectionBolus = glucoseAboveTarget / effectiveIsf;
+                    manualCorrectionBolus = Math.Clamp(manualCorrectionBolus, 0.5, 6.0); // 0.5 to 6 units
+
+                    treatments.Add(
+                        CreateManualCorrectionBolusTreatment(
+                            currentTime,
+                            Math.Round(manualCorrectionBolus, 1)
+                        )
+                    );
+                    simulator.AddInsulinDose(currentTime, manualCorrectionBolus);
+                    estimatedIob += manualCorrectionBolus;
+                }
+                // AID correction bolus every 5 minutes when significantly high
+                else if (
+                    glucose > targetGlucose + 15
+                    && currentTime.Minute % 5 == 0
+                    && insulinToDeliver > 0.1
+                )
+                {
+                    // Deliver 50-70% of needed correction as a bolus
+                    var correctionBolus = insulinToDeliver * (0.5 + _random.NextDouble() * 0.2);
+                    correctionBolus = Math.Clamp(correctionBolus, 0.1, 4.0); // 0.1 to 4 units max
+
+                    treatments.Add(
+                        CreateCorrectionBolusTreatment(currentTime, Math.Round(correctionBolus, 1))
+                    );
+                    simulator.AddInsulinDose(currentTime, correctionBolus);
+                    estimatedIob += correctionBolus;
+                }
+                // SMBs every 5 minutes for fine-tuning when moderately high
+                else if (glucose > targetGlucose + 10 && insulinToDeliver > 0.05)
+                {
+                    var microBolus = insulinToDeliver * 0.25;
+                    microBolus = Math.Clamp(microBolus, 0.05, 1.2);
+
+                    if (microBolus >= 0.05)
+                    {
+                        treatments.Add(
+                            CreateMicroBolusTreatment(currentTime, Math.Round(microBolus, 2))
+                        );
+                    }
+                    simulator.AddInsulinDose(currentTime, microBolus);
+                    estimatedIob += microBolus;
+                }
+            }
+            // Reduce basal when trending low or already low (predictive low glucose suspend)
+            else if (glucose < 90 || (glucose < 100 && glucoseMomentum < -0.3))
+            {
+                // Basal reduction when lower
+                var reductionFactor =
+                    glucose < 75 ? 0.0
+                    : glucose < 85 ? 0.2
+                    : 0.4;
+                var reducedRate = _config.BasalRate * reductionFactor;
+
+                // Apply reduced temp basal every 30 minutes
+                if (currentTime.Minute == 0 || currentTime.Minute == 30)
+                {
+                    treatments.Add(
+                        CreateTempBasalTreatment(
+                            currentTime,
+                            Math.Round(reducedRate, 2),
+                            30
+                        )
+                    );
+                    // Add to simulator for reduced basal effect (negative = less insulin)
+                    var insulinReduction =
+                        -(_config.BasalRate - reducedRate) * (30 / 60.0);
+                    simulator.AddInsulinDose(
+                        currentTime,
+                        insulinReduction,
+                        isTempBasal: true,
+                        duration: 30
+                    );
                 }
             }
 
@@ -302,13 +458,8 @@ public class DemoDataGenerator : IDemoDataGenerator
 
             currentTime = currentTime.AddMinutes(5);
 
-            // Clean up old events
-            insulinEvents.RemoveAll(e =>
-                (currentTime - e.Time).TotalMinutes > _config.InsulinDurationMinutes + 30
-            );
-            carbEvents.RemoveAll(e =>
-                (currentTime - e.Time).TotalMinutes > _config.CarbAbsorptionDurationMinutes + 30
-            );
+            // Clean up expired doses in the simulator
+            simulator.CleanupExpired(currentTime);
         }
 
         treatments.AddRange(GenerateScheduledBasal(date, scenarioParams));
@@ -316,37 +467,37 @@ public class DemoDataGenerator : IDemoDataGenerator
         return (entries, treatments, glucose, glucoseMomentum);
     }
 
-    private double SimulateGlucosePhysiological(
+    /// <summary>
+    /// Simulates glucose changes using oref pharmacokinetic models plus scenario-specific effects.
+    /// Uses the OrefPhysiologySimulator for insulin activity and carb absorption calculations.
+    /// </summary>
+    private double SimulateGlucoseWithOref(
         double currentGlucose,
         DateTime time,
-        List<(DateTime Time, double Units)> insulinEvents,
-        List<(DateTime Time, double Carbs, double GlycemicIndex)> carbEvents,
+        OrefPhysiologySimulator simulator,
         ScenarioParameters @params,
         DayScenario scenario,
         ref double momentum
     )
     {
-        var glucose = currentGlucose;
         var hour = time.Hour + time.Minute / 60.0;
 
-        // Calculate insulin effect - more aggressive, realistic drops
-        var insulinEffect = CalculateInsulinEffect(time, insulinEvents, @params);
-
-        // Calculate carb effect - sharper spikes that peak faster
-        var carbEffect = CalculateCarbAbsorptionEffect(time, carbEvents, @params);
+        // Use oref simulator for core glucose prediction (insulin and carb effects)
+        var simulatedGlucose = simulator.SimulateNextGlucose(currentGlucose, time);
+        var orefChange = simulatedGlucose - currentGlucose;
 
         // Basal effect - background insulin lowering glucose slightly each interval
-        // Without basal, glucose would rise ~1-2 mg/dL per 5 min from liver glucose output
-        var liverGlucoseOutput = 0.8 + _random.NextDouble() * 0.4; // ~1 mg/dL/5min average
-        var basalCoverage = @params.BasalMultiplier * 0.9; // Basal mostly covers liver output
+        // Without basal, glucose would rise ~0.5-1 mg/dL per 5 min from liver glucose output
+        var liverGlucoseOutput = 0.5 + _random.NextDouble() * 0.3; // ~0.7 mg/dL/5min average
+        var basalCoverage = @params.BasalMultiplier * 0.7; // Basal covers liver output
         var netBasalEffect = liverGlucoseOutput - basalCoverage;
 
-        // Dawn phenomenon - stronger effect, liver dumps glucose 4-8am
+        // Dawn phenomenon - moderate effect, liver dumps glucose 4-8am
         var dawnEffect = 0.0;
         if (hour >= 4 && hour < 8)
         {
             var dawnIntensity = Math.Sin((hour - 4) * Math.PI / 4); // Peaks around 6am
-            dawnEffect = @params.DawnPhenomenonStrength * 3.0 * dawnIntensity;
+            dawnEffect = @params.DawnPhenomenonStrength * 1.5 * dawnIntensity;
         }
 
         // Exercise effects - can drop glucose 50-100 mg/dL over 2 hours
@@ -363,16 +514,8 @@ public class DemoDataGenerator : IDemoDataGenerator
                 exerciseEffect = -0.3; // Overnight sensitivity increase
         }
 
-        // Per-reading insulin absorption variability
-        var insulinVariability = 0.8 + _random.NextDouble() * 0.4; // 80-120%
-
-        // Net glucose change this interval
-        var netChange =
-            carbEffect
-            - (insulinEffect * insulinVariability)
-            + netBasalEffect
-            + dawnEffect
-            + exerciseEffect;
+        // Net glucose change this interval (oref handles insulin/carbs, we add scenario effects)
+        var netChange = orefChange + netBasalEffect + dawnEffect + exerciseEffect;
 
         // CGM noise and lag
         var noise = (_random.NextDouble() - 0.5) * 3.0;
@@ -383,201 +526,94 @@ public class DemoDataGenerator : IDemoDataGenerator
         // Only smooth to prevent unrealistic jumps, not to dampen real movement
         momentum = momentum * 0.1 + targetChange * 0.9;
 
-        // Real CGM can show up to 4-5 mg/dL/min during rapid rises/falls
-        // That's 20-25 mg/dL per 5-minute interval
-        const double maxChangePerInterval = 20.0;
+        // Real CGM can show up to 3-4 mg/dL/min during rapid rises/falls
+        // That's 15-20 mg/dL per 5-minute interval
+        const double maxChangePerInterval = 15.0;
         momentum = Math.Clamp(momentum, -maxChangePerInterval, maxChangePerInterval);
 
-        glucose += momentum;
+        var glucose = currentGlucose + momentum;
 
-        // Occasional CGM artifacts - compression lows, signal drops
-        if (_random.NextDouble() < 0.005)
-            glucose += (_random.NextDouble() - 0.5) * 25;
+        // Occasional CGM artifacts - compression lows, signal drops (rare)
+        if (_random.NextDouble() < 0.002)
+            glucose += (_random.NextDouble() - 0.5) * 15;
 
-        // Scenario-specific modifiers
+        // Scenario-specific modifiers - kept subtle
         if (scenario == DayScenario.SickDay)
-            glucose += (_random.NextDouble() - 0.2) * 2.5; // Trend upward when sick
-        else if (scenario == DayScenario.StressDay && _random.NextDouble() < 0.1)
-            glucose += _random.Next(3, 12); // Stress hormones spike glucose
+            glucose += (_random.NextDouble() - 0.3) * 1.0; // Slight upward trend when sick
+        else if (scenario == DayScenario.StressDay && _random.NextDouble() < 0.05)
+            glucose += _random.Next(2, 6); // Occasional stress spikes
 
         return glucose;
-    }
-
-    /// <summary>
-    /// Calculates the glucose-lowering effect of insulin at the current time.
-    /// Uses a pharmacokinetic model where insulin peaks around 75 min and lasts ~4 hours.
-    /// Returns mg/dL drop per 5-minute interval.
-    /// </summary>
-    private double CalculateInsulinEffect(
-        DateTime currentTime,
-        List<(DateTime Time, double Units)> insulinEvents,
-        ScenarioParameters @params
-    )
-    {
-        double totalEffect = 0;
-        var peakTime = _config.InsulinPeakMinutes;
-        var dia = _config.InsulinDurationMinutes;
-
-        foreach (var (eventTime, units) in insulinEvents)
-        {
-            var minutesSince = (currentTime - eventTime).TotalMinutes;
-            if (minutesSince < 0 || minutesSince > dia)
-                continue;
-
-            // Exponential model for insulin activity curve
-            // Peaks at peakTime, then decays
-            var tau = peakTime / 1.4;
-            var normalizer = 1 / (1 - tau / dia + (1 + tau / dia) * Math.Exp(-dia / tau));
-            var activity =
-                normalizer * (minutesSince / (tau * tau)) * Math.Exp(-minutesSince / tau);
-
-            // Each unit drops glucose by ISF over the DIA
-            // At peak activity, ~40-50% of the drop happens in the hour around peak
-            // ISF of 50 means 1 unit drops glucose 50 mg/dL total
-            var isfPerInterval =
-                _config.InsulinSensitivityFactor * @params.InsulinSensitivityMultiplier;
-            var effectPerUnit = activity * isfPerInterval * (5.0 / 60.0) * 8.0; // Scaled for 5-min intervals
-
-            totalEffect += effectPerUnit * units;
-        }
-
-        return totalEffect;
-    }
-
-    /// <summary>
-    /// Calculates glucose rise from carb absorption.
-    /// Carbs cause rapid spikes - 50g of fast carbs can raise glucose 100+ mg/dL in 30-60 min.
-    /// Returns mg/dL rise per 5-minute interval.
-    /// </summary>
-    private double CalculateCarbAbsorptionEffect(
-        DateTime currentTime,
-        List<(DateTime Time, double Carbs, double GlycemicIndex)> carbEvents,
-        ScenarioParameters @params
-    )
-    {
-        double totalEffect = 0;
-        var basePeakTime = _config.CarbAbsorptionPeakMinutes;
-        var baseDuration = _config.CarbAbsorptionDurationMinutes;
-
-        foreach (var (eventTime, carbs, gi) in carbEvents)
-        {
-            var minutesSince = (currentTime - eventTime).TotalMinutes;
-
-            // Adjust timing based on glycemic index
-            // High GI (1.5+) = faster absorption, peaks in 20-30 min
-            // Low GI (0.5) = slower, peaks in 60-90 min
-            var peakTime = basePeakTime / gi;
-            var duration = baseDuration / gi;
-
-            if (minutesSince < 0 || minutesSince > duration * 1.5)
-                continue;
-
-            // Gamma-like absorption curve - fast rise, slower tail
-            var k = 2.5; // Shape parameter - higher = sharper peak
-            var normalizedTime = minutesSince / peakTime;
-
-            double absorptionRate;
-            if (normalizedTime > 0)
-            {
-                // Gamma distribution PDF approximation
-                absorptionRate =
-                    Math.Pow(normalizedTime, k - 1) * Math.Exp(-normalizedTime * (k - 1) / 1.5);
-                absorptionRate = Math.Max(0, absorptionRate);
-            }
-            else
-            {
-                absorptionRate = 0;
-            }
-
-            // Carb-to-glucose conversion
-            // Rule of thumb: 1g carb raises BG by 3-5 mg/dL for a 150lb person without insulin
-            // Spread this over the absorption duration, concentrated around peak
-            var carbSensitivity = 4.0 / @params.InsulinSensitivityMultiplier; // mg/dL per gram
-            var totalRise = carbs * carbSensitivity * gi; // Total expected rise from this meal
-            var risePerInterval = absorptionRate * (totalRise / (duration / 5.0)) * 2.5; // Concentrated effect
-
-            totalEffect += risePerInterval;
-        }
-
-        return totalEffect;
     }
 
     private ScenarioParameters GetScenarioParameters(DayScenario scenario)
     {
         // Add random daily variation - even "normal" days vary
-        var dailyVariation = 0.8 + _random.NextDouble() * 0.4; // 80-120% effectiveness
+        var dailyVariation = 0.9 + _random.NextDouble() * 0.2; // 90-110% effectiveness (was 80-120%)
 
         return scenario switch
         {
             DayScenario.Normal => new ScenarioParameters
             {
-                FastingGlucose = 95 + _random.Next(-15, 35),
-                CarbRatio = _config.CarbRatio * dailyVariation,
-                CorrectionFactor = _config.CorrectionFactor * dailyVariation,
-                BasalMultiplier = 0.9 + _random.NextDouble() * 0.2,
-                InsulinSensitivityMultiplier = dailyVariation,
-                DawnPhenomenonStrength = 0.2 + _random.NextDouble() * 0.3,
+                FastingGlucose = 95 + _random.Next(-10, 20),
+                CarbRatio = _config.CarbRatio * (0.95 + dailyVariation * 0.1),
+                BasalMultiplier = 0.95 + _random.NextDouble() * 0.1,
+                InsulinSensitivityMultiplier = 0.95 + dailyVariation * 0.1, // Closer to 1.0 for better control
+                DawnPhenomenonStrength = 0.1 + _random.NextDouble() * 0.15,
             },
             DayScenario.HighDay => new ScenarioParameters
             {
-                FastingGlucose = 130 + _random.Next(0, 50),
-                CarbRatio = _config.CarbRatio * 0.7 * dailyVariation,
-                CorrectionFactor = _config.CorrectionFactor * 0.7,
-                BasalMultiplier = 1.2 + _random.NextDouble() * 0.3,
-                InsulinSensitivityMultiplier = 0.6 + _random.NextDouble() * 0.2,
-                DawnPhenomenonStrength = 0.5 + _random.NextDouble() * 0.3,
+                FastingGlucose = 110 + _random.Next(0, 25),
+                CarbRatio = _config.CarbRatio * (0.95 + dailyVariation * 0.05),
+                BasalMultiplier = 1.0 + _random.NextDouble() * 0.1,
+                InsulinSensitivityMultiplier = 0.85 + _random.NextDouble() * 0.1, // More moderate resistance
+                DawnPhenomenonStrength = 0.2 + _random.NextDouble() * 0.15,
             },
             DayScenario.LowDay => new ScenarioParameters
             {
-                FastingGlucose = 75 + _random.Next(-10, 15),
-                CarbRatio = _config.CarbRatio * 1.3 * dailyVariation,
-                CorrectionFactor = _config.CorrectionFactor * 1.4,
-                BasalMultiplier = 0.6 + _random.NextDouble() * 0.2,
-                InsulinSensitivityMultiplier = 1.4 + _random.NextDouble() * 0.3,
-                DawnPhenomenonStrength = 0.1,
+                FastingGlucose = 80 + _random.Next(-10, 15),
+                CarbRatio = _config.CarbRatio * 1.2 * dailyVariation,
+                BasalMultiplier = 0.75 + _random.NextDouble() * 0.15,
+                InsulinSensitivityMultiplier = 1.2 + _random.NextDouble() * 0.2,
+                DawnPhenomenonStrength = 0.05,
             },
             DayScenario.Exercise => new ScenarioParameters
             {
-                FastingGlucose = 90 + _random.Next(-10, 20),
-                CarbRatio = _config.CarbRatio * 1.3,
-                CorrectionFactor = _config.CorrectionFactor * 1.5,
-                BasalMultiplier = 0.5 + _random.NextDouble() * 0.2,
-                InsulinSensitivityMultiplier = 1.5 + _random.NextDouble() * 0.4,
-                DawnPhenomenonStrength = 0.15,
+                FastingGlucose = 90 + _random.Next(-10, 15),
+                CarbRatio = _config.CarbRatio * 1.2,
+                BasalMultiplier = 0.65 + _random.NextDouble() * 0.15,
+                InsulinSensitivityMultiplier = 1.3 + _random.NextDouble() * 0.3,
+                DawnPhenomenonStrength = 0.1,
                 HasExercise = true,
             },
             DayScenario.SickDay => new ScenarioParameters
             {
-                FastingGlucose = 150 + _random.Next(0, 60),
-                CarbRatio = _config.CarbRatio * 0.55,
-                CorrectionFactor = _config.CorrectionFactor * 0.5,
-                BasalMultiplier = 1.4 + _random.NextDouble() * 0.3,
-                InsulinSensitivityMultiplier = 0.45 + _random.NextDouble() * 0.15,
-                DawnPhenomenonStrength = 0.6,
+                FastingGlucose = 125 + _random.Next(0, 30),
+                CarbRatio = _config.CarbRatio * 0.9,
+                BasalMultiplier = 1.1 + _random.NextDouble() * 0.1,
+                InsulinSensitivityMultiplier = 0.75 + _random.NextDouble() * 0.1,
+                DawnPhenomenonStrength = 0.25,
             },
             DayScenario.StressDay => new ScenarioParameters
             {
-                FastingGlucose = 115 + _random.Next(0, 40),
-                CarbRatio = _config.CarbRatio * 0.75,
-                CorrectionFactor = _config.CorrectionFactor * 0.75,
-                BasalMultiplier = 1.15 + _random.NextDouble() * 0.2,
-                InsulinSensitivityMultiplier = 0.7 + _random.NextDouble() * 0.15,
-                DawnPhenomenonStrength = 0.45,
+                FastingGlucose = 105 + _random.Next(0, 20),
+                CarbRatio = _config.CarbRatio * 0.95,
+                BasalMultiplier = 1.0 + _random.NextDouble() * 0.1,
+                InsulinSensitivityMultiplier = 0.85 + _random.NextDouble() * 0.1,
+                DawnPhenomenonStrength = 0.2,
             },
             DayScenario.PoorSleep => new ScenarioParameters
             {
-                FastingGlucose = 120 + _random.Next(-10, 35),
-                CarbRatio = _config.CarbRatio * 0.85,
-                CorrectionFactor = _config.CorrectionFactor * 0.8,
-                BasalMultiplier = 1.1 + _random.NextDouble() * 0.2,
-                InsulinSensitivityMultiplier = 0.8 + _random.NextDouble() * 0.15,
-                DawnPhenomenonStrength = 0.55,
+                FastingGlucose = 105 + _random.Next(-10, 20),
+                CarbRatio = _config.CarbRatio * 0.95,
+                BasalMultiplier = 1.0 + _random.NextDouble() * 0.1,
+                InsulinSensitivityMultiplier = 0.9 + _random.NextDouble() * 0.1,
+                DawnPhenomenonStrength = 0.25,
             },
             _ => new ScenarioParameters
             {
                 FastingGlucose = 100 + _random.Next(-15, 30),
                 CarbRatio = _config.CarbRatio,
-                CorrectionFactor = _config.CorrectionFactor,
                 BasalMultiplier = 1.0,
                 InsulinSensitivityMultiplier = 1.0,
                 DawnPhenomenonStrength = 0.3,
@@ -597,30 +633,30 @@ public class DemoDataGenerator : IDemoDataGenerator
     {
         var meals = new List<MealEvent>();
 
-        // Breakfast - often rushed, sometimes skipped, sometimes huge
+        // Breakfast - often rushed, sometimes skipped
         if (_random.NextDouble() > 0.1) // 10% chance of skipping
         {
             var breakfastHour = 6 + _random.Next(0, 4);
             var breakfastMinute = _random.Next(0, 12) * 5;
             var breakfastCarbs =
-                scenario == DayScenario.LowDay ? _random.Next(15, 35)
-                : scenario == DayScenario.HighDay ? _random.Next(60, 100)
-                : _random.Next(25, 75);
+                scenario == DayScenario.LowDay ? _random.Next(15, 30)
+                : scenario == DayScenario.HighDay ? _random.Next(35, 55)
+                : _random.Next(25, 45);
 
-            // Bolus timing - huge source of variability!
+            // Bolus timing - more realistic distribution with better pre-bolusing
             // Negative = pre-bolus, Positive = late bolus
             int bolusOffset;
             var timingRoll = _random.NextDouble();
-            if (timingRoll < 0.15)
-                bolusOffset = _random.Next(-20, -5); // Pre-bolused (good practice but can cause lows)
-            else if (timingRoll < 0.45)
+            if (timingRoll < 0.25)
+                bolusOffset = _random.Next(-15, -3); // Pre-bolused (good practice)
+            else if (timingRoll < 0.55)
                 bolusOffset = _random.Next(0, 10); // Roughly on time
-            else if (timingRoll < 0.75)
-                bolusOffset = _random.Next(15, 40); // Late bolus - causes spike
-            else if (timingRoll < 0.90)
-                bolusOffset = _random.Next(40, 90); // Very late - major spike then crash
+            else if (timingRoll < 0.80)
+                bolusOffset = _random.Next(10, 25); // Slightly late bolus
+            else if (timingRoll < 0.93)
+                bolusOffset = _random.Next(25, 50); // Late - causes spike
             else
-                bolusOffset = _random.Next(90, 180); // Forgot, bolused way later
+                bolusOffset = _random.Next(50, 90); // Forgot, bolused later
 
             meals.Add(
                 new MealEvent(
@@ -628,7 +664,7 @@ public class DemoDataGenerator : IDemoDataGenerator
                     breakfastCarbs,
                     "Breakfast",
                     bolusOffset,
-                    0.6 + _random.NextDouble() * 1.0 // Wide GI variation (0.6-1.6)
+                    0.7 + _random.NextDouble() * 0.8 // GI variation (0.7-1.5)
                 )
             );
         }
@@ -637,23 +673,23 @@ public class DemoDataGenerator : IDemoDataGenerator
         var lunchHour = 11 + _random.Next(0, 3);
         var lunchMinute = _random.Next(0, 12) * 5;
         var lunchCarbs =
-            scenario == DayScenario.LowDay ? _random.Next(25, 50)
-            : scenario == DayScenario.HighDay ? _random.Next(70, 130)
-            : _random.Next(35, 90);
+            scenario == DayScenario.LowDay ? _random.Next(20, 40)
+            : scenario == DayScenario.HighDay ? _random.Next(40, 65)
+            : _random.Next(30, 50);
 
-        // Lunch bolusing - eating out, distracted, guessing
+        // Lunch bolusing - more realistic timing
         int lunchBolusOffset;
         var lunchTimingRoll = _random.NextDouble();
-        if (lunchTimingRoll < 0.10)
-            lunchBolusOffset = _random.Next(-15, 0);
-        else if (lunchTimingRoll < 0.35)
-            lunchBolusOffset = _random.Next(0, 15);
-        else if (lunchTimingRoll < 0.65)
-            lunchBolusOffset = _random.Next(15, 45);
-        else if (lunchTimingRoll < 0.85)
-            lunchBolusOffset = _random.Next(45, 90);
+        if (lunchTimingRoll < 0.20)
+            lunchBolusOffset = _random.Next(-10, 0);
+        else if (lunchTimingRoll < 0.50)
+            lunchBolusOffset = _random.Next(0, 10);
+        else if (lunchTimingRoll < 0.75)
+            lunchBolusOffset = _random.Next(10, 25);
+        else if (lunchTimingRoll < 0.92)
+            lunchBolusOffset = _random.Next(25, 45);
         else
-            lunchBolusOffset = _random.Next(90, 150);
+            lunchBolusOffset = _random.Next(45, 75);
 
         meals.Add(
             new MealEvent(
@@ -661,29 +697,29 @@ public class DemoDataGenerator : IDemoDataGenerator
                 lunchCarbs,
                 "Lunch",
                 lunchBolusOffset,
-                0.5 + _random.NextDouble() * 1.2 // Restaurant food varies wildly
+                0.6 + _random.NextDouble() * 0.9 // Restaurant food varies (0.6-1.5)
             )
         );
 
-        // Dinner - highly variable, often complex foods
+        // Dinner - variable but not extreme
         var dinnerHour = 17 + _random.Next(0, 4);
         var dinnerMinute = _random.Next(0, 12) * 5;
         var dinnerCarbs =
-            scenario == DayScenario.LowDay ? _random.Next(30, 60)
-            : scenario == DayScenario.HighDay ? _random.Next(80, 150)
-            : _random.Next(45, 120);
+            scenario == DayScenario.LowDay ? _random.Next(25, 45)
+            : scenario == DayScenario.HighDay ? _random.Next(45, 70)
+            : _random.Next(35, 60);
 
-        // Dinner timing - pizza/pasta causes extended highs, pre-bolusing can cause lows
+        // Dinner timing - more realistic pre-bolusing
         int dinnerBolusOffset;
         var dinnerTimingRoll = _random.NextDouble();
-        if (dinnerTimingRoll < 0.20)
-            dinnerBolusOffset = _random.Next(-25, -5); // Pre-bolused
-        else if (dinnerTimingRoll < 0.45)
-            dinnerBolusOffset = _random.Next(0, 20);
-        else if (dinnerTimingRoll < 0.70)
-            dinnerBolusOffset = _random.Next(20, 50);
+        if (dinnerTimingRoll < 0.25)
+            dinnerBolusOffset = _random.Next(-15, -3); // Pre-bolused
+        else if (dinnerTimingRoll < 0.55)
+            dinnerBolusOffset = _random.Next(0, 15);
+        else if (dinnerTimingRoll < 0.80)
+            dinnerBolusOffset = _random.Next(15, 35);
         else
-            dinnerBolusOffset = _random.Next(50, 120); // Distracted, forgot
+            dinnerBolusOffset = _random.Next(35, 60); // Distracted, late
 
         meals.Add(
             new MealEvent(
@@ -691,66 +727,66 @@ public class DemoDataGenerator : IDemoDataGenerator
                 dinnerCarbs,
                 "Dinner",
                 dinnerBolusOffset,
-                0.4 + _random.NextDouble() * 1.4 // Very wide GI (0.4-1.8) - pizza is slow, rice is fast
+                0.5 + _random.NextDouble() * 1.0 // GI (0.5-1.5)
             )
         );
 
-        // Snacks - often un-bolused or poorly bolused
-        if (_random.NextDouble() < 0.6)
+        // Snacks - sometimes bolused, sometimes not
+        if (_random.NextDouble() < 0.4) // Reduced frequency of snacks
         {
             var snackBolus =
-                _random.NextDouble() < 0.4 ? _random.Next(30, 120) : _random.Next(0, 20);
+                _random.NextDouble() < 0.5 ? _random.Next(15, 45) : _random.Next(0, 15);
             meals.Add(
                 new MealEvent(
                     date.AddHours(10 + _random.NextDouble() * 1.5),
-                    _random.Next(15, 40),
+                    _random.Next(10, 20),
                     "Snack",
-                    snackBolus, // Often very late or no bolus for snacks
-                    1.2 + _random.NextDouble() * 0.5
+                    snackBolus,
+                    1.0 + _random.NextDouble() * 0.4
                 )
             );
         }
 
-        if (_random.NextDouble() < 0.6)
+        if (_random.NextDouble() < 0.35) // Afternoon snack
         {
             var snackBolus =
-                _random.NextDouble() < 0.5 ? _random.Next(20, 90) : _random.Next(0, 15);
+                _random.NextDouble() < 0.6 ? _random.Next(10, 40) : _random.Next(0, 10);
             meals.Add(
                 new MealEvent(
                     date.AddHours(15 + _random.NextDouble() * 1.5),
-                    _random.Next(15, 45),
+                    _random.Next(10, 25),
                     "Snack",
                     snackBolus,
-                    1.1 + _random.NextDouble() * 0.6
-                )
-            );
-        }
-
-        // Late night snacking
-        if (_random.NextDouble() < 0.4)
-        {
-            meals.Add(
-                new MealEvent(
-                    date.AddHours(21 + _random.NextDouble() * 2),
-                    _random.Next(15, 50),
-                    "Snack",
-                    _random.Next(5, 45), // Late night = less likely to bolus properly
                     1.0 + _random.NextDouble() * 0.5
                 )
             );
         }
 
-        // Random unplanned eating
-        if (_random.NextDouble() < 0.3)
+        // Late night snacking - rare
+        if (_random.NextDouble() < 0.15)
+        {
+            meals.Add(
+                new MealEvent(
+                    date.AddHours(21 + _random.NextDouble() * 2),
+                    _random.Next(8, 20),
+                    "Snack",
+                    _random.Next(5, 30),
+                    1.0 + _random.NextDouble() * 0.4
+                )
+            );
+        }
+
+        // Random unplanned eating - rare
+        if (_random.NextDouble() < 0.1)
         {
             var randomHour = 8 + _random.Next(0, 12);
             meals.Add(
                 new MealEvent(
                     date.AddHours(randomHour + _random.NextDouble()),
-                    _random.Next(10, 35),
+                    _random.Next(8, 15),
                     "Snack",
-                    _random.Next(15, 60), // Impulsive eating = late or no bolus
-                    1.4 // Usually high GI impulsive foods
+                    _random.Next(10, 35),
+                    1.2 // Usually high GI impulsive foods
                 )
             );
         }
@@ -809,7 +845,7 @@ public class DemoDataGenerator : IDemoDataGenerator
             basalTreatments.Add(
                 new Treatment
                 {
-                    EventType = "Temp Basal",
+                    EventType = "Scheduled Basal",
                     Rate = rate,
                     Duration = 60,
                     Mills = mills,
@@ -829,38 +865,40 @@ public class DemoDataGenerator : IDemoDataGenerator
         ScenarioParameters @params
     )
     {
-        // Carb counting is VERY inaccurate in real life
-        // People routinely underestimate by 30-50% or overestimate significantly
+        // Carb counting - mostly accurate with some variation (typical AID user)
         var carbCountingError = _random.NextDouble();
         double estimatedCarbs;
-        if (carbCountingError < 0.3)
-            estimatedCarbs = carbs * (0.5 + _random.NextDouble() * 0.3); // 50-80% - underestimate
-        else if (carbCountingError < 0.7)
-            estimatedCarbs = carbs * (0.8 + _random.NextDouble() * 0.4); // 80-120% - roughly right
+        if (carbCountingError < 0.10)
+            estimatedCarbs = carbs * (0.85 + _random.NextDouble() * 0.05); // 85-90% - slight underestimate
+        else if (carbCountingError < 0.90)
+            estimatedCarbs = carbs * (0.95 + _random.NextDouble() * 0.1); // 95-105% - accurate
         else
-            estimatedCarbs = carbs * (1.2 + _random.NextDouble() * 0.5); // 120-170% - overestimate
+            estimatedCarbs = carbs * (1.0 + _random.NextDouble() * 0.1); // 100-110% - slight overestimate
 
         var carbBolus = estimatedCarbs / @params.CarbRatio;
 
-        // Sometimes forget to add correction, sometimes over-correct
+        // Add correction bolus when glucose is elevated (AID systems are aggressive about this)
         var correctionBolus = 0.0;
-        if (currentGlucose > 140 && _random.NextDouble() < 0.7) // 30% forget correction
+        if (currentGlucose > _config.TargetGlucose + 10 && _random.NextDouble() < 0.85) // 85% add correction
         {
-            correctionBolus = (currentGlucose - 120) / @params.CorrectionFactor;
-            // Variable correction aggressiveness
-            correctionBolus *= 0.5 + _random.NextDouble(); // 50-150% of calculated
+            // Use ISF adjusted by scenario's insulin sensitivity multiplier
+            var effectiveIsf =
+                _config.InsulinSensitivityFactor * @params.InsulinSensitivityMultiplier;
+            correctionBolus = (currentGlucose - _config.TargetGlucose) / effectiveIsf;
+            // Correction aggressiveness - AID systems deliver more of the calculated correction
+            correctionBolus *= 0.8 + _random.NextDouble() * 0.2; // 80-100% of calculated
+            correctionBolus = Math.Min(correctionBolus, 5.0); // Cap at 5 units
         }
 
-        // Sometimes people just round or guess
         var totalBolus = carbBolus + correctionBolus;
 
-        // Occasional major errors
-        if (_random.NextDouble() < 0.05)
-            totalBolus *= 0.3 + _random.NextDouble() * 0.4; // Forgot most of bolus (30-70%)
-        else if (_random.NextDouble() < 0.03)
-            totalBolus *= 1.5 + _random.NextDouble() * 0.5; // Accidentally double-bolused or stacked
+        // Occasional errors (less frequent with AID - system helps prevent mistakes)
+        if (_random.NextDouble() < 0.02)
+            totalBolus *= 0.5 + _random.NextDouble() * 0.3; // Forgot some of bolus (50-80%) - rare
+        else if (_random.NextDouble() < 0.01)
+            totalBolus *= 1.3 + _random.NextDouble() * 0.2; // Over-bolused slightly (130-150%) - rare
 
-        return Math.Max(0, Math.Round(totalBolus, 1));
+        return Math.Max(0.1, Math.Round(totalBolus, 1)); // Minimum 0.1u delivery
     }
 
     private Entry CreateEntry(DateTime time, double glucose, double? delta)
@@ -924,7 +962,34 @@ public class DemoDataGenerator : IDemoDataGenerator
             Insulin = insulin,
             Mills = new DateTimeOffset(time).ToUnixTimeMilliseconds(),
             Created_at = time.ToString("o"),
-            EnteredBy = "demo-user",
+            EnteredBy = "demo-pump", // AID pump delivers partial corrections
+            IsDemo = true,
+        };
+    }
+
+    private Treatment CreateManualCorrectionBolusTreatment(DateTime time, double insulin)
+    {
+        return new Treatment
+        {
+            EventType = "Correction Bolus",
+            Insulin = insulin,
+            Mills = new DateTimeOffset(time).ToUnixTimeMilliseconds(),
+            Created_at = time.ToString("o"),
+            EnteredBy = "demo-user", // User manually corrects with exact ISF calculation
+            Notes = "Manual correction",
+            IsDemo = true,
+        };
+    }
+
+    private Treatment CreateMicroBolusTreatment(DateTime time, double insulin)
+    {
+        return new Treatment
+        {
+            EventType = "SMB", // Super Micro Bolus - standard AID terminology
+            Insulin = insulin,
+            Mills = new DateTimeOffset(time).ToUnixTimeMilliseconds(),
+            Created_at = time.ToString("o"),
+            EnteredBy = "demo-pump",
             IsDemo = true,
         };
     }
@@ -984,7 +1049,6 @@ public class DemoDataGenerator : IDemoDataGenerator
     {
         public double FastingGlucose { get; set; }
         public double CarbRatio { get; set; }
-        public double CorrectionFactor { get; set; }
         public double BasalMultiplier { get; set; }
         public double InsulinSensitivityMultiplier { get; set; }
         public double DawnPhenomenonStrength { get; set; }

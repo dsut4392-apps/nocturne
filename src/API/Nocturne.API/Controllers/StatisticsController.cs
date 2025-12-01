@@ -79,6 +79,7 @@ public class StatisticsController : ControllerBase
     /// <param name="request">Request containing entries and optional thresholds</param>
     /// <returns>Time in range metrics including percentages, durations, and episodes</returns>
     [HttpPost("time-in-range")]
+    [RequestSizeLimit(100 * 1024 * 1024)] // 100 MB
     public ActionResult<TimeInRangeMetrics> CalculateTimeInRange(
         [FromBody] TimeInRangeRequest request
     )
@@ -103,6 +104,7 @@ public class StatisticsController : ControllerBase
     /// <param name="request">Request containing entries and optional bins</param>
     /// <returns>Collection of distribution data points</returns>
     [HttpPost("glucose-distribution")]
+    [RequestSizeLimit(100 * 1024 * 1024)] // 100 MB
     public ActionResult<IEnumerable<DistributionDataPoint>> CalculateGlucoseDistribution(
         [FromBody] GlucoseDistributionRequest request
     )
@@ -127,6 +129,7 @@ public class StatisticsController : ControllerBase
     /// <param name="entries">Array of glucose entries</param>
     /// <returns>Collection of averaged statistics for each hour</returns>
     [HttpPost("averaged-stats")]
+    [RequestSizeLimit(100 * 1024 * 1024)] // 100 MB
     public ActionResult<IEnumerable<AveragedStats>> CalculateAveragedStats(
         [FromBody] Entry[] entries
     )
@@ -194,6 +197,7 @@ public class StatisticsController : ControllerBase
     /// <param name="request">Request containing entries, treatments, and configuration</param>
     /// <returns>Comprehensive glucose analytics</returns>
     [HttpPost("comprehensive-analytics")]
+    [RequestSizeLimit(100 * 1024 * 1024)] // 100 MB
     public ActionResult<GlucoseAnalytics> AnalyzeGlucoseData(
         [FromBody] GlucoseAnalyticsRequest request
     )
@@ -219,6 +223,7 @@ public class StatisticsController : ControllerBase
     /// <param name="request">Request containing entries, treatments, population type, and configuration</param>
     /// <returns>Extended glucose analytics with modern clinical metrics</returns>
     [HttpPost("extended-analytics")]
+    [RequestSizeLimit(100 * 1024 * 1024)] // 100 MB - needed for large datasets (90+ days)
     public ActionResult<ExtendedGlucoseAnalytics> AnalyzeGlucoseDataExtended(
         [FromBody] ExtendedGlucoseAnalyticsRequest request
     )

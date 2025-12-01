@@ -64,7 +64,9 @@
     <div class="flex items-center gap-2">
       <!-- BG Value -->
       <div
-        class="text-xl font-bold {getBGColor(realtimeStore.currentBG)} text-white px-3 py-1 rounded-md"
+        class="text-xl font-bold {getBGColor(
+          realtimeStore.currentBG
+        )} text-white px-3 py-1 rounded-md"
       >
         {realtimeStore.currentBG}
       </div>

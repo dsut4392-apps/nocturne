@@ -58,9 +58,21 @@
   );
 
   // Helper to normalize dateRange - handles both Date objects and ISO strings
-  function normalizeDateRange(range: DateRange | { from: string; to: string }): DateRange {
-    const from = range.from instanceof Date ? range.from : (range.from ? new Date(range.from) : new Date());
-    const to = range.to instanceof Date ? range.to : (range.to ? new Date(range.to) : new Date());
+  function normalizeDateRange(
+    range: DateRange | { from: string; to: string }
+  ): DateRange {
+    const from =
+      range.from instanceof Date
+        ? range.from
+        : range.from
+          ? new Date(range.from)
+          : new Date();
+    const to =
+      range.to instanceof Date
+        ? range.to
+        : range.to
+          ? new Date(range.to)
+          : new Date();
     return { from, to };
   }
 

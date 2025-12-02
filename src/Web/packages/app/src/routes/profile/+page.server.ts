@@ -1,46 +1,30 @@
-import { error, fail, type Actions } from '@sveltejs/kit';
+import type { PageServerLoad } from "./$types";
+import type { Profile } from "$lib/api";
+import { error } from "@sveltejs/kit";
 
-export const load = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals }) => {
   try {
-    // Load profile records using API client
-    const mongoRecords = await locals.apiClient.profile.getProfiles2();
+    // Fetch all profiles using the V3 API
+    const response = await locals.apiClient.profile.getProfiles();
+    const profiles = (response.data ?? []) as Profile[];
+
+    // Sort profiles by mills (timestamp) descending to get most recent first
+    const sortedProfiles = [...profiles].sort((a, b) => {
+      const millsA = a.mills ?? 0;
+      const millsB = b.mills ?? 0;
+      return millsB - millsA;
+    });
+
+    // Get the current/active profile (most recent)
+    const currentProfile = sortedProfiles.length > 0 ? sortedProfiles[0] : null;
 
     return {
-      mongoRecords: Array.isArray(mongoRecords) ? mongoRecords : [mongoRecords],
+      profiles: sortedProfiles,
+      currentProfile,
+      totalProfiles: profiles.length,
     };
   } catch (err) {
-    console.error('Error loading profile data:', err);
-    throw error(500, 'Failed to load profile data');
-  }
-};
-
-export const actions: Actions = {
-  save: async ({ request, locals }) => {
-    try {
-      const formData = await request.formData();
-      const profileData = formData.get('profileData');
-
-      if (!profileData) {
-        return fail(400, { error: 'Profile data is required' });
-      }
-
-      // Parse the JSON string to pass as proper object to API client
-      let parsedProfileData;
-      try {
-        parsedProfileData = JSON.parse(profileData as string);
-      } catch {
-        return fail(400, { error: 'Invalid profile data format' });
-      }
-
-      await locals.apiClient.profile.createProfile2(parsedProfileData);
-
-      return {
-        success: true,
-        message: 'Profile saved successfully'
-      };
-    } catch (err) {
-      console.error('Error saving profile:', err);
-      return fail(500, { error: 'Internal server error' });
-    }
+    console.error("Error loading profiles:", err);
+    throw error(500, "Failed to load profiles");
   }
 };

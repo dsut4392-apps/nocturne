@@ -1,490 +1,474 @@
-<!-- SvelteKit Profile Editor Component -->
 <script lang="ts">
-  import { enhance } from "$app/forms";
+  import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+  } from "$lib/components/ui/card";
+  import { Badge } from "$lib/components/ui/badge";
   import { Button } from "$lib/components/ui/button";
-  import { Save } from "lucide-svelte";
-  import ProfileHeader from "./ProfileHeader.svelte";
-  import DatabaseRecords from "./DatabaseRecords.svelte";
-  import StoredProfiles from "./StoredProfiles.svelte";
-  import ProfileSettings from "./ProfileSettings.svelte";
-  import IntervalEditor from "./IntervalEditor.svelte";
-  import TargetBGEditor from "./TargetBGEditor.svelte";
+  import * as Tabs from "$lib/components/ui/tabs";
+  import * as Table from "$lib/components/ui/table";
+  import {
+    User,
+    Activity,
+    Target,
+    Droplet,
+    ChevronRight,
+    Settings,
+    TrendingUp,
+    History,
+  } from "lucide-svelte";
+  import type { Profile, TimeValue } from "$lib/api";
 
-  let { data, form } = $props();
-
-  let mongoRecords = $state(data.mongoRecords || []);
-  let timezones = $state(data.timezones || []);
-  let currentRecord = $state(0);
-  let currentProfile = $state(null);
-  let dirty = $state(false);
-  let c_profile = $state({});
-  let status = $state("Profile loaded");
-  let showForm = $state(true);
-  let isSubmitting = $state(false);
-
-  // Form elements
-  let timeInput = $state("");
-  let dateInput = $state("");
-  let profileNameInput = $state("");
-  let selectedTimezone = $state("");
-  let diaInput = $state("");
-  let carbsHrInput = $state("");
-  let perGIValues = $state(false);
-  let carbsHrHigh = $state("");
-  let carbsHrMedium = $state("");
-  let carbsHrLow = $state("");
-  let delayHigh = $state("");
-  let delayMedium = $state("");
-  let delayLow = $state("");
-  // Default profile structure
-  const defaultProfile = {
-    dia: 3,
-    carbs_hr: 30,
-    delay: 20,
-    perGIvalues: false,
-    carbs_hr_high: 30,
-    carbs_hr_medium: 30,
-    carbs_hr_low: 30,
-    delay_high: 20,
-    delay_medium: 20,
-    delay_low: 20,
-    timezone: "",
-    target_low: [{ time: "00:00", value: 80 }],
-    target_high: [{ time: "00:00", value: 120 }],
-    basal: [{ time: "00:00", value: 1.0 }],
-    sens: [{ time: "00:00", value: 50 }],
-    carbratio: [{ time: "00:00", value: 15 }],
-  };
-
-  // Initialize data
-  $effect(() => {
-    if (mongoRecords.length === 0) {
-      mongoRecords = [
-        {
-          startDate: new Date().toISOString(),
-          defaultProfile: "Default",
-          store: {
-            Default: { ...defaultProfile },
-          },
-        },
-      ];
-    }
-    initEditor();
-  });
-
-  function initEditor() {
-    if (mongoRecords.length > 0) {
-      currentProfile = mongoRecords[currentRecord].defaultProfile;
-      initRecord();
-    }
+  interface Props {
+    data: {
+      profiles: Profile[];
+      currentProfile: Profile | null;
+      totalProfiles: number;
+    };
   }
 
-  function initRecord() {
-    const record = mongoRecords[currentRecord];
+  let { data }: Props = $props();
 
-    timeInput = new Date(record.startDate).toTimeString().slice(0, 5);
-    dateInput = new Date(record.startDate).toISOString().slice(0, 10);
+  // Currently selected profile for detail view
+  let selectedProfileId = $state<string | null>(
+    data.currentProfile?._id ?? null
+  );
 
-    initProfile();
-  }
+  // Derived: get selected profile
+  let selectedProfile = $derived(
+    data.profiles.find((p) => p._id === selectedProfileId) ?? null
+  );
 
-  function initProfile() {
-    const record = mongoRecords[currentRecord];
-    c_profile = record.store[currentProfile] || { ...defaultProfile };
+  // Derived: get selected profile's store names
+  let profileStoreNames = $derived(
+    selectedProfile?.store ? Object.keys(selectedProfile.store).map(String) : []
+  );
 
-    // Update form fields
-    profileNameInput = currentProfile;
-    selectedTimezone = c_profile.timezone || "";
-    diaInput = c_profile.dia || "";
-    carbsHrInput = c_profile.carbs_hr || "";
-    perGIValues = c_profile.perGIvalues || false;
-    carbsHrHigh = c_profile.carbs_hr_high || "";
-    carbsHrMedium = c_profile.carbs_hr_medium || "";
-    carbsHrLow = c_profile.carbs_hr_low || "";
-    delayHigh = c_profile.delay_high || "";
-    delayMedium = c_profile.delay_medium || "";
-    delayLow = c_profile.delay_low || "";
-  }
+  // Derived: get selected profile's default store
+  let defaultStoreName = $derived(selectedProfile?.defaultProfile ?? "");
+  let defaultStore = $derived(
+    defaultStoreName && selectedProfile?.store
+      ? selectedProfile.store[defaultStoreName]
+      : null
+  );
 
-  function calculateTotalBasal() {
-    if (!c_profile.basal || !Array.isArray(c_profile.basal)) return 0;
-
-    let total = 0;
-    for (let i = 0; i < c_profile.basal.length; i++) {
-      const time1 = c_profile.basal[i].time;
-      const time2 = c_profile.basal[(i + 1) % c_profile.basal.length].time;
-      const value = c_profile.basal[i].value;
-      total += (timeDiffMinutes(time1, time2) * value) / 60;
-    }
-    return Math.round(total * 1000) / 1000;
-  }
-
-  function timeDiffMinutes(time1, time2) {
-    const minutes1 = toMinutesFromMidnight(time1);
-    const minutes2 = toMinutesFromMidnight(time2);
-    if (minutes2 <= minutes1) {
-      return 24 * 60 - minutes1 + minutes2;
-    }
-    return minutes2 - minutes1;
-  }
-
-  function toMinutesFromMidnight(time) {
-    const split = time.split(":");
-    return parseInt(split[0]) * 60 + parseInt(split[1]);
-  }
-
-  function addInterval(arrayName, index) {
-    if (!c_profile[arrayName]) c_profile[arrayName] = [];
-    c_profile[arrayName].splice(index, 0, { time: "00:00", value: 0 });
-    c_profile = { ...c_profile };
-    dirty = true;
-  }
-
-  function removeInterval(arrayName, index) {
-    if (c_profile[arrayName] && c_profile[arrayName].length > 1) {
-      c_profile[arrayName].splice(index, 1);
-      c_profile[arrayName][0].time = "00:00";
-      c_profile = { ...c_profile };
-      dirty = true;
-    }
-  }
-
-  function addTargetInterval(index) {
-    c_profile.target_low.splice(index, 0, { time: "00:00", value: 80 });
-    c_profile.target_high.splice(index, 0, { time: "00:00", value: 120 });
-    c_profile = { ...c_profile };
-    dirty = true;
-  }
-
-  function removeTargetInterval(index) {
-    if (c_profile.target_low.length > 1) {
-      c_profile.target_low.splice(index, 1);
-      c_profile.target_high.splice(index, 1);
-      c_profile.target_low[0].time = "00:00";
-      c_profile.target_high[0].time = "00:00";
-      c_profile = { ...c_profile };
-      dirty = true;
-    }
-  }
-
-  function updateProfile() {
-    // Update c_profile with form values
-    c_profile.dia = parseFloat(diaInput) || 3;
-    c_profile.carbs_hr = parseInt(carbsHrInput) || 30;
-    c_profile.perGIvalues = perGIValues;
-    c_profile.carbs_hr_high = parseInt(carbsHrHigh) || 30;
-    c_profile.carbs_hr_medium = parseInt(carbsHrMedium) || 30;
-    c_profile.carbs_hr_low = parseInt(carbsHrLow) || 30;
-    c_profile.delay_high = parseInt(delayHigh) || 20;
-    c_profile.delay_medium = parseInt(delayMedium) || 20;
-    c_profile.delay_low = parseInt(delayLow) || 20;
-    c_profile.timezone = selectedTimezone;
-
-    dirty = true;
-  }
-  async function saveProfile() {
-    if (!confirm("Save current record?")) return;
-
-    updateProfile();
-
-    const record = mongoRecords[currentRecord];
-    record.startDate = new Date(`${dateInput}T${timeInput}`).toISOString();
-    record.created_at = new Date().toISOString();
-    record.srvModified = new Date().getTime();
-    record.defaultProfile = currentProfile;
-
-    const adjustedRecord = { ...record };
-
-    // Clean up profile data
-    for (const key in adjustedRecord.store) {
-      const profile = adjustedRecord.store[key];
-      if (!profile.perGIvalues) {
-        delete profile.perGIvalues;
-        delete profile.carbs_hr_high;
-        delete profile.carbs_hr_medium;
-        delete profile.carbs_hr_low;
-        delete profile.delay_high;
-        delete profile.delay_medium;
-        delete profile.delay_low;
-      }
-    }
-
+  function formatDate(dateString: string | undefined): string {
+    if (!dateString) return "Unknown";
     try {
-      status = "Saving profile...";
-      showForm = false;
-      isSubmitting = true;
-
-      // Use form submission to leverage +page.server.ts
-      const formData = new FormData();
-      formData.append("profileData", JSON.stringify(adjustedRecord));
-
-      const response = await fetch("?/save", {
-        method: "POST",
-        body: formData,
+      return new Date(dateString).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.type === "success") {
-          status = "Profile saved successfully";
-          dirty = false;
-        } else {
-          status = result.data?.error || "Error saving profile";
-        }
-      } else {
-        status = "Error saving profile";
-      }
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      status = "Error saving profile";
-    } finally {
-      showForm = true;
-      isSubmitting = false;
+    } catch {
+      return dateString;
     }
   }
-
-  function addRecord() {
-    if (dirty && !confirm("Save current record before switching to new?"))
-      return;
-
-    mongoRecords.push({
-      startDate: new Date().toISOString(),
-      defaultProfile: "Default",
-      store: {
-        Default: { ...defaultProfile },
-      },
-    });
-
-    currentRecord = mongoRecords.length - 1;
-    currentProfile = "Default";
-    initRecord();
-    dirty = true;
-  }
-
-  function removeRecord() {
-    if (mongoRecords.length > 1 && confirm("Delete record?")) {
-      mongoRecords.splice(currentRecord, 1);
-      currentRecord = Math.min(currentRecord, mongoRecords.length - 1);
-      currentProfile = mongoRecords[currentRecord].defaultProfile;
-      initRecord();
-      dirty = false;
-    }
-  }
-
-  function cloneRecord() {
-    if (dirty && !confirm("Save current record before switching to new?"))
-      return;
-
-    const clonedRecord = { ...mongoRecords[currentRecord] };
-    delete clonedRecord._id;
-    delete clonedRecord.srvModified;
-    delete clonedRecord.srvCreated;
-    delete clonedRecord.identifier;
-    delete clonedRecord.mills;
-
-    clonedRecord.startDate = new Date().toISOString();
-    mongoRecords.push(clonedRecord);
-
-    currentRecord = mongoRecords.length - 1;
-    currentProfile = mongoRecords[currentRecord].defaultProfile;
-    initRecord();
-    dirty = true;
-  }
-
-  function addProfile() {
-    const record = mongoRecords[currentRecord];
-    let newName = "New profile";
-    while (record.store[newName]) {
-      newName += "1";
-    }
-
-    record.store[newName] = { ...defaultProfile };
-    currentProfile = newName;
-    initProfile();
-    dirty = true;
-  }
-
-  function removeProfile() {
-    const record = mongoRecords[currentRecord];
-    const availableProfiles = Object.keys(record.store).filter(
-      (key) => key !== currentProfile
-    );
-
-    if (availableProfiles.length > 0) {
-      delete record.store[currentProfile];
-      currentProfile = availableProfiles[0];
-      initProfile();
-      dirty = true;
-    }
-  }
-
-  function cloneProfile() {
-    updateProfile();
-    const record = mongoRecords[currentRecord];
-    let newName = `${profileNameInput} (copy)`;
-    while (record.store[newName]) {
-      newName += "1";
-    }
-
-    record.store[newName] = { ...record.store[currentProfile] };
-    currentProfile = newName;
-    initProfile();
-    dirty = true;
-  }
-  // Computed values
-  let totalBasal = $derived(calculateTotalBasal());
 </script>
 
 <svelte:head>
-  <title>Profile Editor - Nightscout</title>
+  <title>Profile - Nocturne</title>
+  <meta
+    name="description"
+    content="Manage your diabetes therapy profile settings"
+  />
 </svelte:head>
 
-<div class="min-h-screen bg-gray-100 py-8">
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="bg-white shadow-lg rounded-lg">
-      <ProfileHeader {status} />
+<div class="container mx-auto p-6 max-w-5xl space-y-6">
+  <!-- Header -->
+  <div class="flex items-start justify-between">
+    <div class="flex items-center gap-3">
+      <div
+        class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10"
+      >
+        <User class="h-6 w-6 text-primary" />
+      </div>
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight">Profile</h1>
+        <p class="text-muted-foreground">
+          Your therapy settings and insulin parameters
+        </p>
+      </div>
+    </div>
+    <Badge variant="secondary" class="gap-1">
+      <History class="h-3 w-3" />
+      {data.totalProfiles} profile{data.totalProfiles !== 1 ? "s" : ""}
+    </Badge>
+  </div>
 
-      {#if showForm}
-        <form
-          method="POST"
-          action="?/save"
-          use:enhance={() => {
-            return async ({ update, result }) => {
-              isSubmitting = true;
-              status = "Saving profile...";
-              showForm = false;
+  {#if !data.currentProfile}
+    <!-- Empty State -->
+    <Card class="border-dashed">
+      <CardContent class="py-12">
+        <div class="text-center space-y-4">
+          <div
+            class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted"
+          >
+            <User class="h-8 w-8 text-muted-foreground" />
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold">No Profile Found</h3>
+            <p class="text-sm text-muted-foreground max-w-md mx-auto mt-1">
+              Profiles are typically uploaded from your diabetes management app
+              (like AAPS, Loop, or xDrip+). They contain your basal rates,
+              insulin sensitivity factors, and carb ratios.
+            </p>
+          </div>
+          <Button variant="outline" href="/settings/services">
+            <Settings class="h-4 w-4 mr-2" />
+            Configure Data Sources
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  {:else}
+    <!-- Profile Selector (if multiple profiles) -->
+    {#if data.profiles.length > 1}
+      <Card>
+        <CardHeader class="pb-3">
+          <CardTitle class="text-lg flex items-center gap-2">
+            <History class="h-5 w-5" />
+            Profile History
+          </CardTitle>
+          <CardDescription>
+            Select a profile to view its settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {#each data.profiles as profile}
+              <button
+                class="flex items-center gap-3 p-3 rounded-lg border text-left transition-colors
+                       {selectedProfileId === profile._id
+                  ? 'border-primary bg-primary/5'
+                  : 'hover:bg-accent/50'}"
+                onclick={() => (selectedProfileId = profile._id ?? null)}
+              >
+                <div
+                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg
+                         {selectedProfileId === profile._id
+                    ? 'bg-primary/10'
+                    : 'bg-muted'}"
+                >
+                  <User
+                    class="h-5 w-5 {selectedProfileId === profile._id
+                      ? 'text-primary'
+                      : 'text-muted-foreground'}"
+                  />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium truncate">
+                      {profile.defaultProfile ?? "Unnamed Profile"}
+                    </span>
+                    {#if profile._id === data.currentProfile?._id}
+                      <Badge
+                        variant="default"
+                        class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 text-xs"
+                      >
+                        Active
+                      </Badge>
+                    {/if}
+                  </div>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {formatDate(profile.created_at)}
+                  </p>
+                </div>
+                <ChevronRight
+                  class="h-4 w-4 text-muted-foreground shrink-0 {selectedProfileId ===
+                  profile._id
+                    ? 'text-primary'
+                    : ''}"
+                />
+              </button>
+            {/each}
+          </div>
+        </CardContent>
+      </Card>
+    {/if}
 
-              await update();
-
-              if (result.type === "success") {
-                status = "Profile saved successfully";
-                dirty = false;
-              } else {
-                status = result.data?.error || "Error saving profile";
-              }
-
-              isSubmitting = false;
-              showForm = true;
-            };
-          }}
-          class="p-6 space-y-8"
-        >
-          <!-- General Settings -->
-          <div class="bg-gray-50 rounded-lg p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">
-              General Profile Settings
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <span class="font-medium">Title:</span>
-                Nightscout
-              </div>
-              <div>
-                <span class="font-medium">Units:</span>
-                mg/dL
-              </div>
-              <div>
-                <span class="font-medium">Date format:</span>
-                24h
-              </div>
+    <!-- Selected Profile Details -->
+    {#if selectedProfile}
+      <!-- Profile Overview Card -->
+      <Card>
+        <CardHeader>
+          <div class="flex items-start justify-between">
+            <div>
+              <CardTitle class="flex items-center gap-2">
+                {selectedProfile.defaultProfile ?? "Profile"}
+                {#if selectedProfile._id === data.currentProfile?._id}
+                  <Badge
+                    variant="default"
+                    class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+                  >
+                    Active
+                  </Badge>
+                {/if}
+              </CardTitle>
+              <CardDescription>
+                Created {formatDate(selectedProfile.created_at)}
+              </CardDescription>
             </div>
           </div>
-
-          <DatabaseRecords
-            bind:currentRecord
-            bind:dateInput
-            bind:timeInput
-            {mongoRecords}
-            onUpdate={updateProfile}
-            onRecordChange={initRecord}
-            onAddRecord={addRecord}
-            onRemoveRecord={removeRecord}
-            onCloneRecord={cloneRecord}
-          />
-
-          <StoredProfiles
-            bind:currentProfile
-            bind:profileNameInput
-            {mongoRecords}
-            {currentRecord}
-            onProfileChange={initProfile}
-            onUpdate={updateProfile}
-            onAddProfile={addProfile}
-            onRemoveProfile={removeProfile}
-            onCloneProfile={cloneProfile}
-          />
-
-          <div class="mt-6 space-y-6">
-            <ProfileSettings
-              bind:selectedTimezone
-              bind:diaInput
-              bind:carbsHrInput
-              bind:perGIValues
-              bind:carbsHrHigh
-              bind:carbsHrMedium
-              bind:carbsHrLow
-              bind:delayHigh
-              bind:delayMedium
-              bind:delayLow
-              {timezones}
-              onUpdate={updateProfile}
-            />
-
-            <IntervalEditor
-              intervals={c_profile.basal || []}
-              title="Basal Rates [U/hr]"
-              unit="Value"
-              step="0.01"
-              {totalBasal}
-              onAddInterval={(index) => addInterval("basal", index)}
-              onRemoveInterval={(index) => removeInterval("basal", index)}
-              onUpdate={updateProfile}
-            />
-
-            <IntervalEditor
-              intervals={c_profile.carbratio || []}
-              title="Insulin to Carb Ratio (I:C) [g]"
-              unit="Value"
-              step="0.1"
-              onAddInterval={(index) => addInterval("carbratio", index)}
-              onRemoveInterval={(index) => removeInterval("carbratio", index)}
-              onUpdate={updateProfile}
-            />
-
-            <IntervalEditor
-              intervals={c_profile.sens || []}
-              title="Insulin Sensitivity Factor (ISF) [mg/dL/U]"
-              unit="Value"
-              step="1"
-              onAddInterval={(index) => addInterval("sens", index)}
-              onRemoveInterval={(index) => removeInterval("sens", index)}
-              onUpdate={updateProfile}
-            />
-
-            <TargetBGEditor
-              targetLow={c_profile.target_low || []}
-              targetHigh={c_profile.target_high || []}
-              onAddInterval={addTargetInterval}
-              onRemoveInterval={removeTargetInterval}
-              onUpdate={updateProfile}
-            />
+        </CardHeader>
+        <CardContent>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="space-y-1">
+              <span class="text-xs text-muted-foreground">Units</span>
+              <p class="font-medium">
+                {selectedProfile.units ?? "mg/dL"}
+              </p>
+            </div>
+            <div class="space-y-1">
+              <span class="text-xs text-muted-foreground">Timezone</span>
+              <p class="font-medium">
+                {defaultStore?.timezone ?? "Not set"}
+              </p>
+            </div>
+            <div class="space-y-1">
+              <span class="text-xs text-muted-foreground">DIA</span>
+              <p class="font-medium">
+                {defaultStore?.dia ?? "–"} hours
+              </p>
+            </div>
+            <div class="space-y-1">
+              <span class="text-xs text-muted-foreground">Carbs/hr</span>
+              <p class="font-medium">
+                {defaultStore?.carbs_hr ?? "–"} g/hr
+              </p>
+            </div>
           </div>
-          <!-- Save Button -->
-          <div class="flex justify-end">
-            <Button type="submit" disabled={isSubmitting} size="lg">
-              <Save class="w-4 h-4" />
-              Save Profile
-            </Button>
-          </div>
-        </form>
+        </CardContent>
+      </Card>
+
+      <!-- Profile Stores -->
+      {#if profileStoreNames.length > 0}
+        <Tabs.Root value={defaultStoreName || profileStoreNames[0]}>
+          <Tabs.List class="w-full justify-start">
+            {#each profileStoreNames as storeName}
+              <Tabs.Trigger value={storeName} class="gap-2">
+                <User class="h-4 w-4" />
+                {storeName}
+                {#if storeName === defaultStoreName}
+                  <Badge variant="secondary" class="text-xs ml-1">
+                    Default
+                  </Badge>
+                {/if}
+              </Tabs.Trigger>
+            {/each}
+          </Tabs.List>
+
+          {#each profileStoreNames as storeName}
+            {@const store = selectedProfile.store?.[storeName]}
+            <Tabs.Content value={storeName} class="mt-4 space-y-4">
+              {#if store}
+                <!-- Time-based Settings Grid -->
+                <div class="grid gap-4 md:grid-cols-2">
+                  <!-- Basal Rates -->
+                  {#if store.basal && store.basal.length > 0}
+                    {@render ProfileTimeValueCard({
+                      title: "Basal Rates",
+                      description: "Background insulin delivery rates",
+                      unit: "U/hr",
+                      icon: Activity,
+                      values: store.basal,
+                      colorClass: "text-blue-600",
+                    })}
+                  {/if}
+
+                  <!-- Carb Ratios -->
+                  {#if store.carbratio && store.carbratio.length > 0}
+                    {@render ProfileTimeValueCard({
+                      title: "Carb Ratios (I:C)",
+                      description: "Grams of carbs per unit of insulin",
+                      unit: "g/U",
+                      icon: Droplet,
+                      values: store.carbratio,
+                      colorClass: "text-green-600",
+                    })}
+                  {/if}
+
+                  <!-- Insulin Sensitivity -->
+                  {#if store.sens && store.sens.length > 0}
+                    {@render ProfileTimeValueCard({
+                      title: "Insulin Sensitivity (ISF)",
+                      description: "BG drop per unit of insulin",
+                      unit:
+                        selectedProfile.units === "mmol"
+                          ? "mmol/L/U"
+                          : "mg/dL/U",
+                      icon: TrendingUp,
+                      values: store.sens,
+                      colorClass: "text-purple-600",
+                    })}
+                  {/if}
+
+                  <!-- Target Range -->
+                  {#if (store.target_low && store.target_low.length > 0) || (store.target_high && store.target_high.length > 0)}
+                    <Card>
+                      <CardHeader class="pb-3">
+                        <div class="flex items-center gap-3">
+                          <div
+                            class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10"
+                          >
+                            <Target class="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <CardTitle class="text-base">
+                              Target Range
+                            </CardTitle>
+                            <CardDescription class="text-xs">
+                              Desired blood glucose range
+                            </CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <Table.Root>
+                          <Table.Header>
+                            <Table.Row>
+                              <Table.Head>Time</Table.Head>
+                              <Table.Head class="text-right">Low</Table.Head>
+                              <Table.Head class="text-right">High</Table.Head>
+                            </Table.Row>
+                          </Table.Header>
+                          <Table.Body>
+                            {@const lowValues = store.target_low ?? []}
+                            {@const highValues = store.target_high ?? []}
+                            {@const maxLen = Math.max(
+                              lowValues.length,
+                              highValues.length
+                            )}
+                            {#each Array(maxLen) as _, i}
+                              <Table.Row>
+                                <Table.Cell class="font-mono text-sm">
+                                  {lowValues[i]?.time ??
+                                    highValues[i]?.time ??
+                                    "–"}
+                                </Table.Cell>
+                                <Table.Cell class="text-right font-mono">
+                                  {lowValues[i]?.value ?? "–"}
+                                </Table.Cell>
+                                <Table.Cell class="text-right font-mono">
+                                  {highValues[i]?.value ?? "–"}
+                                </Table.Cell>
+                              </Table.Row>
+                            {/each}
+                          </Table.Body>
+                        </Table.Root>
+                      </CardContent>
+                    </Card>
+                  {/if}
+                </div>
+
+                <!-- Additional Store Metadata -->
+                <Card class="bg-muted/30">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="text-sm font-medium">
+                      Profile Settings
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span class="text-muted-foreground">DIA</span>
+                        <p class="font-medium">{store.dia ?? "–"} hours</p>
+                      </div>
+                      <div>
+                        <span class="text-muted-foreground">Carbs/hr</span>
+                        <p class="font-medium">{store.carbs_hr ?? "–"} g/hr</p>
+                      </div>
+                      <div>
+                        <span class="text-muted-foreground">Timezone</span>
+                        <p class="font-medium">{store.timezone ?? "–"}</p>
+                      </div>
+                      <div>
+                        <span class="text-muted-foreground">Units</span>
+                        <p class="font-medium">{store.units ?? "–"}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              {:else}
+                <div class="text-center py-8 text-muted-foreground">
+                  <p>No data available for this profile store.</p>
+                </div>
+              {/if}
+            </Tabs.Content>
+          {/each}
+        </Tabs.Root>
       {:else}
-        <div class="p-6 text-center">
-          <div
-            class="animate-spin inline-block w-6 h-6 border-[3px] border-current border-t-transparent text-blue-600 rounded-full"
-          ></div>
-          <p class="mt-2 text-gray-600">Saving profile...</p>
-        </div>
+        <Card class="border-dashed">
+          <CardContent class="py-8">
+            <div class="text-center text-muted-foreground">
+              <p>
+                This profile doesn't contain any therapy settings (basal, carb
+                ratios, etc.)
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       {/if}
-    </div>
-  </div>
+    {/if}
+  {/if}
 </div>
+
+<!-- Profile Time Value Card Component -->
+{#snippet ProfileTimeValueCard({
+  title,
+  description,
+  unit,
+  icon: Icon,
+  values,
+  colorClass,
+}: {
+  title: string;
+  description: string;
+  unit: string;
+  icon: typeof Activity;
+  values: TimeValue[];
+  colorClass: string;
+})}
+  <Card>
+    <CardHeader class="pb-3">
+      <div class="flex items-center gap-3">
+        <div
+          class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"
+        >
+          <Icon class="h-5 w-5 {colorClass}" />
+        </div>
+        <div>
+          <CardTitle class="text-base">{title}</CardTitle>
+          <CardDescription class="text-xs">{description}</CardDescription>
+        </div>
+      </div>
+    </CardHeader>
+    <CardContent>
+      <Table.Root>
+        <Table.Header>
+          <Table.Row>
+            <Table.Head>Time</Table.Head>
+            <Table.Head class="text-right">{unit}</Table.Head>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
+          {#each values as timeValue}
+            <Table.Row>
+              <Table.Cell class="font-mono text-sm">
+                {timeValue.time ?? "–"}
+              </Table.Cell>
+              <Table.Cell class="text-right font-mono">
+                {timeValue.value ?? "–"}
+              </Table.Cell>
+            </Table.Row>
+          {/each}
+        </Table.Body>
+      </Table.Root>
+    </CardContent>
+  </Card>
+{/snippet}

@@ -236,7 +236,7 @@ public class NotificationsController : ControllerBase
         try
         {
             // Get subject ID for authorization check (implements legacy ctx.authorization.resolveWithRequest)
-            var subjectId = HttpContext?.GetSubjectId();
+            var subjectId = HttpContext?.GetSubjectIdString();
 
             var response = await _notificationService.GetAdminNotifiesAsync(
                 subjectId,

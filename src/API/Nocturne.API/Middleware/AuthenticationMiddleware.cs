@@ -1,227 +1,170 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using Microsoft.IdentityModel.Tokens;
-using Nocturne.Core.Constants;
-using Nocturne.Core.Contracts;
+using Nocturne.API.Middleware.Handlers;
 using Nocturne.Core.Models;
+using Nocturne.Core.Models.Authorization;
 
 namespace Nocturne.API.Middleware;
 
 /// <summary>
-/// Middleware for handling Nightscout authentication including API secrets and JWT tokens
+/// Middleware for handling authentication through a chain of handlers.
+/// Handlers are executed in priority order (lowest first).
+/// The first handler to return success or failure stops the chain.
 /// </summary>
 public class AuthenticationMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<AuthenticationMiddleware> _logger;
-    private readonly string _apiSecret;
-    private readonly byte[] _jwtKey;
+    private readonly IAuthHandler[] _handlers;
 
+    /// <summary>
+    /// Creates a new instance of AuthenticationMiddleware
+    /// </summary>
     public AuthenticationMiddleware(
         RequestDelegate next,
-        IConfiguration configuration,
-        ILogger<AuthenticationMiddleware> logger
+        ILogger<AuthenticationMiddleware> logger,
+        IEnumerable<IAuthHandler> handlers
     )
     {
         _next = next;
-        _configuration = configuration;
         _logger = logger;
 
-        _apiSecret = _configuration[ServiceNames.ConfigKeys.ApiSecret] ?? "";
-        var jwtSecret = _configuration[ServiceNames.ConfigKeys.JwtSecret] ?? _apiSecret;
-        _jwtKey = Encoding.UTF8.GetBytes(jwtSecret);
+        // Sort handlers by priority (lowest first)
+        _handlers = handlers.OrderBy(h => h.Priority).ToArray();
+
+        _logger.LogInformation(
+            "Authentication middleware initialized with {Count} handlers: {Handlers}",
+            _handlers.Length,
+            string.Join(", ", _handlers.Select(h => $"{h.Name}({h.Priority})"))
+        );
     }
 
+    /// <summary>
+    /// Process the HTTP request through the authentication pipeline
+    /// </summary>
     public async Task InvokeAsync(HttpContext context)
-    {
-        await AuthenticateRequest(context);
-        await _next(context);
-    }
-
-    private async Task AuthenticateRequest(HttpContext context)
     {
         try
         {
-            // Check for JWT Bearer token first
-            var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
-            if (
-                !string.IsNullOrEmpty(authHeader)
-                && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-            )
-            {
-                var token = authHeader["Bearer ".Length..].Trim();
-                await AuthenticateJwtToken(context, token);
-                return;
-            }
+            var authContext = await AuthenticateRequestAsync(context);
 
-            // Check for API secret
-            var apiSecretHeader = context.Request.Headers["api-secret"].FirstOrDefault();
-            if (!string.IsNullOrEmpty(apiSecretHeader))
-            {
-                await AuthenticateApiSecret(context, apiSecretHeader);
-                return;
-            }
+            // Set authentication context in HttpContext items
+            context.Items["AuthContext"] = authContext;
 
-            // No authentication provided
-            SetUnauthenticated(context);
+            // Build and set permission trie for fast permission checking
+            var permissionTrie = new PermissionTrie();
+            if (authContext.IsAuthenticated && authContext.Permissions.Count > 0)
+            {
+                permissionTrie.Add(authContext.Permissions);
+            }
+            context.Items["PermissionTrie"] = permissionTrie;
+
+            // Also set the legacy AuthenticationContext for backward compatibility
+            context.Items["AuthenticationContext"] = MapToLegacyContext(authContext);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during authentication");
             SetUnauthenticated(context);
         }
+
+        await _next(context);
     }
 
-    private async Task AuthenticateJwtToken(HttpContext context, string token)
+    /// <summary>
+    /// Run through the handler chain to authenticate the request
+    /// </summary>
+    private async Task<AuthContext> AuthenticateRequestAsync(HttpContext context)
     {
-        try
+        foreach (var handler in _handlers)
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var validationParameters = new TokenValidationParameters
+            try
             {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(_jwtKey),
-                ValidateIssuer = false,
-                ValidateAudience = false,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero,
-            };
+                var result = await handler.AuthenticateAsync(context);
 
-            var principal = tokenHandler.ValidateToken(
-                token,
-                validationParameters,
-                out var validatedToken
-            );
-            var jwtToken = validatedToken as JwtSecurityToken;
-
-            if (jwtToken != null)
-            {
-                var subjectId = principal.FindFirst("sub")?.Value;
-                var permissionsClaim = principal.FindFirst("permissions")?.Value;
-
-                if (!string.IsNullOrEmpty(subjectId))
+                if (result.Succeeded)
                 {
-                    // Get authorization service to check permissions
-                    var authService =
-                        context.RequestServices.GetRequiredService<IAuthorizationService>();
-
-                    var permissions = new List<string>();
-                    if (!string.IsNullOrEmpty(permissionsClaim))
-                    {
-                        permissions = permissionsClaim.Split(',').ToList();
-                    }
-
-                    // Set authentication context
-                    var authContext = new AuthenticationContext
-                    {
-                        IsAuthenticated = true,
-                        AuthenticationType = AuthenticationType.JwtToken,
-                        SubjectId = subjectId,
-                        Permissions = permissions,
-                        Token = token,
-                    };
-
-                    context.Items["AuthContext"] = authContext;
-
-                    // Build permission trie for fast checking
-                    var permissionTrie = new PermissionTrie();
-                    if (permissions.Count > 0)
-                    {
-                        permissionTrie.Add(permissions);
-                    }
-                    context.Items["PermissionTrie"] = permissionTrie;
-
                     _logger.LogDebug(
-                        "JWT authentication successful for subject {SubjectId}",
-                        subjectId
+                        "Request authenticated by {Handler} for subject {Subject}",
+                        handler.Name,
+                        result.AuthContext?.SubjectName ?? "unknown"
                     );
-                    return;
+
+                    return result.AuthContext!;
                 }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "JWT token validation failed");
-        }
 
-        SetUnauthenticated(context);
-        await Task.CompletedTask;
-    }
-
-    private async Task AuthenticateApiSecret(HttpContext context, string providedHash)
-    {
-        try
-        {
-            if (string.IsNullOrEmpty(_apiSecret))
-            {
-                _logger.LogWarning("api-secret not configured but api-secret header provided");
-                SetUnauthenticated(context);
-                return;
-            }
-
-            // Calculate SHA1 hash of the API secret
-            using var sha1 = SHA1.Create();
-            var secretBytes = Encoding.UTF8.GetBytes(_apiSecret);
-            var hashBytes = sha1.ComputeHash(secretBytes);
-            var expectedHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-
-            if (providedHash.ToLowerInvariant() == expectedHash)
-            {
-                // API secret authentication successful
-                var authContext = new AuthenticationContext
+                if (!result.ShouldSkip)
                 {
-                    IsAuthenticated = true,
-                    AuthenticationType = AuthenticationType.ApiSecret,
-                    SubjectId = "admin", // API secret gives admin privileges
-                    Permissions = new List<string> { "*" }, // Full permissions
-                    Token = null,
-                };
+                    // Handler recognized credentials but they were invalid
+                    _logger.LogDebug(
+                        "Authentication failed by {Handler}: {Error}",
+                        handler.Name,
+                        result.Error
+                    );
 
-                context.Items["AuthContext"] = authContext;
+                    // Return unauthenticated context but don't try other handlers
+                    return AuthContext.Unauthenticated();
+                }
 
-                // Create admin permission trie
-                var permissionTrie = new PermissionTrie();
-                permissionTrie.Add(new[] { "*" });
-                context.Items["PermissionTrie"] = permissionTrie;
-
-                _logger.LogDebug("API secret authentication successful");
-                return;
+                // Handler skipped - try next handler
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogWarning("Invalid API secret provided");
+                _logger.LogWarning(ex, "Handler {Handler} threw an exception", handler.Name);
+                // Continue to next handler
             }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error validating API secret");
-        }
 
-        SetUnauthenticated(context);
-        await Task.CompletedTask;
+        // No handler authenticated the request
+        _logger.LogDebug("No authentication credentials found");
+        return AuthContext.Unauthenticated();
     }
 
+    /// <summary>
+    /// Set unauthenticated context on the HttpContext
+    /// </summary>
     private static void SetUnauthenticated(HttpContext context)
     {
-        var authContext = new AuthenticationContext
-        {
-            IsAuthenticated = false,
-            AuthenticationType = AuthenticationType.None,
-            SubjectId = null,
-            Permissions = new List<string>(),
-            Token = null,
-        };
-
+        var authContext = AuthContext.Unauthenticated();
         context.Items["AuthContext"] = authContext;
-        context.Items["PermissionTrie"] = new PermissionTrie(); // Empty trie
+        context.Items["PermissionTrie"] = new PermissionTrie();
+        context.Items["AuthenticationContext"] = MapToLegacyContext(authContext);
+    }
+
+    /// <summary>
+    /// Map new AuthContext to legacy AuthenticationContext for backward compatibility
+    /// </summary>
+    private static AuthenticationContext MapToLegacyContext(AuthContext authContext)
+    {
+        return new AuthenticationContext
+        {
+            IsAuthenticated = authContext.IsAuthenticated,
+            AuthenticationType = MapAuthType(authContext.AuthType),
+            SubjectId = authContext.SubjectId?.ToString() ?? authContext.SubjectName,
+            Permissions = authContext.Permissions,
+            Token = authContext.RawToken,
+        };
+    }
+
+    /// <summary>
+    /// Map new AuthType to legacy AuthenticationType enum
+    /// </summary>
+    private static AuthenticationType MapAuthType(AuthType authType)
+    {
+        return authType switch
+        {
+            AuthType.None => AuthenticationType.None,
+            AuthType.ApiSecret => AuthenticationType.ApiSecret,
+            AuthType.LegacyJwt => AuthenticationType.JwtToken,
+            AuthType.LegacyAccessToken => AuthenticationType.JwtToken,
+            AuthType.OidcToken => AuthenticationType.JwtToken,
+            AuthType.SessionCookie => AuthenticationType.JwtToken,
+            _ => AuthenticationType.None,
+        };
     }
 }
 
 /// <summary>
-/// Authentication context information
+/// Legacy authentication context for backward compatibility.
+/// New code should use AuthContext from Core.Models.Authorization.
 /// </summary>
 public class AuthenticationContext
 {
@@ -252,7 +195,7 @@ public class AuthenticationContext
 }
 
 /// <summary>
-/// Types of authentication supported
+/// Legacy authentication types for backward compatibility
 /// </summary>
 public enum AuthenticationType
 {

@@ -1,5 +1,6 @@
 using Nocturne.API.Middleware;
 using Nocturne.Core.Models;
+using Nocturne.Core.Models.Authorization;
 
 namespace Nocturne.API.Extensions;
 
@@ -9,13 +10,24 @@ namespace Nocturne.API.Extensions;
 public static class HttpContextExtensions
 {
     /// <summary>
-    /// Get the authentication context from the request
+    /// Get the new-style authentication context from the request
     /// </summary>
     /// <param name="context">HTTP context</param>
-    /// <returns>Authentication context</returns>
-    public static AuthenticationContext GetAuthContext(this HttpContext context)
+    /// <returns>Authentication context or null if not set</returns>
+    public static AuthContext? GetAuthContext(this HttpContext context)
     {
-        return context.Items["AuthContext"] as AuthenticationContext ?? new AuthenticationContext();
+        return context.Items["AuthContext"] as AuthContext;
+    }
+
+    /// <summary>
+    /// Get the legacy authentication context from the request (for backward compatibility)
+    /// </summary>
+    /// <param name="context">HTTP context</param>
+    /// <returns>Legacy authentication context</returns>
+    public static AuthenticationContext GetLegacyAuthContext(this HttpContext context)
+    {
+        return context.Items["AuthenticationContext"] as AuthenticationContext
+            ?? new AuthenticationContext();
     }
 
     /// <summary>
@@ -27,7 +39,7 @@ public static class HttpContextExtensions
     public static bool HasPermission(this HttpContext context, string permission)
     {
         var authContext = context.GetAuthContext();
-        if (!authContext.IsAuthenticated)
+        if (authContext == null || !authContext.IsAuthenticated)
         {
             return false;
         }
@@ -48,7 +60,7 @@ public static class HttpContextExtensions
     /// <returns>True if authenticated</returns>
     public static bool IsAuthenticated(this HttpContext context)
     {
-        return context.GetAuthContext().IsAuthenticated;
+        return context.GetAuthContext()?.IsAuthenticated ?? false;
     }
 
     /// <summary>
@@ -56,9 +68,19 @@ public static class HttpContextExtensions
     /// </summary>
     /// <param name="context">HTTP context</param>
     /// <returns>Subject ID or null if not authenticated</returns>
-    public static string? GetSubjectId(this HttpContext context)
+    public static Guid? GetSubjectId(this HttpContext context)
     {
-        return context.GetAuthContext().SubjectId;
+        return context.GetAuthContext()?.SubjectId;
+    }
+
+    /// <summary>
+    /// Get the subject ID as a string for the current request (legacy compatibility)
+    /// </summary>
+    /// <param name="context">HTTP context</param>
+    /// <returns>Subject ID as string or null if not authenticated</returns>
+    public static string? GetSubjectIdString(this HttpContext context)
+    {
+        return context.GetAuthContext()?.SubjectId?.ToString();
     }
 
     /// <summary>

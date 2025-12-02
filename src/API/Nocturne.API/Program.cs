@@ -8,7 +8,9 @@ using Nocturne.API.Configuration;
 using Nocturne.API.Extensions;
 using Nocturne.API.Hubs;
 using Nocturne.API.Middleware;
+using Nocturne.API.Middleware.Handlers;
 using Nocturne.API.Services;
+using Nocturne.API.Services.Auth;
 using Nocturne.API.Services.BackgroundServices;
 using Nocturne.API.Services.Compatibility;
 using Nocturne.Connectors.Configurations;
@@ -179,6 +181,33 @@ builder.Services.AddScoped<IOpenApsService, OpenApsService>();
 builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 builder.Services.AddScoped<IAlexaService, AlexaService>();
 
+// Authentication and authorization services
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.Configure<OidcOptions>(builder.Configuration.GetSection(OidcOptions.SectionName));
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddScoped<ISubjectService, SubjectService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IOidcProviderService, OidcProviderService>();
+builder.Services.AddScoped<IOidcAuthService, OidcAuthService>();
+
+// Register authentication handlers for the middleware pipeline
+// Handlers are executed in priority order (lowest first)
+builder.Services.AddSingleton<IAuthHandler, SessionCookieHandler>(); // Priority 50 (web sessions)
+builder.Services.AddSingleton<IAuthHandler, OidcTokenHandler>(); // Priority 100
+builder.Services.AddSingleton<IAuthHandler, LegacyJwtHandler>(); // Priority 200
+builder.Services.AddSingleton<IAuthHandler, AccessTokenHandler>(); // Priority 300
+builder.Services.AddSingleton<IAuthHandler, ApiSecretHandler>(); // Priority 400
+
+// Add HTTP client for OIDC provider discovery
+builder.Services.AddHttpClient(
+    "OidcProvider",
+    client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(30);
+    }
+);
+
 // Statistics service for analytics and calculations
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 
@@ -192,8 +221,8 @@ builder.Services.AddScoped<IBatteryAgeService, BatteryAgeService>();
 builder.Services.AddScoped<ICalibrationAgeService, CalibrationAgeService>();
 
 // Configure JWT authentication
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? "DefaultSecretKeyForNocturneWhichShouldBeChanged";
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName);
+var secretKey = jwtOptions["SecretKey"] ?? "DefaultSecretKeyForNocturneWhichShouldBeChanged";
 var key = Encoding.ASCII.GetBytes(secretKey);
 
 builder

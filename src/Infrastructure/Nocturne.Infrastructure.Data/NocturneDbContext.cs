@@ -89,6 +89,38 @@ public class NocturneDbContext : DbContext
     /// </summary>
     public DbSet<DeviceHealthEntity> DeviceHealth { get; set; }
 
+    // Authentication and Authorization entities
+
+    /// <summary>
+    /// Gets or sets the RefreshTokens table for refresh tokens (access tokens are stateless JWTs)
+    /// </summary>
+    public DbSet<RefreshTokenEntity> RefreshTokens { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Subjects table for users and devices
+    /// </summary>
+    public DbSet<SubjectEntity> Subjects { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Roles table for authorization roles
+    /// </summary>
+    public DbSet<RoleEntity> Roles { get; set; }
+
+    /// <summary>
+    /// Gets or sets the SubjectRoles table for subject-role mappings
+    /// </summary>
+    public DbSet<SubjectRoleEntity> SubjectRoles { get; set; }
+
+    /// <summary>
+    /// Gets or sets the OidcProviders table for OIDC provider configurations
+    /// </summary>
+    public DbSet<OidcProviderEntity> OidcProviders { get; set; }
+
+    /// <summary>
+    /// Gets or sets the AuthAuditLog table for security event auditing
+    /// </summary>
+    public DbSet<AuthAuditLogEntity> AuthAuditLog { get; set; }
+
     /// <summary>
     /// Configure the database model and relationships
     /// </summary>
@@ -471,6 +503,104 @@ public class NocturneDbContext : DbContext
             .Entity<DeviceHealthEntity>()
             .HasIndex(d => d.CreatedAt)
             .HasDatabaseName("ix_device_health_created_at");
+
+        // Refresh Token indexes - optimized for auth lookups
+        modelBuilder
+            .Entity<RefreshTokenEntity>()
+            .HasIndex(t => t.TokenHash)
+            .HasDatabaseName("ix_refresh_tokens_token_hash")
+            .IsUnique();
+
+        modelBuilder
+            .Entity<RefreshTokenEntity>()
+            .HasIndex(t => t.SubjectId)
+            .HasDatabaseName("ix_refresh_tokens_subject_id");
+
+        modelBuilder
+            .Entity<RefreshTokenEntity>()
+            .HasIndex(t => t.OidcSessionId)
+            .HasDatabaseName("ix_refresh_tokens_oidc_session_id");
+
+        modelBuilder
+            .Entity<RefreshTokenEntity>()
+            .HasIndex(t => t.ExpiresAt)
+            .HasDatabaseName("ix_refresh_tokens_expires_at");
+
+        modelBuilder
+            .Entity<RefreshTokenEntity>()
+            .HasIndex(t => t.RevokedAt)
+            .HasDatabaseName("ix_refresh_tokens_revoked_at")
+            .HasFilter("revoked_at IS NULL");
+
+        // Subject indexes - optimized for auth lookups
+        modelBuilder
+            .Entity<SubjectEntity>()
+            .HasIndex(s => s.Name)
+            .HasDatabaseName("ix_subjects_name");
+
+        modelBuilder
+            .Entity<SubjectEntity>()
+            .HasIndex(s => s.AccessTokenHash)
+            .HasDatabaseName("ix_subjects_access_token_hash")
+            .IsUnique();
+
+        modelBuilder
+            .Entity<SubjectEntity>()
+            .HasIndex(s => new { s.OidcSubjectId, s.OidcIssuer })
+            .HasDatabaseName("ix_subjects_oidc_identity")
+            .IsUnique();
+
+        modelBuilder
+            .Entity<SubjectEntity>()
+            .HasIndex(s => s.Email)
+            .HasDatabaseName("ix_subjects_email");
+
+        // Role indexes
+        modelBuilder
+            .Entity<RoleEntity>()
+            .HasIndex(r => r.Name)
+            .HasDatabaseName("ix_roles_name")
+            .IsUnique();
+
+        // OIDC Provider indexes
+        modelBuilder
+            .Entity<OidcProviderEntity>()
+            .HasIndex(o => o.IssuerUrl)
+            .HasDatabaseName("ix_oidc_providers_issuer_url")
+            .IsUnique();
+
+        modelBuilder
+            .Entity<OidcProviderEntity>()
+            .HasIndex(o => o.IsEnabled)
+            .HasDatabaseName("ix_oidc_providers_is_enabled");
+
+        // Auth Audit Log indexes - optimized for security monitoring
+        modelBuilder
+            .Entity<AuthAuditLogEntity>()
+            .HasIndex(a => a.SubjectId)
+            .HasDatabaseName("ix_auth_audit_log_subject_id");
+
+        modelBuilder
+            .Entity<AuthAuditLogEntity>()
+            .HasIndex(a => a.EventType)
+            .HasDatabaseName("ix_auth_audit_log_event_type");
+
+        modelBuilder
+            .Entity<AuthAuditLogEntity>()
+            .HasIndex(a => a.CreatedAt)
+            .HasDatabaseName("ix_auth_audit_log_created_at")
+            .IsDescending();
+
+        modelBuilder
+            .Entity<AuthAuditLogEntity>()
+            .HasIndex(a => a.IpAddress)
+            .HasDatabaseName("ix_auth_audit_log_ip_address");
+
+        modelBuilder
+            .Entity<AuthAuditLogEntity>()
+            .HasIndex(a => new { a.SubjectId, a.CreatedAt })
+            .HasDatabaseName("ix_auth_audit_log_subject_created")
+            .IsDescending(false, true);
     }
 
     private static void ConfigureEntities(ModelBuilder modelBuilder)
@@ -531,6 +661,28 @@ public class NocturneDbContext : DbContext
         modelBuilder
             .Entity<DeviceHealthEntity>()
             .Property(d => d.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+
+        // Auth entity UUID generators
+        modelBuilder
+            .Entity<RefreshTokenEntity>()
+            .Property(t => t.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<SubjectEntity>()
+            .Property(s => s.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<RoleEntity>()
+            .Property(r => r.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<OidcProviderEntity>()
+            .Property(o => o.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<AuthAuditLogEntity>()
+            .Property(a => a.Id)
             .HasValueGenerator<GuidV7ValueGenerator>();
 
         // Configure automatic timestamp updates
@@ -774,6 +926,91 @@ public class NocturneDbContext : DbContext
             .Property(d => d.UpdatedAt)
             .HasDefaultValueSql("CURRENT_TIMESTAMP")
             .ValueGeneratedOnAddOrUpdate();
+
+        // Configure RefreshToken entity relationships and defaults
+        modelBuilder.Entity<RefreshTokenEntity>(entity =>
+        {
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP")
+                  .ValueGeneratedOnAddOrUpdate();
+
+            entity.HasOne(e => e.Subject)
+                  .WithMany(s => s.RefreshTokens)
+                  .HasForeignKey(e => e.SubjectId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Subject entity relationships and defaults
+        modelBuilder.Entity<SubjectEntity>(entity =>
+        {
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP")
+                  .ValueGeneratedOnAddOrUpdate();
+        });
+
+        // Configure Role entity defaults
+        modelBuilder.Entity<RoleEntity>(entity =>
+        {
+            entity.Property(e => e.Permissions).HasDefaultValue(new List<string>());
+            entity.Property(e => e.IsSystemRole).HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP")
+                  .ValueGeneratedOnAddOrUpdate();
+        });
+
+        // Configure SubjectRole (many-to-many) relationships
+        modelBuilder.Entity<SubjectRoleEntity>(entity =>
+        {
+            entity.HasKey(e => new { e.SubjectId, e.RoleId });
+
+            entity.Property(e => e.AssignedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(e => e.Subject)
+                  .WithMany(s => s.SubjectRoles)
+                  .HasForeignKey(e => e.SubjectId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Role)
+                  .WithMany(r => r.SubjectRoles)
+                  .HasForeignKey(e => e.RoleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.AssignedBy)
+                  .WithMany()
+                  .HasForeignKey(e => e.AssignedById)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Configure OIDC Provider entity defaults
+        modelBuilder.Entity<OidcProviderEntity>(entity =>
+        {
+            entity.Property(e => e.Scopes).HasDefaultValue(new List<string> { "openid", "profile", "email" });
+            entity.Property(e => e.DefaultRoles).HasDefaultValue(new List<string> { "readable" });
+            entity.Property(e => e.ClaimMappingsJson).HasDefaultValue("{}");
+            entity.Property(e => e.IsEnabled).HasDefaultValue(true);
+            entity.Property(e => e.DisplayOrder).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP")
+                  .ValueGeneratedOnAddOrUpdate();
+        });
+
+        // Configure Auth Audit Log entity relationships and defaults
+        modelBuilder.Entity<AuthAuditLogEntity>(entity =>
+        {
+            entity.Property(e => e.Success).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(e => e.Subject)
+                  .WithMany()
+                  .HasForeignKey(e => e.SubjectId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.RefreshToken)
+                  .WithMany()
+                  .HasForeignKey(e => e.RefreshTokenId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
     }
 
     /// <summary>
@@ -901,6 +1138,46 @@ public class NocturneDbContext : DbContext
                     deviceHealthEntity.CreatedAt = utcNow;
                 }
                 deviceHealthEntity.UpdatedAt = utcNow;
+            }
+            // Auth entities
+            else if (entry.Entity is RefreshTokenEntity refreshTokenEntity)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    refreshTokenEntity.CreatedAt = utcNow;
+                }
+                refreshTokenEntity.UpdatedAt = utcNow;
+            }
+            else if (entry.Entity is SubjectEntity subjectEntity)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    subjectEntity.CreatedAt = utcNow;
+                }
+                subjectEntity.UpdatedAt = utcNow;
+            }
+            else if (entry.Entity is RoleEntity roleEntity)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    roleEntity.CreatedAt = utcNow;
+                }
+                roleEntity.UpdatedAt = utcNow;
+            }
+            else if (entry.Entity is OidcProviderEntity oidcProviderEntity)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    oidcProviderEntity.CreatedAt = utcNow;
+                }
+                oidcProviderEntity.UpdatedAt = utcNow;
+            }
+            else if (entry.Entity is AuthAuditLogEntity authAuditLogEntity)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    authAuditLogEntity.CreatedAt = utcNow;
+                }
             }
         }
     }

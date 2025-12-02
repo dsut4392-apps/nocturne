@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Attributes;
 using Nocturne.API.Extensions;
+using Nocturne.Core.Models.Authorization;
 
 namespace Nocturne.API.Controllers;
 
@@ -33,14 +34,14 @@ public class AuthenticationController : ControllerBase
             var authContext = HttpContext.GetAuthContext();
 
             // Determine the response format based on authentication status
-            if (authContext.IsAuthenticated)
+            if (authContext?.IsAuthenticated == true)
             {
                 var canRead = HttpContext.CanRead();
                 var canWrite = HttpContext.CanWrite();
                 var isAdmin = HttpContext.IsAdmin();
 
-                // For JWT token authentication, use the detailed response format
-                if (authContext.AuthenticationType == Middleware.AuthenticationType.JwtToken)
+                // For JWT/OIDC token authentication, use the detailed response format
+                if (authContext.AuthType != AuthType.ApiSecret)
                 {
                     var response = new VerifyAuthResponse
                     {
@@ -56,7 +57,7 @@ public class AuthenticationController : ControllerBase
                     };
 
                     _logger.LogDebug(
-                        "JWT authentication verified for subject {SubjectId}",
+                        "Token authentication verified for subject {SubjectId}",
                         authContext.SubjectId
                     );
                     return Ok(response);

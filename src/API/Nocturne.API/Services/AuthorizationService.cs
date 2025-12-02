@@ -5,6 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Infrastructure.Data.Abstractions;
+using AuthRole = Nocturne.Core.Models.Authorization.Role;
+using AuthSubject = Nocturne.Core.Models.Authorization.Subject;
 
 namespace Nocturne.API.Services;
 
@@ -16,6 +18,9 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     private readonly IPostgreSqlService _postgreSqlService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthorizationService> _logger;
+    private readonly ISubjectService _subjectService;
+    private readonly IRoleService _roleService;
+    private readonly IJwtService _jwtService;
     private readonly PermissionTrie _permissionTrie;
     private readonly Dictionary<string, Permission> _seenPermissions = new();
     private readonly object _permissionsLock = new();
@@ -27,12 +32,18 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     public AuthorizationService(
         IPostgreSqlService postgreSqlService,
         IConfiguration configuration,
-        ILogger<AuthorizationService> logger
+        ILogger<AuthorizationService> logger,
+        ISubjectService subjectService,
+        IRoleService roleService,
+        IJwtService jwtService
     )
     {
         _postgreSqlService = postgreSqlService;
         _configuration = configuration;
         _logger = logger;
+        _subjectService = subjectService;
+        _roleService = roleService;
+        _jwtService = jwtService;
         _permissionTrie = new PermissionTrie();
 
         // Initialize with common permissions
@@ -44,24 +55,76 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// </summary>
     /// <param name="accessToken">Access token to exchange</param>
     /// <returns>Authorization response with JWT token</returns>
-    public Task<AuthorizationResponse?> GenerateJwtFromAccessTokenAsync(string accessToken)
+    public async Task<AuthorizationResponse?> GenerateJwtFromAccessTokenAsync(string accessToken)
     {
         try
         {
             _logger.LogDebug("Generating JWT for access token");
 
-            // TODO: Implement Subject management in PostgreSQL service
-            // Find subject by access token
-            throw new NotImplementedException(
-                "Subject management with access tokens is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Subject/Role operations."
-            );
+            // Hash the access token to look it up
+            var tokenHash = ComputeSha256Hash(accessToken);
+
+            // Find subject by access token hash
+            var subject = await _subjectService.GetSubjectByAccessTokenHashAsync(tokenHash);
+
+            if (subject == null)
+            {
+                _logger.LogDebug("Access token not found");
+                return null;
+            }
+
+            if (!subject.IsActive)
+            {
+                _logger.LogDebug("Subject {SubjectId} is deactivated", subject.Id);
+                return null;
+            }
+
+            // Get permissions for the subject
+            var permissions = await _subjectService.GetSubjectPermissionsAsync(subject.Id);
+            var roles = await _subjectService.GetSubjectRolesAsync(subject.Id);
+
+            // Generate JWT using the new JWT service
+            var subjectInfo = new SubjectInfo
+            {
+                Id = subject.Id,
+                Name = subject.Name,
+                Email = subject.Email,
+                OidcSubjectId = subject.OidcSubjectId,
+                OidcIssuer = subject.OidcIssuer,
+            };
+
+            var jwt = _jwtService.GenerateAccessToken(subjectInfo, permissions, roles);
+
+            // Update last login
+            _ = _subjectService.UpdateLastLoginAsync(subject.Id);
+
+            // Calculate expiration (default 1 hour from now for legacy compatibility)
+            var now = DateTimeOffset.UtcNow;
+            var exp = now.AddHours(1);
+
+            return new AuthorizationResponse
+            {
+                Token = jwt,
+                Sub = subject.Name,
+                Iat = now.ToUnixTimeSeconds(),
+                Exp = exp.ToUnixTimeSeconds(),
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating JWT from access token");
-            return Task.FromResult<AuthorizationResponse?>(null);
+            return null;
         }
+    }
+
+    /// <summary>
+    /// Compute SHA-256 hash of a string
+    /// </summary>
+    private static string ComputeSha256Hash(string input)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(input);
+        var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     /// <summary>
@@ -174,7 +237,7 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// <param name="subjectId">Subject identifier</param>
     /// <param name="permission">Permission to check</param>
     /// <returns>True if permission is granted</returns>
-    public Task<bool> CheckPermissionAsync(string subjectId, string permission)
+    public async Task<bool> CheckPermissionAsync(string subjectId, string permission)
     {
         try
         {
@@ -184,12 +247,13 @@ public class AuthorizationService : IAuthorizationService, IDisposable
                 subjectId
             );
 
-            // TODO: Implement Subject lookup in PostgreSQL service
-            // TODO: Implement Subject and Role lookup in PostgreSQL service
-            throw new NotImplementedException(
-                "Subject and Role lookup is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Subject/Role operations."
-            );
+            if (!Guid.TryParse(subjectId, out var guid))
+            {
+                _logger.LogDebug("Invalid subject ID format: {SubjectId}", subjectId);
+                return false;
+            }
+
+            return await _subjectService.HasPermissionAsync(guid, permission);
         }
         catch (Exception ex)
         {
@@ -199,7 +263,7 @@ public class AuthorizationService : IAuthorizationService, IDisposable
                 permission,
                 subjectId
             );
-            return Task.FromResult(false);
+            return false;
         }
     }
 
@@ -251,17 +315,16 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// Get all subjects
     /// </summary>
     /// <returns>List of all subjects</returns>
-    public Task<List<Subject>> GetAllSubjectsAsync()
+    public async Task<List<Subject>> GetAllSubjectsAsync()
     {
         try
         {
             _logger.LogDebug("Getting all subjects");
 
-            // TODO: Implement GetAllSubjects in PostgreSQL service
-            throw new NotImplementedException(
-                "Subject management is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Subject operations."
-            );
+            var subjects = await _subjectService.GetSubjectsAsync();
+
+            // Map from new Subject model to legacy Subject model
+            return subjects.Select(MapToLegacySubject).ToList();
         }
         catch (Exception ex)
         {
@@ -275,17 +338,20 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// </summary>
     /// <param name="id">Subject ID</param>
     /// <returns>Subject or null if not found</returns>
-    public Task<Subject?> GetSubjectByIdAsync(string id)
+    public async Task<Subject?> GetSubjectByIdAsync(string id)
     {
         try
         {
             _logger.LogDebug("Getting subject by ID: {Id}", id);
 
-            // TODO: Implement GetSubjectById in PostgreSQL service
-            throw new NotImplementedException(
-                "Subject management is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Subject operations."
-            );
+            if (!Guid.TryParse(id, out var guid))
+            {
+                _logger.LogDebug("Invalid subject ID format: {Id}", id);
+                return null;
+            }
+
+            var subject = await _subjectService.GetSubjectByIdAsync(guid);
+            return subject != null ? MapToLegacySubject(subject) : null;
         }
         catch (Exception ex)
         {
@@ -299,34 +365,50 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// </summary>
     /// <param name="subject">Subject to create</param>
     /// <returns>Created subject</returns>
-    public Task<Subject> CreateSubjectAsync(Subject subject)
+    public async Task<Subject> CreateSubjectAsync(Subject subject)
     {
         try
         {
             _logger.LogDebug("Creating new subject: {Name}", subject.Name);
 
-            // Set timestamps
-            var now = DateTime.UtcNow;
-            subject.Created = now;
-            subject.Modified = now;
-
-            // Generate access token if not provided
-            if (string.IsNullOrEmpty(subject.AccessToken))
+            // Map to new Subject model
+            var newSubject = new AuthSubject
             {
-                subject.AccessToken = GenerateAccessToken();
+                Name = subject.Name ?? "Unknown",
+                Notes = subject.Notes,
+                Type = Nocturne.Core.Models.Authorization.SubjectType.Service,
+                IsActive = true,
+            };
+
+            var result = await _subjectService.CreateSubjectAsync(newSubject);
+
+            // Assign roles if specified
+            if (subject.Roles != null && subject.Roles.Count > 0)
+            {
+                foreach (var role in subject.Roles)
+                {
+                    await _subjectService.AssignRoleAsync(result.Subject.Id, role);
+                }
             }
 
-            // Set ID if not provided
-            if (string.IsNullOrEmpty(subject.Id))
+            // Map back to legacy model and include the generated access token
+            var legacySubject = MapToLegacySubject(result.Subject);
+            if (result.AccessToken != null)
             {
-                subject.Id = Guid.CreateVersion7().ToString("N");
+                legacySubject.AccessToken = result.AccessToken;
             }
 
-            // TODO: Implement CreateSubject in PostgreSQL service
-            throw new NotImplementedException(
-                "Subject management is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Subject operations."
+            // Get the roles we just assigned
+            var assignedRoles = await _subjectService.GetSubjectRolesAsync(result.Subject.Id);
+            legacySubject.Roles = assignedRoles;
+
+            _logger.LogDebug(
+                "Successfully created subject: {Name} with ID: {Id}",
+                legacySubject.Name,
+                legacySubject.Id
             );
+
+            return legacySubject;
         }
         catch (Exception ex)
         {
@@ -340,20 +422,54 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// </summary>
     /// <param name="subject">Subject to update</param>
     /// <returns>Updated subject or null if not found</returns>
-    public Task<Subject?> UpdateSubjectAsync(Subject subject)
+    public async Task<Subject?> UpdateSubjectAsync(Subject subject)
     {
         try
         {
             _logger.LogDebug("Updating subject: {Id}", subject.Id);
 
-            // Set modified timestamp
-            subject.Modified = DateTime.UtcNow;
+            if (string.IsNullOrEmpty(subject.Id) || !Guid.TryParse(subject.Id, out var guid))
+            {
+                _logger.LogDebug("Invalid subject ID format: {Id}", subject.Id);
+                return null;
+            }
 
-            // TODO: Implement UpdateSubject in PostgreSQL service
-            throw new NotImplementedException(
-                "Subject management is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Subject operations."
-            );
+            // Get existing subject
+            var existing = await _subjectService.GetSubjectByIdAsync(guid);
+            if (existing == null)
+            {
+                return null;
+            }
+
+            // Update fields
+            existing.Name = subject.Name ?? existing.Name;
+            existing.Notes = subject.Notes ?? existing.Notes;
+
+            var updated = await _subjectService.UpdateSubjectAsync(existing);
+            if (updated == null)
+            {
+                return null;
+            }
+
+            // Update roles if specified
+            if (subject.Roles != null)
+            {
+                var currentRoles = await _subjectService.GetSubjectRolesAsync(guid);
+
+                // Remove roles not in the new list
+                foreach (var role in currentRoles.Except(subject.Roles))
+                {
+                    await _subjectService.RemoveRoleAsync(guid, role);
+                }
+
+                // Add roles not in the current list
+                foreach (var role in subject.Roles.Except(currentRoles))
+                {
+                    await _subjectService.AssignRoleAsync(guid, role);
+                }
+            }
+
+            return MapToLegacySubject(updated);
         }
         catch (Exception ex)
         {
@@ -367,17 +483,19 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// </summary>
     /// <param name="id">Subject ID</param>
     /// <returns>True if deleted, false if not found</returns>
-    public Task<bool> DeleteSubjectAsync(string id)
+    public async Task<bool> DeleteSubjectAsync(string id)
     {
         try
         {
             _logger.LogDebug("Deleting subject: {Id}", id);
 
-            // TODO: Implement DeleteSubject in PostgreSQL service
-            throw new NotImplementedException(
-                "Subject management is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Subject operations."
-            );
+            if (!Guid.TryParse(id, out var guid))
+            {
+                _logger.LogDebug("Invalid subject ID format: {Id}", id);
+                return false;
+            }
+
+            return await _subjectService.DeleteSubjectAsync(guid);
         }
         catch (Exception ex)
         {
@@ -391,17 +509,14 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// Get all roles
     /// </summary>
     /// <returns>List of all roles</returns>
-    public Task<List<Role>> GetAllRolesAsync()
+    public async Task<List<Role>> GetAllRolesAsync()
     {
         try
         {
             _logger.LogDebug("Getting all roles");
 
-            // TODO: Implement GetAllRoles in PostgreSQL service
-            throw new NotImplementedException(
-                "Role management is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Role operations."
-            );
+            var roles = await _roleService.GetAllRolesAsync();
+            return roles.Select(MapToLegacyRole).ToList();
         }
         catch (Exception ex)
         {
@@ -415,17 +530,20 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// </summary>
     /// <param name="id">Role ID</param>
     /// <returns>Role or null if not found</returns>
-    public Task<Role?> GetRoleByIdAsync(string id)
+    public async Task<Role?> GetRoleByIdAsync(string id)
     {
         try
         {
             _logger.LogDebug("Getting role by ID: {Id}", id);
 
-            // TODO: Implement GetRoleById in PostgreSQL service
-            throw new NotImplementedException(
-                "Role management is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Role operations."
-            );
+            if (!Guid.TryParse(id, out var guid))
+            {
+                _logger.LogDebug("Invalid role ID format: {Id}", id);
+                return null;
+            }
+
+            var role = await _roleService.GetRoleByIdAsync(guid);
+            return role != null ? MapToLegacyRole(role) : null;
         }
         catch (Exception ex)
         {
@@ -439,28 +557,30 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// </summary>
     /// <param name="role">Role to create</param>
     /// <returns>Created role</returns>
-    public Task<Role> CreateRoleAsync(Role role)
+    public async Task<Role> CreateRoleAsync(Role role)
     {
         try
         {
             _logger.LogDebug("Creating new role: {Name}", role.Name);
 
-            // Set timestamps
-            var now = DateTime.UtcNow;
-            role.Created = now;
-            role.Modified = now;
-
-            // Set ID if not provided
-            if (string.IsNullOrEmpty(role.Id))
+            // Map to new Role model
+            var newRole = new AuthRole
             {
-                role.Id = Guid.CreateVersion7().ToString("N");
-            }
+                Name = role.Name,
+                Permissions = role.Permissions?.ToList() ?? new List<string>(),
+                Description = role.Notes,
+                IsSystemRole = false,
+            };
 
-            // TODO: Implement CreateRole in PostgreSQL service
-            throw new NotImplementedException(
-                "Role management is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Role operations."
+            var created = await _roleService.CreateRoleAsync(newRole);
+
+            _logger.LogDebug(
+                "Successfully created role: {Name} with ID: {Id}",
+                created.Name,
+                created.Id
             );
+
+            return MapToLegacyRole(created);
         }
         catch (Exception ex)
         {
@@ -474,20 +594,32 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// </summary>
     /// <param name="role">Role to update</param>
     /// <returns>Updated role or null if not found</returns>
-    public Task<Role?> UpdateRoleAsync(Role role)
+    public async Task<Role?> UpdateRoleAsync(Role role)
     {
         try
         {
             _logger.LogDebug("Updating role: {Id}", role.Id);
 
-            // Set modified timestamp
-            role.Modified = DateTime.UtcNow;
+            if (string.IsNullOrEmpty(role.Id) || !Guid.TryParse(role.Id, out var guid))
+            {
+                _logger.LogDebug("Invalid role ID format: {Id}", role.Id);
+                return null;
+            }
 
-            // TODO: Implement UpdateRole in PostgreSQL service
-            throw new NotImplementedException(
-                "Role management is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Role operations."
-            );
+            // Get existing role
+            var existing = await _roleService.GetRoleByIdAsync(guid);
+            if (existing == null)
+            {
+                return null;
+            }
+
+            // Update fields
+            existing.Name = role.Name ?? existing.Name;
+            existing.Permissions = role.Permissions?.ToList() ?? existing.Permissions;
+            existing.Description = role.Notes ?? existing.Description;
+
+            var updated = await _roleService.UpdateRoleAsync(existing);
+            return updated != null ? MapToLegacyRole(updated) : null;
         }
         catch (Exception ex)
         {
@@ -501,17 +633,19 @@ public class AuthorizationService : IAuthorizationService, IDisposable
     /// </summary>
     /// <param name="id">Role ID</param>
     /// <returns>True if deleted, false if not found</returns>
-    public Task<bool> DeleteRoleAsync(string id)
+    public async Task<bool> DeleteRoleAsync(string id)
     {
         try
         {
             _logger.LogDebug("Deleting role: {Id}", id);
 
-            // TODO: Implement DeleteRole in PostgreSQL service
-            throw new NotImplementedException(
-                "Role management is not yet implemented in PostgreSQL adapter. "
-                    + "Requires extending IPostgreSqlService with Role operations."
-            );
+            if (!Guid.TryParse(id, out var guid))
+            {
+                _logger.LogDebug("Invalid role ID format: {Id}", id);
+                return false;
+            }
+
+            return await _roleService.DeleteRoleAsync(guid);
         }
         catch (Exception ex)
         {
@@ -696,6 +830,38 @@ public class AuthorizationService : IAuthorizationService, IDisposable
         {
             _logger.LogError(ex, "Error cleaning up permissions cache");
         }
+    }
+
+    /// <summary>
+    /// Map new Subject model to legacy Subject model for API compatibility
+    /// </summary>
+    private Subject MapToLegacySubject(AuthSubject subject)
+    {
+        return new Subject
+        {
+            Id = subject.Id.ToString(),
+            Name = subject.Name,
+            Notes = subject.Notes,
+            Roles = subject.Roles?.Select(r => r.Name).ToList() ?? new List<string>(),
+            Created = subject.CreatedAt,
+            Modified = subject.CreatedAt, // Use CreatedAt as fallback
+        };
+    }
+
+    /// <summary>
+    /// Map new Role model to legacy Role model for API compatibility
+    /// </summary>
+    private static Role MapToLegacyRole(AuthRole role)
+    {
+        return new Role
+        {
+            Id = role.Id.ToString(),
+            Name = role.Name,
+            Permissions = role.Permissions?.ToList() ?? new List<string>(),
+            Notes = role.Description ?? "",
+            Created = role.CreatedAt,
+            Modified = role.UpdatedAt ?? role.CreatedAt,
+        };
     }
 
     /// <summary>

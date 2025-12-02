@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document outlines a comprehensive plan for implementing OpenID Connect (OIDC) authentication in Nocturne while maintaining full backward compatibility with Nightscout's legacy v1, v2, and v3 API authentication systems. The solution uses opaque tokens with an internal token cache to enable immediate revocation without introspection latency.
+This document outlines a comprehensive plan for implementing OpenID Connect (OIDC) authentication in Nocturne while maintaining full backward compatibility with Nightscout's legacy v1, v2, and v3 API authentication systems. The solution uses **short-lived JWTs** for simplicity and stateless validation - no token cache or database lookups required for most requests.
 
 ---
 
@@ -25,24 +25,23 @@ This document outlines a comprehensive plan for implementing OpenID Connect (OID
 
 ### Primary Goals
 
-| Goal | Description |
-|------|-------------|
-| **OIDC Authentication** | Modern authentication using OpenID Connect for the Nocturne web application |
-| **Legacy API Compatibility** | Full backward compatibility with Nightscout v1/v2/v3 API authentication |
-| **Opaque Tokens** | Use opaque tokens instead of JWTs for immediate revocability |
-| **Token Caching** | Internal cache on resource server keyed by token ID with TTL matching token lifetime |
-| **SSO Support** | Easy integration with hospital and healthcare provider identity systems |
-| **Zero-Latency Revocation** | Avoid introspection endpoint latency via local cache invalidation |
+| Goal                         | Description                                                                             |
+| ---------------------------- | --------------------------------------------------------------------------------------- |
+| **OIDC Authentication**      | Modern authentication using OpenID Connect for the Nocturne web application             |
+| **Legacy API Compatibility** | Full backward compatibility with Nightscout v1/v2/v3 API authentication                 |
+| **Short-Lived JWTs**         | Use short-lived JWTs (15-60 min) for stateless validation - simple and secure           |
+| **Refresh Tokens**           | Use refresh tokens stored in DB for session continuity without long-lived access tokens |
+| **SSO Support**              | Easy integration with hospital and healthcare provider identity systems                 |
 
 ### Authentication Methods to Support
 
-| Method | API Version | Description |
-|--------|-------------|-------------|
-| `api-secret` header (SHA1 hash) | v1, v2, v3 | Legacy admin authentication via hashed API secret |
-| Access Token (query/body/header) | v1, v2 | Nightscout subject access tokens |
-| JWT Bearer Token | v2, v3 | Self-issued JWTs from access token exchange |
-| OIDC Bearer Token | Modern | Opaque tokens from OIDC provider (new) |
-| Session Cookie | Web | OIDC session for web application (new) |
+| Method                           | API Version | Description                                               |
+| -------------------------------- | ----------- | --------------------------------------------------------- |
+| `api-secret` header (SHA1 hash)  | v1, v2, v3  | Legacy admin authentication via hashed API secret         |
+| Access Token (query/body/header) | v1, v2      | Nightscout subject access tokens                          |
+| JWT Bearer Token                 | v2, v3      | Self-issued JWTs from access token exchange               |
+| OIDC JWT Bearer Token            | Modern      | Short-lived JWTs issued after OIDC authentication (new)   |
+| Session Cookie                   | Web         | Encrypted cookie containing JWT for web application (new) |
 
 ---
 
@@ -90,15 +89,15 @@ Request → AuthenticationMiddleware
 
 ### Default Roles (from legacy storage.js)
 
-| Role | Permissions |
-|------|-------------|
-| `admin` | `*` |
-| `denied` | (none) |
-| `status-only` | `api:status:read` |
-| `readable` | `*:*:read` |
-| `careportal` | `api:treatments:create` |
+| Role                  | Permissions               |
+| --------------------- | ------------------------- |
+| `admin`               | `*`                       |
+| `denied`              | (none)                    |
+| `status-only`         | `api:status:read`         |
+| `readable`            | `*:*:read`                |
+| `careportal`          | `api:treatments:create`   |
 | `devicestatus-upload` | `api:devicestatus:create` |
-| `activity` | `api:activity:create` |
+| `activity`            | `api:activity:create`     |
 
 ---
 
@@ -161,37 +160,54 @@ Request → AuthenticationMiddleware
 
 ### Component Responsibilities
 
-| Component | Responsibility |
-|-----------|----------------|
-| **OIDC Provider** | External identity provider (Keycloak, Auth0, Azure AD, hospital SSO) |
-| **Authentication Middleware** | Multi-scheme auth handling with fallback chain |
-| **Token Cache** | Local cache for opaque tokens to avoid introspection latency |
-| **Token Store** | Persistent storage for issued tokens, revocation tracking |
-| **Subject/Role Store** | Permission and role management (legacy compatibility) |
+| Component                     | Responsibility                                                       |
+| ----------------------------- | -------------------------------------------------------------------- |
+| **OIDC Provider**             | External identity provider (Keycloak, Auth0, Azure AD, hospital SSO) |
+| **Authentication Middleware** | Multi-scheme auth handling with fallback chain                       |
+| **JWT Validation**            | Stateless JWT signature verification using shared secret or RSA keys |
+| **Refresh Token Store**       | Database storage for refresh tokens to enable session continuity     |
+| **Subject/Role Store**        | Permission and role management (legacy compatibility)                |
 
 ---
 
 ## 4. Token Strategy
 
-### Opaque Token Design
+### Short-Lived JWT Design
 
-We'll use opaque tokens (random strings) instead of JWTs for external issuance. This provides:
+We use short-lived JWTs for access tokens. This provides:
 
-1. **Immediate Revocability**: Token can be invalidated in cache without waiting for expiry
-2. **No Information Leakage**: Token content is meaningless without server lookup
-3. **Smaller Size**: Opaque tokens are typically shorter than JWTs
-4. **Server-Side Control**: All validation happens server-side
+1. **Stateless Validation**: No database lookup needed - just verify signature and claims
+2. **Simple Architecture**: No token cache layer required
+3. **Standard Tooling**: Works with any JWT library
+4. **Acceptable Security**: Short lifetime (15-60 min) limits exposure window
 
-### Token Format
+For revocation scenarios (logout, password change), we rely on:
+
+- Short token lifetime (tokens naturally expire quickly)
+- Refresh token revocation (stored in DB, can be invalidated)
+- Optional: JWT ID (jti) blocklist for immediate revocation of specific tokens
+
+### JWT Structure
 
 ```
-Opaque Token Format:
+JWT Access Token:
 ┌──────────────────────────────────────────────────────────────┐
-│  nocturne_{version}_{token_id}_{random_bytes}                │
+│  Header: { "alg": "HS256", "typ": "JWT" }                    │
 │                                                              │
-│  Example: nocturne_v1_01JDQXYZ..._{32_char_random}           │
-│           ────────── ── ────────── ───────────────           │
-│           prefix    ver  ULID       cryptographic nonce      │
+│  Payload: {                                                  │
+│    "sub": "subject-uuid",           // Subject ID            │
+│    "name": "Rhys",                  // Display name          │
+│    "email": "rhys@example.com",     // Optional email        │
+│    "roles": ["readable", "careportal"],                      │
+│    "permissions": ["api:entries:read", "api:treatments:*"],  │
+│    "iss": "nocturne",               // Issuer                │
+│    "aud": "nocturne-api",           // Audience              │
+│    "iat": 1701532800,               // Issued at             │
+│    "exp": 1701536400,               // Expires (1 hour)      │
+│    "jti": "unique-token-id"         // JWT ID for revocation │
+│  }                                                           │
+│                                                              │
+│  Signature: HMACSHA256(base64(header) + "." + base64(payload), secret)
 └──────────────────────────────────────────────────────────────┘
 
 Legacy Access Token Format (maintained for compatibility):
@@ -202,54 +218,33 @@ Legacy Access Token Format (maintained for compatibility):
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### Token Cache Strategy
+### Refresh Token Strategy
+
+Refresh tokens are stored in the database and used to obtain new access tokens:
 
 ```csharp
-// Token Cache Entry Structure
-public class TokenCacheEntry
+// Refresh Token Entity (stored in DB)
+public class RefreshTokenEntity
 {
-    public string TokenId { get; set; }           // ULID/GUID
-    public string SubjectId { get; set; }         // User/device ID
-    public string? OidcSubjectId { get; set; }    // External OIDC 'sub' claim
-    public string? OidcIssuer { get; set; }       // OIDC issuer URL
-    public List<string> Permissions { get; set; } // Resolved permissions
-    public List<string> Roles { get; set; }       // Assigned roles
-    public DateTimeOffset IssuedAt { get; set; }
-    public DateTimeOffset ExpiresAt { get; set; }
-    public bool IsRevoked { get; set; }
-    public TokenType Type { get; set; }           // OIDC, Legacy, ApiSecret
-}
-
-public enum TokenType
-{
-    OidcOpaque,      // New OIDC-issued opaque token
-    LegacyAccess,    // Nightscout-style access token
-    LegacyJwt,       // Nightscout-style self-issued JWT
-    ApiSecret        // API_SECRET hash authentication
+    public Guid Id { get; set; }
+    public Guid SubjectId { get; set; }
+    public string TokenHash { get; set; }         // SHA256 hash of token
+    public DateTime IssuedAt { get; set; }
+    public DateTime ExpiresAt { get; set; }       // Long-lived: 7-30 days
+    public DateTime? RevokedAt { get; set; }
+    public string? DeviceInfo { get; set; }       // For session management UI
+    public Guid? ReplacedByTokenId { get; set; }  // Token rotation tracking
 }
 ```
 
-### Cache TTL Strategy
+### Token Lifetime Strategy
 
-| Token Type | Cache TTL | Rationale |
-|------------|-----------|-----------|
-| OIDC Opaque | Token lifetime (configurable, default 1 hour) | Match token expiry |
-| Legacy Access | Session duration or 24 hours | Long-lived device tokens |
-| Legacy JWT | JWT expiry claim | Match self-issued JWT |
-| API Secret | 5 minutes | Frequently validated, short cache |
-
-### Cache Invalidation
-
-```
-Token Revocation Flow:
-┌─────────────────────────────────────────────────────────────┐
-│ 1. Admin/User requests token revocation                     │
-│ 2. Mark token as revoked in database                        │
-│ 3. Broadcast cache invalidation event (if distributed)      │
-│ 4. Remove from local cache immediately                       │
-│ 5. Next request with token fails auth                       │
-└─────────────────────────────────────────────────────────────┘
-```
+| Token Type          | Lifetime      | Rationale                           |
+| ------------------- | ------------- | ----------------------------------- |
+| Access Token (JWT)  | 15-60 minutes | Short-lived, stateless validation   |
+| Refresh Token       | 7-30 days     | Long-lived, stored in DB, revocable |
+| Legacy Access Token | Indefinite    | Backward compatibility with devices |
+| Legacy JWT          | 1 hour        | Match existing Nightscout behavior  |
 
 ---
 
@@ -258,59 +253,47 @@ Token Revocation Flow:
 ### New Entities
 
 ```csharp
-// src/Infrastructure/Nocturne.Infrastructure.Data/Entities/TokenEntity.cs
+// src/Infrastructure/Nocturne.Infrastructure.Data/Entities/RefreshTokenEntity.cs
 /// <summary>
-/// OIDC-issued tokens and legacy access tokens
+/// Refresh tokens for session continuity (stored in DB, revocable)
 /// </summary>
-[Table("tokens")]
-public class TokenEntity
+[Table("refresh_tokens")]
+public class RefreshTokenEntity
 {
     public Guid Id { get; set; }
-    
-    /// <summary>SHA256 hash of the opaque token</summary>
+
+    /// <summary>SHA256 hash of the refresh token</summary>
     [MaxLength(64)]
     public string TokenHash { get; set; } = string.Empty;
-    
-    /// <summary>Token type: 'oidc_opaque', 'legacy_access', 'legacy_jwt', 'api_secret'</summary>
-    [MaxLength(20)]
-    public string TokenType { get; set; } = string.Empty;
-    
-    public Guid? SubjectId { get; set; }
+
+    public Guid SubjectId { get; set; }
     public SubjectEntity? Subject { get; set; }
-    
-    /// <summary>External OIDC 'sub' claim</summary>
-    [MaxLength(255)]
-    public string? OidcSubjectId { get; set; }
-    
-    /// <summary>OIDC issuer URL</summary>
-    [MaxLength(500)]
-    public string? OidcIssuer { get; set; }
-    
+
     /// <summary>For OIDC session logout</summary>
     [MaxLength(255)]
     public string? OidcSessionId { get; set; }
-    
+
     /// <summary>OAuth2 scopes (stored as JSON array)</summary>
     public List<string> Scopes { get; set; } = new();
-    
+
     /// <summary>Resolved Shiro-style permissions</summary>
     public List<string> Permissions { get; set; } = new();
-    
+
     public DateTime IssuedAt { get; set; }
     public DateTime ExpiresAt { get; set; }
     public DateTime? LastUsedAt { get; set; }
     public DateTime? RevokedAt { get; set; }
-    
+
     [MaxLength(255)]
     public string? RevokedReason { get; set; }
-    
+
     /// <summary>OAuth2 client ID</summary>
     [MaxLength(255)]
     public string? ClientId { get; set; }
-    
+
     /// <summary>Device info JSON (user agent, IP, etc.)</summary>
     public string? DeviceInfoJson { get; set; }
-    
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -323,36 +306,36 @@ public class TokenEntity
 public class SubjectEntity
 {
     public Guid Id { get; set; }
-    
+
     [Required, MaxLength(255)]
     public string Name { get; set; } = string.Empty;
-    
+
     /// <summary>SHA256 hash of legacy access token</summary>
     [MaxLength(64)]
     public string? AccessTokenHash { get; set; }
-    
+
     /// <summary>Display prefix for access token: "rhys-a1b2..."</summary>
     [MaxLength(50)]
     public string? AccessTokenPrefix { get; set; }
-    
+
     /// <summary>Link to OIDC identity</summary>
     [MaxLength(255)]
     public string? OidcSubjectId { get; set; }
-    
+
     [MaxLength(500)]
     public string? OidcIssuer { get; set; }
-    
+
     [MaxLength(255)]
     public string? Email { get; set; }
-    
+
     public string? Notes { get; set; }
-    
+
     public bool IsActive { get; set; } = true;
-    
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
-    
+
     // Navigation properties
     public ICollection<SubjectRoleEntity> SubjectRoles { get; set; } = new List<SubjectRoleEntity>();
     public ICollection<TokenEntity> Tokens { get; set; } = new List<TokenEntity>();
@@ -366,21 +349,21 @@ public class SubjectEntity
 public class RoleEntity
 {
     public Guid Id { get; set; }
-    
+
     [Required, MaxLength(100)]
     public string Name { get; set; } = string.Empty;
-    
+
     /// <summary>Shiro-style permissions for this role</summary>
     public List<string> Permissions { get; set; } = new();
-    
+
     public string? Notes { get; set; }
-    
+
     /// <summary>Protect system-generated default roles from deletion</summary>
     public bool IsSystemRole { get; set; } = false;
-    
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-    
+
     // Navigation property
     public ICollection<SubjectRoleEntity> SubjectRoles { get; set; } = new List<SubjectRoleEntity>();
 }
@@ -394,12 +377,12 @@ public class SubjectRoleEntity
 {
     public Guid SubjectId { get; set; }
     public SubjectEntity? Subject { get; set; }
-    
+
     public Guid RoleId { get; set; }
     public RoleEntity? Role { get; set; }
-    
+
     public DateTime AssignedAt { get; set; }
-    
+
     /// <summary>Who assigned this role (null for system-assigned)</summary>
     public Guid? AssignedById { get; set; }
     public SubjectEntity? AssignedBy { get; set; }
@@ -413,35 +396,35 @@ public class SubjectRoleEntity
 public class OidcProviderEntity
 {
     public Guid Id { get; set; }
-    
+
     [Required, MaxLength(100)]
     public string Name { get; set; } = string.Empty;
-    
+
     [Required, MaxLength(500)]
     public string IssuerUrl { get; set; } = string.Empty;
-    
+
     [Required, MaxLength(255)]
     public string ClientId { get; set; } = string.Empty;
-    
+
     /// <summary>Encrypted client secret</summary>
     public byte[]? ClientSecretEncrypted { get; set; }
-    
+
     /// <summary>Cached OIDC discovery document (JSON)</summary>
     public string? DiscoveryDocumentJson { get; set; }
-    
+
     public DateTime? DiscoveryCachedAt { get; set; }
-    
+
     /// <summary>OAuth2 scopes to request</summary>
     public List<string> Scopes { get; set; } = new() { "openid", "profile", "email" };
-    
+
     /// <summary>Claim mappings JSON (map OIDC claims to Nocturne)</summary>
     public string ClaimMappingsJson { get; set; } = "{}";
-    
+
     /// <summary>Default roles to assign to users from this provider</summary>
     public List<string> DefaultRoles { get; set; } = new() { "readable" };
-    
+
     public bool IsEnabled { get; set; } = true;
-    
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -454,25 +437,25 @@ public class OidcProviderEntity
 public class AuthAuditLogEntity
 {
     public Guid Id { get; set; }
-    
+
     /// <summary>Event type: 'login', 'logout', 'token_issued', 'revoked', 'failed_auth'</summary>
     [Required, MaxLength(50)]
     public string EventType { get; set; } = string.Empty;
-    
+
     public Guid? SubjectId { get; set; }
     public SubjectEntity? Subject { get; set; }
-    
+
     public Guid? TokenId { get; set; }
     public TokenEntity? Token { get; set; }
-    
+
     [MaxLength(45)] // IPv6 max length
     public string? IpAddress { get; set; }
-    
+
     public string? UserAgent { get; set; }
-    
+
     /// <summary>Additional event details (JSON)</summary>
     public string? DetailsJson { get; set; }
-    
+
     public DateTime CreatedAt { get; set; }
 }
 ```
@@ -487,16 +470,16 @@ modelBuilder.Entity<TokenEntity>(entity =>
 {
     entity.HasKey(e => e.Id);
     entity.Property(e => e.Id).HasValueGenerator<GuidV7ValueGenerator>();
-    
+
     entity.HasIndex(e => e.TokenHash).IsUnique();
     entity.HasIndex(e => e.SubjectId);
     entity.HasIndex(e => e.OidcSubjectId);
     entity.HasIndex(e => e.ExpiresAt);
     entity.HasIndex(e => e.RevokedAt).HasFilter("revoked_at IS NULL");
-    
+
     entity.Property(e => e.Scopes).HasColumnType("jsonb");
     entity.Property(e => e.Permissions).HasColumnType("jsonb");
-    
+
     entity.HasOne(e => e.Subject)
           .WithMany(s => s.Tokens)
           .HasForeignKey(e => e.SubjectId)
@@ -508,7 +491,7 @@ modelBuilder.Entity<SubjectEntity>(entity =>
 {
     entity.HasKey(e => e.Id);
     entity.Property(e => e.Id).HasValueGenerator<GuidV7ValueGenerator>();
-    
+
     entity.HasIndex(e => e.Name);
     entity.HasIndex(e => e.AccessTokenHash).IsUnique();
     entity.HasIndex(e => new { e.OidcSubjectId, e.OidcIssuer }).IsUnique();
@@ -519,7 +502,7 @@ modelBuilder.Entity<RoleEntity>(entity =>
 {
     entity.HasKey(e => e.Id);
     entity.Property(e => e.Id).HasValueGenerator<GuidV7ValueGenerator>();
-    
+
     entity.HasIndex(e => e.Name).IsUnique();
     entity.Property(e => e.Permissions).HasColumnType("jsonb");
 });
@@ -528,17 +511,17 @@ modelBuilder.Entity<RoleEntity>(entity =>
 modelBuilder.Entity<SubjectRoleEntity>(entity =>
 {
     entity.HasKey(e => new { e.SubjectId, e.RoleId });
-    
+
     entity.HasOne(e => e.Subject)
           .WithMany(s => s.SubjectRoles)
           .HasForeignKey(e => e.SubjectId)
           .OnDelete(DeleteBehavior.Cascade);
-    
+
     entity.HasOne(e => e.Role)
           .WithMany(r => r.SubjectRoles)
           .HasForeignKey(e => e.RoleId)
           .OnDelete(DeleteBehavior.Cascade);
-    
+
     entity.HasOne(e => e.AssignedBy)
           .WithMany()
           .HasForeignKey(e => e.AssignedById)
@@ -550,7 +533,7 @@ modelBuilder.Entity<OidcProviderEntity>(entity =>
 {
     entity.HasKey(e => e.Id);
     entity.Property(e => e.Id).HasValueGenerator<GuidV7ValueGenerator>();
-    
+
     entity.HasIndex(e => e.IssuerUrl).IsUnique();
     entity.Property(e => e.Scopes).HasColumnType("jsonb");
     entity.Property(e => e.DefaultRoles).HasColumnType("jsonb");
@@ -561,16 +544,16 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
 {
     entity.HasKey(e => e.Id);
     entity.Property(e => e.Id).HasValueGenerator<GuidV7ValueGenerator>();
-    
+
     entity.HasIndex(e => e.SubjectId);
     entity.HasIndex(e => e.EventType);
     entity.HasIndex(e => e.CreatedAt).IsDescending();
-    
+
     entity.HasOne(e => e.Subject)
           .WithMany()
           .HasForeignKey(e => e.SubjectId)
           .OnDelete(DeleteBehavior.SetNull);
-    
+
     entity.HasOne(e => e.Token)
           .WithMany()
           .HasForeignKey(e => e.TokenId)
@@ -582,79 +565,103 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
 
 ## 6. Implementation Phases
 
-### Phase 1: Foundation (Week 1-2)
+### Phase 1: Foundation ✅ COMPLETED
 
-**Objective**: Set up database schema, core token service, and caching infrastructure.
+**Objective**: Set up database schema, core services, and JWT infrastructure.
 
-#### Tasks
+#### Completed Tasks
 
-1. **Database Migration**
-   - Create new entity classes: `TokenEntity`, `SubjectEntity`, `RoleEntity`, `SubjectRoleEntity`, `OidcProviderEntity`, `AuthAuditLogEntity`
-   - Add EF Core configurations and migrations
-   - Seed default roles (admin, readable, careportal, etc.)
+1. **Database Entities** ✅
 
-2. **Token Cache Service**
-   ```csharp
-   // src/Infrastructure/Nocturne.Infrastructure.Cache/Services/TokenCacheService.cs
-   public interface ITokenCacheService
-   {
-       Task<TokenCacheEntry?> GetAsync(string tokenHash);
-       Task SetAsync(string tokenHash, TokenCacheEntry entry);
-       Task InvalidateAsync(string tokenHash);
-       Task InvalidateBySubjectAsync(Guid subjectId);
-       Task<bool> IsRevokedAsync(string tokenHash);
-   }
-   ```
+   - `RefreshTokenEntity` - Stores refresh tokens with hash, expiry, revocation
+   - `SubjectEntity` - Users/devices with OIDC linking support
+   - `RoleEntity` - Roles with Shiro-style permissions
+   - `SubjectRoleEntity` - Many-to-many subject-role mapping
+   - `OidcProviderEntity` - OIDC provider configurations
+   - `AuthAuditLogEntity` - Security audit logging
 
-3. **Token Store Service**
-   ```csharp
-   // src/Core/Nocturne.Core.Contracts/ITokenService.cs
-   public interface ITokenService
-   {
-       Task<Token> CreateTokenAsync(CreateTokenRequest request);
-       Task<Token?> ValidateTokenAsync(string opaqueToken);
-       Task<bool> RevokeTokenAsync(Guid tokenId, string reason);
-       Task<bool> RevokeAllTokensForSubjectAsync(Guid subjectId, string reason);
-       Task<List<Token>> GetActiveTokensForSubjectAsync(Guid subjectId);
-       Task PruneExpiredTokensAsync();
-   }
-   ```
+2. **DbContext Configuration** ✅
 
-4. **Subject/Role Repository**
-   ```csharp
-   // src/Infrastructure/Nocturne.Infrastructure.Data/Repositories/SubjectRepository.cs
-   public interface ISubjectRepository
-   {
-       Task<SubjectEntity?> GetByAccessTokenAsync(string accessToken);
-       Task<SubjectEntity?> GetByOidcIdentityAsync(string oidcSubjectId, string issuer);
-       Task<SubjectEntity> CreateOrUpdateFromOidcAsync(OidcUserInfo userInfo);
-       Task<List<string>> GetPermissionsAsync(Guid subjectId);
-   }
-   ```
+   - Added all DbSets for auth entities
+   - Configured indexes (token hash, subject OIDC identity, etc.)
+   - Set up relationships and cascade behaviors
+   - UUID v7 value generators for all entities
 
-#### Deliverables
+3. **Domain Models** ✅
 
-- [ ] Database migrations for auth tables
-- [ ] `ITokenCacheService` with `IMemoryCache` implementation
-- [ ] `ITokenService` implementation
-- [ ] `ISubjectRepository` and `IRoleRepository` implementations
-- [ ] Unit tests for all new services
+   - `Subject` - User/device domain model
+   - `Role` - Role domain model
+   - `AuthContext`, `AuthResult` - Authentication result models
+   - `OidcProvider`, `OidcDiscoveryDocument` - OIDC models
+
+4. **Service Interfaces** ✅
+
+   - `IJwtService` - JWT generation and validation
+   - `IRefreshTokenService` - Refresh token CRUD and rotation
+   - `ISubjectService` - Subject management and OIDC linking
+   - `IRoleService` - Role management
+   - `IOidcProviderService` - OIDC provider configuration
+   - `IAuthAuditService` - Security audit logging
+
+5. **Service Implementations** ✅
+   - `JwtService` - Full JWT implementation with configurable options
+   - `RefreshTokenService` - Refresh token management with rotation
+   - `SubjectService` - Subject CRUD, OIDC identity linking, permissions
+   - `RoleService` - Role CRUD with default system roles
+
+#### Files Created/Modified
+
+```
+src/Infrastructure/Nocturne.Infrastructure.Data/Entities/
+├── RefreshTokenEntity.cs          ✅ NEW
+├── SubjectEntity.cs               ✅ NEW
+├── RoleEntity.cs                  ✅ NEW
+├── SubjectRoleEntity.cs           ✅ NEW
+├── OidcProviderEntity.cs          ✅ NEW
+└── AuthAuditLogEntity.cs          ✅ NEW
+
+src/Infrastructure/Nocturne.Infrastructure.Data/
+└── NocturneDbContext.cs           ✅ MODIFIED (added DbSets, indexes, configs)
+
+src/Core/Nocturne.Core.Models/Authorization/
+├── Subject.cs                     ✅ NEW
+├── Role.cs                        ✅ NEW
+├── AuthModels.cs                  ✅ MODIFIED
+└── OidcProvider.cs                ✅ EXISTING
+
+src/Core/Nocturne.Core.Contracts/
+├── IJwtService.cs                 ✅ NEW
+├── IRefreshTokenService.cs        ✅ NEW
+├── ISubjectService.cs             ✅ NEW
+├── IRoleService.cs                ✅ NEW
+├── IOidcProviderService.cs        ✅ EXISTING
+└── IAuthAuditService.cs           ✅ EXISTING
+
+src/API/Nocturne.API/Services/Auth/
+├── JwtService.cs                  ✅ NEW
+├── RefreshTokenService.cs         ✅ NEW
+├── SubjectService.cs              ✅ NEW
+└── RoleService.cs                 ✅ NEW
+
+src/API/Nocturne.API/Program.cs    ✅ MODIFIED (registered auth services)
+```
 
 ---
 
-### Phase 2: Legacy Compatibility Layer (Week 2-3)
+### Phase 2: Authentication Middleware (Current - Week 2-3)
 
-**Objective**: Refactor existing auth middleware to use new services while maintaining legacy API compatibility.
+**Objective**: Refactor existing auth middleware to use new JWT services with handler chain.
 
 #### Tasks
 
 1. **Refactor AuthenticationMiddleware**
+
    ```csharp
    public class AuthenticationMiddleware
    {
        // Handler chain: OIDC → Legacy JWT → Access Token → API Secret
        private readonly IAuthHandler[] _handlers;
-       
+
        public async Task InvokeAsync(HttpContext context)
        {
            foreach (var handler in _handlers)
@@ -672,13 +679,14 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
    ```
 
 2. **Create Auth Handlers**
+
    ```csharp
    public interface IAuthHandler
    {
        int Priority { get; }
        Task<AuthResult> AuthenticateAsync(HttpContext context);
    }
-   
+
    // Implementations:
    // - OidcTokenHandler (new)
    // - LegacyJwtHandler (refactored)
@@ -687,10 +695,11 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
    ```
 
 3. **Update AuthorizationController for Token Exchange**
+
    ```csharp
    // Maintain: GET /api/v2/authorization/request/:accessToken
    // Returns JWT for legacy clients
-   
+
    // Add: POST /api/v2/authorization/token
    // Modern token endpoint (returns opaque token)
    ```
@@ -716,6 +725,7 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
 #### Tasks
 
 1. **OIDC Configuration Service**
+
    ```csharp
    public interface IOidcProviderService
    {
@@ -727,30 +737,32 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
    ```
 
 2. **Authentication Flow Endpoints**
+
    ```csharp
    // src/API/Nocturne.API/Controllers/OidcController.cs
-   
+
    [Route("auth")]
    public class OidcController : ControllerBase
    {
        // GET /auth/login?provider={providerId}&returnUrl={url}
        // Initiates OIDC authorization code flow
-       
+
        // GET /auth/callback
        // Handles OIDC callback, exchanges code for tokens
-       
+
        // POST /auth/logout
        // Revokes tokens, performs OIDC logout if supported
-       
+
        // GET /auth/userinfo
        // Returns current user info from session
-       
+
        // POST /auth/refresh
        // Refresh token flow
    }
    ```
 
 3. **Token Exchange for Opaque Tokens**
+
    ```csharp
    // After OIDC callback:
    // 1. Validate ID token from OIDC provider
@@ -783,27 +795,14 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
 
 **Objective**: Update SvelteKit frontend to use OIDC authentication.
 
+Might be easiest using @oslojs
+
 #### Tasks
 
-1. **Auth Store (Svelte)**
-   ```typescript
-   // src/Web/packages/app/src/lib/stores/auth.ts
-   interface AuthState {
-     isAuthenticated: boolean;
-     user: UserInfo | null;
-     permissions: string[];
-     loading: boolean;
-   }
-   
-   export const auth = writable<AuthState>({...});
-   
-   export async function login(providerId?: string): Promise<void>;
-   export async function logout(): Promise<void>;
-   export async function refreshToken(): Promise<void>;
-   export function hasPermission(permission: string): boolean;
-   ```
+1. **Auth Class with $state runes (Svelte)**
 
 2. **Auth Hooks (SvelteKit)**
+
    ```typescript
    // src/Web/packages/app/src/hooks.server.ts
    export const handle: Handle = async ({ event, resolve }) => {
@@ -814,6 +813,7 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
    ```
 
 3. **Protected Routes**
+
    ```typescript
    // src/Web/packages/app/src/routes/(protected)/+layout.server.ts
    export const load: LayoutServerLoad = async ({ locals, url }) => {
@@ -847,6 +847,7 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
 #### Tasks
 
 1. **OIDC Provider Management API**
+
    ```csharp
    // src/API/Nocturne.API/Controllers/OidcProviderController.cs
    [Route("api/admin/oidc-providers")]
@@ -861,6 +862,7 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
    ```
 
 2. **Provider Configuration via appsettings.json**
+
    ```json
    {
      "Oidc": {
@@ -902,18 +904,20 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
 #### Tasks
 
 1. **Redis Token Cache**
+
    ```csharp
    public class DistributedTokenCacheService : ITokenCacheService
    {
        private readonly IDistributedCache _cache;
        private readonly IMemoryCache _localCache;  // L1 cache
-       
+
        // Pattern: Check local → Check Redis → Database
        // Invalidation: Pub/sub broadcast to all instances
    }
    ```
 
 2. **Cache Invalidation Pub/Sub**
+
    ```csharp
    // When token is revoked:
    // 1. Update database
@@ -923,6 +927,7 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
    ```
 
 3. **Rate Limiting**
+
    ```csharp
    // Per-IP rate limits for auth endpoints
    // Sliding window: 5 failed attempts → 1 min lockout
@@ -930,6 +935,7 @@ modelBuilder.Entity<AuthAuditLogEntity>(entity =>
    ```
 
 4. **Security Audit Logging**
+
    - Log all auth events to `auth_audit_log`
    - Configurable retention policy
    - Export to SIEM systems
@@ -1033,17 +1039,17 @@ nightscout/nocturne-verified-domains/
     "type": "hospital",
     "country": "US",
     "region": "Missouri",
-    "npi": "1234567890",           // National Provider Identifier (US)
+    "npi": "1234567890", // National Provider Identifier (US)
     "verified_at": "2025-01-15",
     "verified_by": "rhysg"
   },
   "authentication": {
-    "method": "email_otp",          // or "magic_link", "passkey"
-    "mfa_required": false,          // Can require MFA for this org
+    "method": "email_otp", // or "magic_link", "passkey"
+    "mfa_required": false, // Can require MFA for this org
     "session_timeout_hours": 8,
     "allowed_email_patterns": [
       "*@mercy.hospital.org",
-      "*@mercyhealth.org"           // Multiple domains for same org
+      "*@mercyhealth.org" // Multiple domains for same org
     ]
   },
   "authorization": {
@@ -1054,8 +1060,8 @@ nightscout/nocturne-verified-domains/
       "diabetes-*@mercy.hospital.org": ["hcp-full-access"],
       "*@mercy.hospital.org": ["hcp-viewer"]
     },
-    "max_patients_per_hcp": 100,    // Rate limiting
-    "data_retention_days": 90       // How long HCP can view patient data
+    "max_patients_per_hcp": 100, // Rate limiting
+    "data_retention_days": 90 // How long HCP can view patient data
   },
   "contact": {
     "admin_email": "it-security@mercy.hospital.org",
@@ -1103,41 +1109,45 @@ nightscout/nocturne-verified-domains/
 #### GitHub Issue Template for Domain Requests
 
 ```markdown
-<!-- .github/ISSUE_TEMPLATE/verify-domain.md -->
----
+## <!-- .github/ISSUE_TEMPLATE/verify-domain.md -->
+
 name: Healthcare Domain Verification Request
 about: Request verification of a healthcare provider domain for Nocturne SSO
 title: "[DOMAIN] example.hospital.org"
 labels: domain-verification, pending
+
 ---
 
 ## Organization Information
 
-**Organization Name:** 
-**Domain(s) to Verify:** 
-**Country:** 
+**Organization Name:**
+**Domain(s) to Verify:**
+**Country:**
 **Organization Type:** (Hospital / Clinic / Health System / Research Institution)
 
 ## Verification Information
 
-**Your Name:** 
-**Your Role:** 
-**Your Work Email:** 
+**Your Name:**
+**Your Role:**
+**Your Work Email:**
 **Admin Contact Email:** (for domain ownership verification)
 
 ## Proof of Organization
 
 Please provide ONE of the following:
-- [ ] NPI Number (US): 
-- [ ] NHS ODS Code (UK): 
-- [ ] Link to organization's official website: 
-- [ ] Other healthcare registration ID: 
+
+- [ ] NPI Number (US):
+- [ ] NHS ODS Code (UK):
+- [ ] Link to organization's official website:
+- [ ] Other healthcare registration ID:
 
 ## DNS Verification (Preferred)
 
 Add this TXT record to your domain's DNS:
 ```
+
 TXT nocturne-verify=[GENERATED_TOKEN]
+
 ```
 
 - [ ] I have added the DNS TXT record
@@ -1165,13 +1175,13 @@ The simplest approach - staff enter their work email, receive a 6-digit code:
 interface EmailOtpFlow {
   // 1. User enters email
   requestOtp(email: string): Promise<{ sent: boolean; expiresIn: number }>;
-  
+
   // 2. Validate email domain against verified domains
   // 3. Send OTP via email (valid for 10 minutes)
   // 4. User enters OTP
-  
+
   verifyOtp(email: string, otp: string): Promise<AuthResult>;
-  
+
   // 5. Create session, assign roles based on domain config
 }
 ```
@@ -1184,10 +1194,10 @@ One-click login via email link:
 interface MagicLinkFlow {
   // 1. User enters email
   requestMagicLink(email: string, returnUrl: string): Promise<void>;
-  
+
   // 2. Email contains: https://auth.nocturne.app/verify?token=xxx
   // 3. Token is single-use, expires in 15 minutes
-  
+
   verifyMagicLink(token: string): Promise<AuthResult>;
 }
 ```
@@ -1200,7 +1210,7 @@ For hospitals that want stronger security without passwords:
 interface PasskeyFlow {
   // WebAuthn registration after initial email verification
   registerPasskey(email: string): Promise<PublicKeyCredential>;
-  
+
   // Future logins use device biometrics
   authenticateWithPasskey(): Promise<AuthResult>;
 }
@@ -1219,7 +1229,7 @@ Role                    Permissions                              Use Case
 hcp-viewer              - View patient glucose data (read-only)  General hospital staff
                         - View patient profiles                  who may need quick access
                         - No treatment data access
-                        
+
 hcp-full-access         - All viewer permissions                 Diabetes care team,
                         - View treatments                        endocrinologists,
                         - View device status                     certified diabetes
@@ -1247,28 +1257,28 @@ Patients must explicitly grant access to healthcare providers:
 public class PatientHcpAccessEntity
 {
     public Guid Id { get; set; }
-    
+
     /// <summary>Patient who granted access</summary>
     public Guid PatientSubjectId { get; set; }
     public SubjectEntity? PatientSubject { get; set; }
-    
+
     /// <summary>Healthcare provider who received access</summary>
     public Guid HcpSubjectId { get; set; }
     public SubjectEntity? HcpSubject { get; set; }
-    
+
     /// <summary>Verified domain of the HCP's organization</summary>
     public string HcpOrganizationDomain { get; set; } = string.Empty;
-    
+
     /// <summary>Level of access: 'view', 'full', 'emergency'</summary>
     public string AccessLevel { get; set; } = "view";
-    
+
     public DateTime GrantedAt { get; set; }
     public DateTime? ExpiresAt { get; set; }
     public DateTime? RevokedAt { get; set; }
-    
+
     /// <summary>How access was granted: 'qr_code', 'share_link', 'clinic_system', 'emergency'</summary>
     public string? GrantedVia { get; set; }
-    
+
     public DateTime CreatedAt { get; set; }
 }
 
@@ -1279,20 +1289,20 @@ public class PatientHcpAccessEntity
 public class PatientShareCodeEntity
 {
     public Guid Id { get; set; }
-    
+
     public Guid PatientSubjectId { get; set; }
     public SubjectEntity? PatientSubject { get; set; }
-    
+
     /// <summary>Share code like "GLUC-ABCD-1234"</summary>
     public string Code { get; set; } = string.Empty;
-    
+
     public string AccessLevel { get; set; } = "view";
     public int MaxUses { get; set; } = 1;
     public int UsesCount { get; set; } = 0;
-    
+
     /// <summary>Restrict to specific hospital domains (optional)</summary>
     public List<string> AllowedDomains { get; set; } = new();
-    
+
     public DateTime ExpiresAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -1354,13 +1364,14 @@ For large health systems that prefer their own identity infrastructure:
     }
   },
   "authorization": {
-    "trust_provider_roles": true,  // Accept roles from their IdP
+    "trust_provider_roles": true, // Accept roles from their IdP
     "default_roles": ["hcp-viewer"]
   }
 }
 ```
 
 This allows Kaiser (or similar large systems) to:
+
 - Use their existing employee directory
 - Enforce their own MFA policies
 - Manage role assignments in their IdP
@@ -1386,12 +1397,12 @@ public class DomainSyncService : BackgroundService
 
 ### Token Security
 
-| Concern | Mitigation |
-|---------|------------|
-| Token theft | Short TTL, secure cookies, token binding |
+| Concern        | Mitigation                                |
+| -------------- | ----------------------------------------- |
+| Token theft    | Short TTL, secure cookies, token binding  |
 | Replay attacks | Nonce in token, single-use refresh tokens |
-| Brute force | Rate limiting, account lockout |
-| Token leakage | Opaque tokens, no sensitive data in token |
+| Brute force    | Rate limiting, account lockout            |
+| Token leakage  | Opaque tokens, no sensitive data in token |
 
 ### Cookie Security
 
@@ -1416,6 +1427,7 @@ var cookieOptions = new CookieOptions
 ### Audit Requirements
 
 All authentication events logged:
+
 - Login success/failure
 - Token issuance/revocation
 - Permission changes
@@ -1428,12 +1440,14 @@ All authentication events logged:
 ### For Existing Nightscout Users
 
 1. **Automatic Subject Migration**
+
    - Import existing subjects/roles from MongoDB
    - Generate new PostgreSQL UUIDs
    - Preserve access tokens (hash stored)
    - Maintain role assignments
 
 2. **Gradual OIDC Adoption**
+
    - Legacy auth continues to work
    - Users can optionally link OIDC identity
    - Admin can require OIDC for specific roles
@@ -1472,10 +1486,10 @@ public async Task GetAsync_CachedToken_ReturnsFromCache()
     // Arrange
     var entry = new TokenCacheEntry { TokenId = "test" };
     await _cache.SetAsync("hash", entry);
-    
+
     // Act
     var result = await _service.GetAsync("hash");
-    
+
     // Assert
     result.Should().BeEquivalentTo(entry);
 }
@@ -1507,11 +1521,11 @@ public class AuthenticationIntegrationTests : IntegrationTestBase
         // Test legacy api-secret authentication
         var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Add("api-secret", _hashedSecret);
-        
+
         var response = await client.GetAsync("/api/v1/verifyauth");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
-    
+
     [Fact]
     public async Task OidcToken_ExchangeAndAccess()
     {
@@ -1523,18 +1537,20 @@ public class AuthenticationIntegrationTests : IntegrationTestBase
 ### E2E Tests (Playwright)
 
 ```typescript
-test('login with OIDC provider', async ({ page }) => {
-  await page.goto('/auth/login');
+test("login with OIDC provider", async ({ page }) => {
+  await page.goto("/auth/login");
   await page.click('[data-testid="login-keycloak"]');
-  
+
   // Handle Keycloak login page
-  await page.fill('#username', 'testuser');
-  await page.fill('#password', 'testpass');
-  await page.click('#kc-login');
-  
+  await page.fill("#username", "testuser");
+  await page.fill("#password", "testpass");
+  await page.click("#kc-login");
+
   // Should redirect back to app
-  await expect(page).toHaveURL('/dashboard');
-  await expect(page.locator('[data-testid="user-menu"]')).toContainText('testuser');
+  await expect(page).toHaveURL("/dashboard");
+  await expect(page.locator('[data-testid="user-menu"]')).toContainText(
+    "testuser",
+  );
 });
 ```
 
@@ -1544,33 +1560,33 @@ test('login with OIDC provider', async ({ page }) => {
 
 ### Authentication Endpoints
 
-| Method | Path | Auth Required | Description |
-|--------|------|---------------|-------------|
-| GET | `/auth/login` | No | Initiate OIDC login |
-| GET | `/auth/callback` | No | OIDC callback handler |
-| POST | `/auth/logout` | Yes | Logout user |
-| GET | `/auth/userinfo` | Yes | Get current user info |
-| POST | `/auth/refresh` | Yes | Refresh access token |
-| GET | `/auth/providers` | No | List available OIDC providers |
+| Method | Path              | Auth Required | Description                   |
+| ------ | ----------------- | ------------- | ----------------------------- |
+| GET    | `/auth/login`     | No            | Initiate OIDC login           |
+| GET    | `/auth/callback`  | No            | OIDC callback handler         |
+| POST   | `/auth/logout`    | Yes           | Logout user                   |
+| GET    | `/auth/userinfo`  | Yes           | Get current user info         |
+| POST   | `/auth/refresh`   | Yes           | Refresh access token          |
+| GET    | `/auth/providers` | No            | List available OIDC providers |
 
 ### Legacy Endpoints (Maintained)
 
-| Method | Path | Auth Required | Description |
-|--------|------|---------------|-------------|
-| GET | `/api/v1/verifyauth` | Any | Verify authentication |
-| GET | `/api/v2/authorization/request/:token` | No | Exchange access token for JWT |
-| GET | `/api/v2/authorization/subjects` | Admin | List subjects |
-| POST | `/api/v2/authorization/subjects` | Admin | Create subject |
-| GET | `/api/v2/authorization/roles` | Admin | List roles |
+| Method | Path                                   | Auth Required | Description                   |
+| ------ | -------------------------------------- | ------------- | ----------------------------- |
+| GET    | `/api/v1/verifyauth`                   | Any           | Verify authentication         |
+| GET    | `/api/v2/authorization/request/:token` | No            | Exchange access token for JWT |
+| GET    | `/api/v2/authorization/subjects`       | Admin         | List subjects                 |
+| POST   | `/api/v2/authorization/subjects`       | Admin         | Create subject                |
+| GET    | `/api/v2/authorization/roles`          | Admin         | List roles                    |
 
 ### Token Management Endpoints (New)
 
-| Method | Path | Auth Required | Description |
-|--------|------|---------------|-------------|
-| GET | `/api/v2/tokens` | Admin | List active tokens |
-| POST | `/api/v2/tokens/revoke/:id` | Admin | Revoke specific token |
-| POST | `/api/v2/tokens/revoke-all` | Admin | Revoke all tokens for subject |
-| GET | `/api/v2/tokens/my` | User | List user's own tokens |
+| Method | Path                        | Auth Required | Description                   |
+| ------ | --------------------------- | ------------- | ----------------------------- |
+| GET    | `/api/v2/tokens`            | Admin         | List active tokens            |
+| POST   | `/api/v2/tokens/revoke/:id` | Admin         | Revoke specific token         |
+| POST   | `/api/v2/tokens/revoke-all` | Admin         | Revoke all tokens for subject |
+| GET    | `/api/v2/tokens/my`         | User          | List user's own tokens        |
 
 ---
 

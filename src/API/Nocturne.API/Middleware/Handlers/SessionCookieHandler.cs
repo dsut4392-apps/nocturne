@@ -50,8 +50,7 @@ public class SessionCookieHandler : IAuthHandler
         }
 
         // Check for access token in session cookie
-        var accessTokenCookieName = $"{_options.Cookie.Name}.AccessToken";
-        var accessToken = context.Request.Cookies[accessTokenCookieName];
+        var accessToken = context.Request.Cookies[_options.Cookie.AccessTokenName];
 
         if (!string.IsNullOrEmpty(accessToken))
         {
@@ -99,8 +98,7 @@ public class SessionCookieHandler : IAuthHandler
     /// </summary>
     private async Task<AuthResult?> TryRefreshSessionAsync(HttpContext context, IServiceScope scope)
     {
-        var refreshTokenCookieName = $"{_options.Cookie.Name}.RefreshToken";
-        var refreshToken = context.Request.Cookies[refreshTokenCookieName];
+        var refreshToken = context.Request.Cookies[_options.Cookie.RefreshTokenName];
 
         if (string.IsNullOrEmpty(refreshToken))
         {
@@ -179,7 +177,7 @@ public class SessionCookieHandler : IAuthHandler
     {
         // Access token cookie (short-lived)
         context.Response.Cookies.Append(
-            $"{_options.Cookie.Name}.AccessToken",
+            _options.Cookie.AccessTokenName,
             tokens.AccessToken,
             new CookieOptions
             {
@@ -194,7 +192,7 @@ public class SessionCookieHandler : IAuthHandler
 
         // Refresh token cookie (longer-lived)
         context.Response.Cookies.Append(
-            $"{_options.Cookie.Name}.RefreshToken",
+            _options.Cookie.RefreshTokenName,
             tokens.RefreshToken,
             new CookieOptions
             {
@@ -219,9 +217,9 @@ public class SessionCookieHandler : IAuthHandler
             Domain = _options.Cookie.Domain,
         };
 
-        context.Response.Cookies.Delete($"{_options.Cookie.Name}.AccessToken", cookieOptions);
-        context.Response.Cookies.Delete($"{_options.Cookie.Name}.RefreshToken", cookieOptions);
-        context.Response.Cookies.Delete($"{_options.Cookie.Name}.IsAuthenticated", cookieOptions);
+        context.Response.Cookies.Delete(_options.Cookie.AccessTokenName, cookieOptions);
+        context.Response.Cookies.Delete(_options.Cookie.RefreshTokenName, cookieOptions);
+        context.Response.Cookies.Delete("IsAuthenticated", cookieOptions);
     }
 
     /// <summary>

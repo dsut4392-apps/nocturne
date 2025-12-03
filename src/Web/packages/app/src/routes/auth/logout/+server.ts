@@ -15,7 +15,7 @@ export const POST: RequestHandler = async ({ fetch, cookies }) => {
 
     if (apiBaseUrl) {
       // Get the refresh token to send with the logout request
-      const refreshToken = cookies.get("nocturne.RefreshToken");
+      const refreshToken = cookies.get(".Nocturne.RefreshToken");
 
       const headers: HeadersInit = {
         "Content-Type": "application/json",
@@ -23,7 +23,7 @@ export const POST: RequestHandler = async ({ fetch, cookies }) => {
 
       // Forward refresh token cookie
       if (refreshToken) {
-        headers["Cookie"] = `nocturne.RefreshToken=${refreshToken}`;
+        headers["Cookie"] = `.Nocturne.RefreshToken=${refreshToken}`;
       }
 
       const logoutUrl = new URL("/auth/logout", apiBaseUrl);
@@ -36,9 +36,9 @@ export const POST: RequestHandler = async ({ fetch, cookies }) => {
         const result = await response.json();
 
         // Clear all auth cookies
-        cookies.delete("nocturne.AccessToken", { path: "/" });
-        cookies.delete("nocturne.RefreshToken", { path: "/" });
-        cookies.delete("nocturne.IsAuthenticated", { path: "/" });
+        cookies.delete(".Nocturne.AccessToken", { path: "/" });
+        cookies.delete(".Nocturne.RefreshToken", { path: "/" });
+        cookies.delete("IsAuthenticated", { path: "/" });
 
         // If provider has a logout URL, redirect there
         if (result.providerLogoutUrl) {
@@ -48,9 +48,9 @@ export const POST: RequestHandler = async ({ fetch, cookies }) => {
     }
 
     // Clear cookies even if API call fails
-    cookies.delete("nocturne.AccessToken", { path: "/" });
-    cookies.delete("nocturne.RefreshToken", { path: "/" });
-    cookies.delete("nocturne.IsAuthenticated", { path: "/" });
+    cookies.delete(".Nocturne.AccessToken", { path: "/" });
+    cookies.delete(".Nocturne.RefreshToken", { path: "/" });
+    cookies.delete("IsAuthenticated", { path: "/" });
   } catch (error) {
     // If it's a redirect, re-throw it
     if (error instanceof Response) {
@@ -60,9 +60,9 @@ export const POST: RequestHandler = async ({ fetch, cookies }) => {
     console.error("Logout error:", error);
 
     // Clear cookies on error too
-    cookies.delete("nocturne.AccessToken", { path: "/" });
-    cookies.delete("nocturne.RefreshToken", { path: "/" });
-    cookies.delete("nocturne.IsAuthenticated", { path: "/" });
+    cookies.delete(".Nocturne.AccessToken", { path: "/" });
+    cookies.delete(".Nocturne.RefreshToken", { path: "/" });
+    cookies.delete("IsAuthenticated", { path: "/" });
   }
 
   // Redirect to home page
@@ -82,14 +82,14 @@ export const GET: RequestHandler = async ({ fetch, cookies }) => {
     const apiBaseUrl = env.NOCTURNE_API_URL || PUBLIC_API_URL;
 
     if (apiBaseUrl) {
-      const refreshToken = cookies.get("nocturne.RefreshToken");
+      const refreshToken = cookies.get(".Nocturne.RefreshToken");
 
       const headers: HeadersInit = {
         "Content-Type": "application/json",
       };
 
       if (refreshToken) {
-        headers["Cookie"] = `nocturne.RefreshToken=${refreshToken}`;
+        headers["Cookie"] = `.Nocturne.RefreshToken=${refreshToken}`;
       }
 
       const logoutUrl = new URL("/auth/logout", apiBaseUrl);
@@ -103,9 +103,9 @@ export const GET: RequestHandler = async ({ fetch, cookies }) => {
   }
 
   // Clear cookies
-  cookies.delete("nocturne.AccessToken", { path: "/" });
-  cookies.delete("nocturne.RefreshToken", { path: "/" });
-  cookies.delete("nocturne.IsAuthenticated", { path: "/" });
+  cookies.delete(".Nocturne.AccessToken", { path: "/" });
+  cookies.delete(".Nocturne.RefreshToken", { path: "/" });
+  cookies.delete("IsAuthenticated", { path: "/" });
 
   // Redirect to login page
   throw redirect(303, "/auth/login");

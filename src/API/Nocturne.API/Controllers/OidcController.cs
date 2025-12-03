@@ -415,7 +415,7 @@ public class OidcController : ControllerBase
     {
         // Access token cookie (short-lived)
         Response.Cookies.Append(
-            $"{_options.Cookie.Name}.AccessToken",
+            _options.Cookie.AccessTokenName,
             tokens.AccessToken,
             new CookieOptions
             {
@@ -430,7 +430,7 @@ public class OidcController : ControllerBase
 
         // Refresh token cookie (longer-lived)
         Response.Cookies.Append(
-            $"{_options.Cookie.Name}.RefreshToken",
+            _options.Cookie.RefreshTokenName,
             tokens.RefreshToken,
             new CookieOptions
             {
@@ -445,7 +445,7 @@ public class OidcController : ControllerBase
 
         // Also set a non-HttpOnly cookie with just auth status for JavaScript
         Response.Cookies.Append(
-            $"{_options.Cookie.Name}.IsAuthenticated",
+            "IsAuthenticated",
             "true",
             new CookieOptions
             {
@@ -470,9 +470,9 @@ public class OidcController : ControllerBase
             Domain = _options.Cookie.Domain,
         };
 
-        Response.Cookies.Delete($"{_options.Cookie.Name}.AccessToken", cookieOptions);
-        Response.Cookies.Delete($"{_options.Cookie.Name}.RefreshToken", cookieOptions);
-        Response.Cookies.Delete($"{_options.Cookie.Name}.IsAuthenticated", cookieOptions);
+        Response.Cookies.Delete(_options.Cookie.AccessTokenName, cookieOptions);
+        Response.Cookies.Delete(_options.Cookie.RefreshTokenName, cookieOptions);
+        Response.Cookies.Delete("IsAuthenticated", cookieOptions);
     }
 
     /// <summary>
@@ -481,7 +481,7 @@ public class OidcController : ControllerBase
     private string? GetRefreshToken()
     {
         // First try from cookie
-        var refreshToken = Request.Cookies[$"{_options.Cookie.Name}.RefreshToken"];
+        var refreshToken = Request.Cookies[_options.Cookie.RefreshTokenName];
         if (!string.IsNullOrEmpty(refreshToken))
         {
             return refreshToken;

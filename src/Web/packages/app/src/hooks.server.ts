@@ -24,6 +24,8 @@ interface SessionInfo {
  * Auth handler - extracts session from cookies and validates with API
  */
 const authHandle: Handle = async ({ event, resolve }) => {
+  const requestPath = event.url.pathname;
+
   // Initialize auth state as unauthenticated
   event.locals.user = null;
   event.locals.isAuthenticated = false;
@@ -31,13 +33,18 @@ const authHandle: Handle = async ({ event, resolve }) => {
   // Use NOCTURNE_API_URL for server-side (internal Docker network) if available,
   // otherwise fall back to PUBLIC_API_URL for development
   const apiBaseUrl = env.NOCTURNE_API_URL || PUBLIC_API_URL;
+
   if (!apiBaseUrl) {
     return resolve(event);
   }
 
   // Check for auth cookie
-  const authCookie = event.cookies.get("nocturne.IsAuthenticated");
-  const accessToken = event.cookies.get("nocturne.AccessToken");
+  const authCookie = event.cookies.get("IsAuthenticated");
+  const accessToken = event.cookies.get(".Nocturne.AccessToken");
+  const refreshToken = event.cookies.get(".Nocturne.RefreshToken");
+
+  // Log all cookies for debugging
+  const allCookies = event.cookies.getAll();
 
   if (!authCookie && !accessToken) {
     // No auth cookies, user is not authenticated
@@ -51,7 +58,7 @@ const authHandle: Handle = async ({ event, resolve }) => {
     // Forward the access token cookie
     const headers: HeadersInit = {};
     if (accessToken) {
-      headers["Cookie"] = `nocturne.AccessToken=${accessToken}`;
+      headers["Cookie"] = `.Nocturne.AccessToken=${accessToken}`;
     }
 
     const response = await fetch(sessionUrl.toString(), {

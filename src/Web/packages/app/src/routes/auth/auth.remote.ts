@@ -184,6 +184,12 @@ export const getLocalAuthConfig = query(async () => {
  */
 export const loginForm = form(loginSchema, async (data, issue) => {
   const api = getApiClient();
+  const event = getRequestEvent();
+
+  if (!event) {
+    throw new Error("Request event not available");
+  }
+  let loginSucceeded = false;
 
   try {
     const response = await api.localAuth.login({
@@ -196,8 +202,40 @@ export const loginForm = form(loginSchema, async (data, issue) => {
       return;
     }
 
-    // Redirect to return URL on success
-    redirect(303, data.returnUrl || "/");
+    // Set auth cookies on the SvelteKit response
+    // The backend returns tokens in the response body, we need to set them as cookies
+    // so the browser will send them on subsequent requests
+    const isSecure = event.url.protocol === "https:";
+
+    if (response.accessToken) {
+      event.cookies.set(".Nocturne.AccessToken", response.accessToken, {
+        path: "/",
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: "lax",
+        maxAge: response.expiresIn || 3600, // Default 1 hour
+      });
+    }
+
+    if (response.refreshToken) {
+      event.cookies.set(".Nocturne.RefreshToken", response.refreshToken, {
+        path: "/",
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+    }
+
+    // Set a non-HttpOnly cookie for client-side auth state checking
+    event.cookies.set("IsAuthenticated", "true", {
+      path: "/",
+      httpOnly: false,
+      secure: isSecure,
+      sameSite: "lax",
+      maxAge: response.expiresIn || 3600,
+    });
+    loginSucceeded = true;
   } catch (error) {
     const message = parseApiError(error);
 
@@ -223,6 +261,9 @@ export const loginForm = form(loginSchema, async (data, issue) => {
     } else {
       invalid(issue("Invalid email or password"));
     }
+  }
+  if (loginSucceeded) {
+    redirect(303, data.returnUrl || "/");
   }
 });
 

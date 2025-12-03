@@ -192,19 +192,38 @@
           <!-- Quick Stats -->
           <div class="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div class="text-2xl font-bold {(tir?.target ?? 0) >= 70 ? 'text-green-600' : (tir?.target ?? 0) >= 50 ? 'text-yellow-600' : 'text-orange-600'}">
+              <div
+                class="text-2xl font-bold {(tir?.target ?? 0) >= 70
+                  ? 'text-green-600'
+                  : (tir?.target ?? 0) >= 50
+                    ? 'text-yellow-600'
+                    : 'text-orange-600'}"
+              >
                 {tir?.target?.toFixed(0) ?? "–"}%
               </div>
               <div class="text-xs text-muted-foreground">TIR</div>
             </div>
             <div>
-              <div class="text-2xl font-bold {(variability?.coefficientOfVariation ?? 40) <= 33 ? 'text-green-600' : (variability?.coefficientOfVariation ?? 40) <= 36 ? 'text-yellow-600' : 'text-orange-600'}">
+              <div
+                class="text-2xl font-bold {(variability?.coefficientOfVariation ??
+                  40) <= 33
+                  ? 'text-green-600'
+                  : (variability?.coefficientOfVariation ?? 40) <= 36
+                    ? 'text-yellow-600'
+                    : 'text-orange-600'}"
+              >
                 {variability?.coefficientOfVariation?.toFixed(0) ?? "–"}%
               </div>
               <div class="text-xs text-muted-foreground">CV</div>
             </div>
             <div>
-              <div class="text-2xl font-bold {(variability?.estimatedA1c ?? 8) < 7 ? 'text-green-600' : (variability?.estimatedA1c ?? 8) < 7.5 ? 'text-yellow-600' : 'text-orange-600'}">
+              <div
+                class="text-2xl font-bold {(variability?.estimatedA1c ?? 8) < 7
+                  ? 'text-green-600'
+                  : (variability?.estimatedA1c ?? 8) < 7.5
+                    ? 'text-yellow-600'
+                    : 'text-orange-600'}"
+              >
                 {variability?.estimatedA1c?.toFixed(1) ?? "–"}%
               </div>
               <div class="text-xs text-muted-foreground">eA1C</div>
@@ -278,7 +297,13 @@
         </CardHeader>
         <CardContent class="space-y-4">
           <div class="text-center">
-            <div class="text-5xl font-bold {(variability?.estimatedA1c ?? 8) < 7 ? 'text-green-600' : (variability?.estimatedA1c ?? 8) < 7.5 ? 'text-yellow-600' : 'text-orange-600'}">
+            <div
+              class="text-5xl font-bold {(variability?.estimatedA1c ?? 8) < 7
+                ? 'text-green-600'
+                : (variability?.estimatedA1c ?? 8) < 7.5
+                  ? 'text-yellow-600'
+                  : 'text-orange-600'}"
+            >
               {variability?.estimatedA1c?.toFixed(1) ?? "–"}%
             </div>
             <p class="text-sm text-muted-foreground mt-1">
@@ -322,7 +347,14 @@
         </CardHeader>
         <CardContent class="space-y-4">
           <div class="text-center">
-            <div class="text-5xl font-bold {(variability?.coefficientOfVariation ?? 40) <= 33 ? 'text-green-600' : (variability?.coefficientOfVariation ?? 40) <= 36 ? 'text-yellow-600' : 'text-orange-600'}">
+            <div
+              class="text-5xl font-bold {(variability?.coefficientOfVariation ??
+                40) <= 33
+                ? 'text-green-600'
+                : (variability?.coefficientOfVariation ?? 40) <= 36
+                  ? 'text-yellow-600'
+                  : 'text-orange-600'}"
+            >
               {variability?.coefficientOfVariation?.toFixed(0) ?? "–"}%
             </div>
             <p class="text-sm text-muted-foreground mt-1">

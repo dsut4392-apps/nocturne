@@ -10,6 +10,7 @@
     getLocalAuthConfig,
   } from "../auth.remote";
   import { page } from "$app/stores";
+  import { goto, invalidateAll } from "$app/navigation";
 
   // Queries for auth configuration
   const oidcQuery = getOidcProviders();
@@ -55,7 +56,7 @@
 </svelte:head>
 
 <svelte:boundary>
-  {#snippet failed(error)}
+  {#snippet failed(error: unknown)}
     <div
       class="flex min-h-screen items-center justify-center bg-background p-4"
     >
@@ -69,7 +70,7 @@
           <div
             class="rounded-md bg-destructive/10 p-4 text-sm text-destructive"
           >
-            {error.message}
+            {error instanceof Error ? error.message : String(error)}
           </div>
           <Button class="mt-4 w-full" onclick={() => window.location.reload()}>
             Try Again
@@ -129,10 +130,28 @@
 
           {#if hasLocalAuth}
             <!-- Local auth form using remote functions -->
-            <form {...loginForm} class="space-y-4">
+            <!-- Use enhance() to handle the server-side redirect response -->
+            <form
+              {...loginForm.enhance(async () => {
+                try {
+                  await invalidateAll();
+                  await goto(returnUrl, { invalidateAll: true });
+                } catch (e) {
+                  if (e && typeof e === "object" && "location" in e) {
+                    await invalidateAll();
+                    await goto((e as { location: string }).location, {
+                      invalidateAll: true,
+                    });
+                    return;
+                  }
+                  throw e;
+                }
+              })}
+              class="space-y-4"
+            >
               <input
                 type="hidden"
-                {...loginForm.fields.returnUrl.as("text")}
+                name={loginForm.fields.returnUrl.as("text").name}
                 value={returnUrl}
               />
 
@@ -239,8 +258,10 @@
                   variant="outline"
                   class="w-full h-11 relative"
                   style={getButtonStyle(provider.buttonColor)}
-                  disabled={!!loginForm.pending || isRedirecting}
-                  onclick={() => loginWithProvider(provider.id)}
+                  disabled={!!loginForm.pending ||
+                    isRedirecting ||
+                    !provider.id}
+                  onclick={() => provider.id && loginWithProvider(provider.id)}
                 >
                   {#if isRedirecting && selectedProvider === provider.id}
                     <Loader2 class="mr-2 h-4 w-4 animate-spin" />

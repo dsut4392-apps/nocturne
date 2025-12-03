@@ -10,8 +10,8 @@
     ChevronDown,
     Clock,
   } from "lucide-svelte";
-  import type { AuthUser } from "../../../../app.d";
-  import { formatSessionExpiry } from "$lib/stores/auth.svelte";
+  import { goto } from "$app/navigation";
+  import type { AuthUser } from "$lib/stores/auth.svelte";
 
   interface Props {
     user: AuthUser | null;
@@ -37,23 +37,8 @@
 
   /** Handle logout */
   function handleLogout() {
-    // Navigate to logout endpoint
-    window.location.href = "/auth/logout";
+    goto("/auth/logout");
   }
-
-  /** Calculate time until session expires */
-  function getTimeUntilExpiry(): number | null {
-    if (!user?.expiresAt) return null;
-    const now = new Date();
-    const expiresAt = new Date(user.expiresAt);
-    const diff = expiresAt.getTime() - now.getTime();
-    return Math.max(0, Math.floor(diff / 1000));
-  }
-
-  const timeUntilExpiry = $derived(getTimeUntilExpiry());
-  const isExpiringSoon = $derived(
-    timeUntilExpiry !== null && timeUntilExpiry > 0 && timeUntilExpiry < 300
-  );
 </script>
 
 {#if user}
@@ -120,21 +105,6 @@
               </span>
             {/each}
           </div>
-        </DropdownMenu.Group>
-        <DropdownMenu.Separator />
-      {/if}
-
-      {#if timeUntilExpiry !== null}
-        <DropdownMenu.Group>
-          <DropdownMenu.Item
-            disabled
-            class="text-xs {isExpiringSoon
-              ? 'text-yellow-600 dark:text-yellow-500'
-              : 'text-muted-foreground'}"
-          >
-            <Clock class="mr-2 h-3 w-3" />
-            Session expires in {formatSessionExpiry(timeUntilExpiry)}
-          </DropdownMenu.Item>
         </DropdownMenu.Group>
         <DropdownMenu.Separator />
       {/if}

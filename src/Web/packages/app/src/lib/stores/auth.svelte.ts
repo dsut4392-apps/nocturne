@@ -115,7 +115,7 @@ export class AuthStore {
     if (!browser) return;
 
     const cookies = document.cookie.split(";");
-    const authCookie = cookies.find((c) => c.trim().startsWith("nocturne.IsAuthenticated="));
+    const authCookie = cookies.find((c) => c.trim().startsWith("IsAuthenticated="));
 
     if (authCookie) {
       // We have an auth cookie, try to load the full session

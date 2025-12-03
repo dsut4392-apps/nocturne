@@ -15,6 +15,6 @@
   </style>
 </svelte:head>
 
-<div class="w-dvw h-dvh m-0 p-0">
+<div class="h-dvh m-0 p-0">
   {@render children()}
 </div>

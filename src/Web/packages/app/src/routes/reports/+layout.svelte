@@ -77,13 +77,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </svelte:head>
 
-<div class="min-h-full bg-background">
+<div class="relative min-h-full bg-background">
   {#if page.url.pathname !== "/reports"}
     <!-- Report Header - unified sticky header with sidebar trigger -->
     <!-- On mobile (md:hidden), position below the MobileHeader with top-14 -->
     <!-- On desktop (md:top-0), position at top since main header is hidden for reports -->
     <div
-      class="sticky top-14 md:top-0 z-20 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60"
+      class="sticky top-14 md:top-0 z-20 border-b border-border bg-card/95 backdrop-blur supports-backdrop-filter:bg-card/60"
     >
       <div class="flex h-14 items-center justify-between gap-2 px-4">
         <div class="flex items-center gap-2">
@@ -125,7 +125,7 @@
   {/if}
 
   <!-- Main Content -->
-  <main class="px-6 py-6">
+  <main class="relative px-6 py-6">
     {@render children()}
   </main>
 

@@ -91,7 +91,7 @@ public class EntryRepository
     }
 
     /// <summary>
-    /// Create new entries
+    /// Create new entries, skipping duplicates
     /// </summary>
     public async Task<IEnumerable<Entry>> CreateEntriesAsync(
         IEnumerable<Entry> entries,
@@ -100,10 +100,33 @@ public class EntryRepository
     {
         var entities = entries.Select(EntryMapper.ToEntity).ToList();
 
-        _context.Entries.AddRange(entities);
+        if (entities.Count == 0)
+        {
+            return Enumerable.Empty<Entry>();
+        }
+
+        // Get the IDs of the entities we're trying to insert
+        var entityIds = entities.Select(e => e.Id).ToHashSet();
+
+        // Check which IDs already exist in the database
+        var existingIds = await _context
+            .Entries.Where(e => entityIds.Contains(e.Id))
+            .Select(e => e.Id)
+            .ToHashSetAsync(cancellationToken);
+
+        // Filter out entities that already exist
+        var newEntities = entities.Where(e => !existingIds.Contains(e.Id)).ToList();
+
+        if (newEntities.Count == 0)
+        {
+            // All entries already exist, return empty
+            return Enumerable.Empty<Entry>();
+        }
+
+        _context.Entries.AddRange(newEntities);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return entities.Select(EntryMapper.ToDomainModel);
+        return newEntities.Select(EntryMapper.ToDomainModel);
     }
 
     /// <summary>

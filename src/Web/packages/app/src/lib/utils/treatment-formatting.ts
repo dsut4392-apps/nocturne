@@ -4,13 +4,10 @@
  */
 
 import type { Treatment } from "$lib/api";
+import { formatDateTime } from "./date-formatting";
 
-/** Formats a timestamp to display full date and time */
-export function formatDateTime(dateStr: string | undefined): string {
-  if (!dateStr) return "-";
-  const date = new Date(dateStr);
-  return date.toLocaleDateString() + " " + date.toLocaleTimeString();
-}
+/** Re-export formatDateTime from centralized date utilities */
+export { formatDateTime };
 
 /** Formats glucose reading with measurement method */
 export function formatGlucose(treatment: Treatment): string {

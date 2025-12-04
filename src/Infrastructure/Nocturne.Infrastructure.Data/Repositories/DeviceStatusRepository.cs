@@ -121,7 +121,7 @@ public class DeviceStatusRepository
     }
 
     /// <summary>
-    /// Create multiple device status entries
+    /// Create multiple device status entries, skipping duplicates
     /// </summary>
     public async Task<IEnumerable<DeviceStatus>> CreateDeviceStatusAsync(
         IEnumerable<DeviceStatus> deviceStatuses,
@@ -130,10 +130,33 @@ public class DeviceStatusRepository
     {
         var entities = deviceStatuses.Select(DeviceStatusMapper.ToEntity).ToList();
 
-        await _context.DeviceStatuses.AddRangeAsync(entities, cancellationToken);
+        if (entities.Count == 0)
+        {
+            return Enumerable.Empty<DeviceStatus>();
+        }
+
+        // Get the IDs of the entities we're trying to insert
+        var entityIds = entities.Select(e => e.Id).ToHashSet();
+
+        // Check which IDs already exist in the database
+        var existingIds = await _context
+            .DeviceStatuses.Where(ds => entityIds.Contains(ds.Id))
+            .Select(ds => ds.Id)
+            .ToHashSetAsync(cancellationToken);
+
+        // Filter out entities that already exist
+        var newEntities = entities.Where(e => !existingIds.Contains(e.Id)).ToList();
+
+        if (newEntities.Count == 0)
+        {
+            // All entries already exist, return empty
+            return Enumerable.Empty<DeviceStatus>();
+        }
+
+        await _context.DeviceStatuses.AddRangeAsync(newEntities, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return entities.Select(DeviceStatusMapper.ToDomainModel);
+        return newEntities.Select(DeviceStatusMapper.ToDomainModel);
     }
 
     /// <summary>

@@ -263,11 +263,6 @@
       <CardContent class="h-80 md:h-96">
         <AmbulatoryGlucoseProfile {entries} />
       </CardContent>
-      <CardFooter class="text-xs text-muted-foreground">
-        <Info class="w-3 h-3 mr-1" />
-        The green zone marks your target range (70-180 mg/dL). Aim to keep the median
-        line within this zone.
-      </CardFooter>
     </Card>
 
     <!-- Time in Range Visual -->
@@ -282,49 +277,8 @@
             How your time is distributed across glucose ranges
           </CardDescription>
         </CardHeader>
-        <CardContent class="space-y-4 py-4">
-          <div class="h-20">
-            <TIRStackedChart {entries} />
-          </div>
-
-          <!-- Legend -->
-          <div class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
-            <div class="flex items-center gap-1.5">
-              <div
-                class="w-3 h-3 rounded"
-                style="background-color: var(--severe-low-bg)"
-              ></div>
-              <span>Very Low (&lt;54)</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <div
-                class="w-3 h-3 rounded"
-                style="background-color: var(--low-bg)"
-              ></div>
-              <span>Low (54-70)</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <div
-                class="w-3 h-3 rounded"
-                style="background-color: var(--target-bg)"
-              ></div>
-              <span>Target (70-180)</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <div
-                class="w-3 h-3 rounded"
-                style="background-color: var(--high-bg)"
-              ></div>
-              <span>High (180-250)</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <div
-                class="w-3 h-3 rounded"
-                style="background-color: var(--severe-high-bg)"
-              ></div>
-              <span>Very High (&gt;250)</span>
-            </div>
-          </div>
+        <CardContent class="space-y-4 py-4 h-48">
+          <TIRStackedChart {entries} />
         </CardContent>
       </Card>
 

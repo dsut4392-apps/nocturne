@@ -58,7 +58,7 @@
   }))}
   legend
   seriesLayout="stack"
-  padding={{ top: 0, bottom: 0, left: 2, right: 2 }}
+  padding={{ top: 0, bottom: 24 }}
   props={{
     bars: {
       motion: { type: "tween", duration: 200 },
@@ -68,7 +68,7 @@
     tooltip: {
       hideTotal: true,
       context: { mode: "bounds" },
-      header: { format: "none" },
+      // header: { format: "none" },
     },
     xAxis: {
       hidden: true,

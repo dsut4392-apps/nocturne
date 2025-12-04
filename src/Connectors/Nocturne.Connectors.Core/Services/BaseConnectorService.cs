@@ -273,6 +273,149 @@ namespace Nocturne.Connectors.Core.Services
         }
 
         /// <summary>
+        /// Submits profile data directly to the API via HTTP
+        /// </summary>
+        protected virtual async Task<bool> PublishProfileDataAsync(
+            IEnumerable<Profile> profiles,
+            TConfig config,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (_apiDataSubmitter == null)
+            {
+                _logger?.LogWarning("API data submitter not available for profile data submission");
+                return false;
+            }
+
+            var profilesArray = profiles.ToArray();
+            if (profilesArray.Length == 0)
+            {
+                _logger?.LogInformation("No profiles to submit");
+                return true;
+            }
+
+            try
+            {
+                var success = await _apiDataSubmitter.SubmitProfilesAsync(
+                    profilesArray,
+                    ConnectorSource,
+                    cancellationToken
+                );
+
+                if (success)
+                {
+                    _logger?.LogInformation(
+                        "Successfully submitted {Count} profiles",
+                        profilesArray.Length
+                    );
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to submit profile data");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Submits food data directly to the API via HTTP
+        /// </summary>
+        protected virtual async Task<bool> PublishFoodDataAsync(
+            IEnumerable<Food> foods,
+            TConfig config,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (_apiDataSubmitter == null)
+            {
+                _logger?.LogWarning("API data submitter not available for food data submission");
+                return false;
+            }
+
+            var foodsArray = foods.ToArray();
+            if (foodsArray.Length == 0)
+            {
+                _logger?.LogInformation("No food entries to submit");
+                return true;
+            }
+
+            try
+            {
+                var success = await _apiDataSubmitter.SubmitFoodAsync(
+                    foodsArray,
+                    ConnectorSource,
+                    cancellationToken
+                );
+
+                if (success)
+                {
+                    _logger?.LogInformation(
+                        "Successfully submitted {Count} food entries",
+                        foodsArray.Length
+                    );
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to submit food data");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Submits activity data directly to the API via HTTP
+        /// </summary>
+        protected virtual async Task<bool> PublishActivityDataAsync(
+            IEnumerable<Activity> activities,
+            TConfig config,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (_apiDataSubmitter == null)
+            {
+                _logger?.LogWarning(
+                    "API data submitter not available for activity data submission"
+                );
+                return false;
+            }
+
+            var activitiesArray = activities.ToArray();
+            if (activitiesArray.Length == 0)
+            {
+                _logger?.LogInformation("No activities to submit");
+                return true;
+            }
+
+            try
+            {
+                var success = await _apiDataSubmitter.SubmitActivityAsync(
+                    activitiesArray,
+                    ConnectorSource,
+                    cancellationToken
+                );
+
+                if (success)
+                {
+                    _logger?.LogInformation(
+                        "Successfully submitted {Count} activities",
+                        activitiesArray.Length
+                    );
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to submit activity data");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Submits health data (comprehensive data from sources like Glooko)
         /// Currently only submits blood glucose readings as entries
         /// </summary>

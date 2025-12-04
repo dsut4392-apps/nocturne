@@ -73,6 +73,12 @@ namespace Nocturne.Connectors.Nightscout.Services
         }
 
         /// <summary>
+        /// Cached JWT token for v3 API authentication
+        /// </summary>
+        private string? _jwtToken;
+        private DateTime _jwtTokenExpiry = DateTime.MinValue;
+
+        /// <summary>
         /// Hash API secret using SHA1 to match Nightscout's expected format
         /// </summary>
         private static string HashApiSecret(string apiSecret)
@@ -80,6 +86,132 @@ namespace Nocturne.Connectors.Nightscout.Services
             using var sha1 = System.Security.Cryptography.SHA1.Create();
             var hashBytes = sha1.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiSecret));
             return Convert.ToHexString(hashBytes).ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// Gets a JWT token for v3 API authentication
+        /// </summary>
+        private async Task<string?> GetJwtTokenAsync()
+        {
+            // Return cached token if still valid
+            if (!string.IsNullOrEmpty(_jwtToken) && DateTime.UtcNow < _jwtTokenExpiry)
+            {
+                return _jwtToken;
+            }
+
+            try
+            {
+                var apiSecret = _config.SourceApiSecret;
+                if (string.IsNullOrEmpty(apiSecret))
+                {
+                    _logger.LogWarning("No API secret configured for JWT authentication");
+                    return null;
+                }
+
+                // Request JWT token using api secret as token
+                var tokenUrl = $"/api/v2/authorization/request/token={apiSecret}";
+                _logger.LogDebug("Requesting JWT token from {Url}", tokenUrl);
+
+                var response = await _httpClient.GetAsync(tokenUrl);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning(
+                        "Failed to get JWT token: {StatusCode} - {Error}",
+                        response.StatusCode,
+                        errorContent
+                    );
+                    return null;
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                var authResponse = JsonSerializer.Deserialize<JsonElement>(content);
+
+                if (authResponse.TryGetProperty("token", out var tokenElement))
+                {
+                    _jwtToken = tokenElement.GetString();
+                    // JWT tokens typically expire in 1 hour, refresh at 50 minutes
+                    _jwtTokenExpiry = DateTime.UtcNow.AddMinutes(50);
+                    _logger.LogInformation("Successfully obtained JWT token for v3 API");
+                    return _jwtToken;
+                }
+
+                _logger.LogWarning("JWT token response did not contain expected 'token' field");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obtaining JWT token for v3 API");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Adds JWT authentication header to request for v3 API calls
+        /// </summary>
+        private async Task<bool> AddJwtAuthHeaderAsync(HttpRequestMessage request)
+        {
+            var token = await GetJwtTokenAsync();
+            if (string.IsNullOrEmpty(token))
+            {
+                return false;
+            }
+
+            request.Headers.Add("Authorization", $"Bearer {token}");
+            return true;
+        }
+
+        /// <summary>
+        /// Adds API secret header to request for v1 API calls that require authentication
+        /// </summary>
+        private void AddApiSecretHeader(HttpRequestMessage request)
+        {
+            var apiSecret = _config.SourceApiSecret;
+            if (!string.IsNullOrEmpty(apiSecret))
+            {
+                // Nightscout v1 API expects SHA1 hashed secret in the api-secret header
+                var hashedSecret = HashApiSecret(apiSecret);
+                request.Headers.Add("api-secret", hashedSecret);
+                _logger.LogDebug("Added api-secret header with hashed secret");
+            }
+            else
+            {
+                _logger.LogWarning("No API secret configured for authentication");
+            }
+        }
+
+        /// <summary>
+        /// Builds a URL with secret query parameter for v1 API authentication
+        /// Some Nightscout endpoints require authentication via query parameter
+        /// </summary>
+        private string BuildAuthenticatedUrl(string baseUrl)
+        {
+            var apiSecret = _config.SourceApiSecret;
+            if (string.IsNullOrEmpty(apiSecret))
+            {
+                _logger.LogWarning("No API secret configured for URL authentication");
+                return baseUrl;
+            }
+
+            var hashedSecret = HashApiSecret(apiSecret);
+            var separator = baseUrl.Contains('?') ? "&" : "?";
+            return $"{baseUrl}{separator}secret={hashedSecret}";
+        }
+
+        /// <summary>
+        /// Checks if the source Nightscout supports v3 API
+        /// </summary>
+        private async Task<bool> SupportsV3ApiAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("/api/v3/version");
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public override async Task<bool> AuthenticateAsync()
@@ -215,6 +347,450 @@ namespace Nocturne.Connectors.Nightscout.Services
 
             return false;
         }
+
+        #region V3 API Methods
+
+        /// <summary>
+        /// Gets the last modified timestamps for all collections using v3 API
+        /// This is useful for efficient incremental syncing
+        /// </summary>
+        public async Task<Dictionary<string, long>?> GetLastModifiedAsync()
+        {
+            try
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, "/api/v3/lastModified");
+                if (!await AddJwtAuthHeaderAsync(request))
+                {
+                    _logger.LogWarning("Could not add JWT auth for lastModified request");
+                    return null;
+                }
+
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning(
+                        "Failed to get lastModified from v3 API: {StatusCode} - {Error}",
+                        response.StatusCode,
+                        errorContent
+                    );
+                    return null;
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                var json = JsonSerializer.Deserialize<JsonElement>(content);
+
+                if (
+                    json.TryGetProperty("result", out var result)
+                    && result.TryGetProperty("collections", out var collections)
+                )
+                {
+                    var lastModified = new Dictionary<string, long>();
+                    foreach (var prop in collections.EnumerateObject())
+                    {
+                        if (prop.Value.TryGetInt64(out var timestamp))
+                        {
+                            lastModified[prop.Name] = timestamp;
+                        }
+                    }
+                    return lastModified;
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting lastModified from v3 API");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Generic v3 API fetch method for any collection with pagination support
+        /// </summary>
+        private async Task<T[]> FetchCollectionV3Async<T>(
+            string collection,
+            DateTime? since = null,
+            int limit = 1000,
+            string? sortField = null,
+            bool descending = true
+        )
+        {
+            var allItems = new List<T>();
+            var skip = 0;
+            var hasMore = true;
+
+            while (hasMore)
+            {
+                try
+                {
+                    var urlBuilder = new StringBuilder(
+                        $"/api/v3/{collection}?limit={limit}&skip={skip}"
+                    );
+
+                    if (!string.IsNullOrEmpty(sortField))
+                    {
+                        urlBuilder.Append(
+                            descending ? $"&sort$desc={sortField}" : $"&sort={sortField}"
+                        );
+                    }
+
+                    if (since.HasValue)
+                    {
+                        var sinceMs = ((DateTimeOffset)since.Value).ToUnixTimeMilliseconds();
+                        // Use srvModified for efficient delta sync
+                        urlBuilder.Append($"&srvModified$gte={sinceMs}");
+                    }
+
+                    var request = new HttpRequestMessage(HttpMethod.Get, urlBuilder.ToString());
+                    if (!await AddJwtAuthHeaderAsync(request))
+                    {
+                        _logger.LogWarning(
+                            "Could not add JWT auth for {Collection} fetch",
+                            collection
+                        );
+                        break;
+                    }
+
+                    _logger.LogDebug(
+                        "Fetching {Collection} from v3 API: {Url}",
+                        collection,
+                        urlBuilder.ToString()
+                    );
+
+                    var response = await _httpClient.SendAsync(request);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        _logger.LogError(
+                            "Failed to fetch {Collection} from v3 API: {StatusCode} - {Error}",
+                            collection,
+                            response.StatusCode,
+                            errorContent
+                        );
+                        break;
+                    }
+
+                    var content = await response.Content.ReadAsStringAsync();
+                    var json = JsonSerializer.Deserialize<JsonElement>(content);
+
+                    T[]? items = null;
+                    if (json.TryGetProperty("result", out var result))
+                    {
+                        items = JsonSerializer.Deserialize<T[]>(result.GetRawText());
+                    }
+
+                    if (items == null || items.Length == 0)
+                    {
+                        hasMore = false;
+                    }
+                    else
+                    {
+                        allItems.AddRange(items);
+                        skip += items.Length;
+
+                        // If we got fewer items than the limit, we've reached the end
+                        hasMore = items.Length >= limit;
+
+                        _logger.LogDebug(
+                            "Fetched {Count} {Collection} items (total: {Total})",
+                            items.Length,
+                            collection,
+                            allItems.Count
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error fetching {Collection} from v3 API", collection);
+                    break;
+                }
+            }
+
+            _logger.LogInformation(
+                "Successfully fetched {Count} {Collection} items from v3 API",
+                allItems.Count,
+                collection
+            );
+
+            return allItems.ToArray();
+        }
+
+        /// <summary>
+        /// Fetch entries using v3 API with pagination
+        /// </summary>
+        public async Task<IEnumerable<Entry>> FetchEntriesV3Async(DateTime? since = null)
+        {
+            return await FetchCollectionV3Async<Entry>("entries", since, 1000, "date", true);
+        }
+
+        /// <summary>
+        /// Fetch treatments using v3 API with pagination
+        /// </summary>
+        public async Task<IEnumerable<Treatment>> FetchTreatmentsV3Async(DateTime? since = null)
+        {
+            return await FetchCollectionV3Async<Treatment>(
+                "treatments",
+                since,
+                1000,
+                "created_at",
+                true
+            );
+        }
+
+        /// <summary>
+        /// Fetch device status using v3 API with pagination
+        /// </summary>
+        public async Task<IEnumerable<DeviceStatus>> FetchDeviceStatusV3Async(
+            DateTime? since = null
+        )
+        {
+            return await FetchCollectionV3Async<DeviceStatus>(
+                "devicestatus",
+                since,
+                1000,
+                "created_at",
+                true
+            );
+        }
+
+        /// <summary>
+        /// Fetch profiles using v3 API
+        /// </summary>
+        public async Task<IEnumerable<Profile>> FetchProfilesV3Async(DateTime? since = null)
+        {
+            return await FetchCollectionV3Async<Profile>("profile", since, 100, "created_at", true);
+        }
+
+        /// <summary>
+        /// Fetch food entries using v3 API
+        /// </summary>
+        public async Task<IEnumerable<Food>> FetchFoodV3Async(DateTime? since = null)
+        {
+            return await FetchCollectionV3Async<Food>("food", since, 1000, "created_at", true);
+        }
+
+        /// <summary>
+        /// Sync all data from source Nightscout using v3 API
+        /// More efficient than v1 API due to lastModified tracking and proper pagination
+        /// </summary>
+        public async Task<bool> SyncNightscoutDataV3Async(
+            NightscoutConnectorConfiguration config,
+            CancellationToken cancellationToken = default
+        )
+        {
+            try
+            {
+                _logger.LogInformation("Starting Nightscout data sync using v3 API");
+
+                // Check if v3 API is available
+                if (!await SupportsV3ApiAsync())
+                {
+                    _logger.LogWarning(
+                        "Source Nightscout does not support v3 API, falling back to v1"
+                    );
+                    return await SyncNightscoutDataAsync(config, cancellationToken);
+                }
+
+                var allSuccess = true;
+                var sinceTimestamp = DateTime.UtcNow.AddHours(-24);
+
+                // Try to get lastModified to optimize sync
+                var lastModified = await GetLastModifiedAsync();
+                if (lastModified != null)
+                {
+                    _logger.LogInformation(
+                        "Got lastModified timestamps: entries={Entries}, treatments={Treatments}, devicestatus={DeviceStatus}",
+                        lastModified.GetValueOrDefault("entries"),
+                        lastModified.GetValueOrDefault("treatments"),
+                        lastModified.GetValueOrDefault("devicestatus")
+                    );
+                }
+
+                // Sync entries
+                try
+                {
+                    var entries = await FetchEntriesV3Async(sinceTimestamp);
+                    var entriesArray = entries.ToArray();
+
+                    if (entriesArray.Length > 0)
+                    {
+                        var success = await PublishGlucoseDataInBatchesAsync(
+                            entriesArray,
+                            config,
+                            cancellationToken
+                        );
+                        if (success)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} entries via v3 API",
+                                entriesArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync entries");
+                            allSuccess = false;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing entries via v3 API");
+                    allSuccess = false;
+                }
+
+                // Sync treatments
+                try
+                {
+                    var treatments = await FetchTreatmentsV3Async(sinceTimestamp);
+                    var treatmentsArray = treatments.ToArray();
+
+                    if (treatmentsArray.Length > 0)
+                    {
+                        var success = await PublishTreatmentDataAsync(
+                            treatmentsArray,
+                            config,
+                            cancellationToken
+                        );
+                        if (success)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} treatments via v3 API",
+                                treatmentsArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync treatments");
+                            allSuccess = false;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing treatments via v3 API");
+                    allSuccess = false;
+                }
+
+                // Sync device status
+                try
+                {
+                    var deviceStatuses = await FetchDeviceStatusV3Async(sinceTimestamp);
+                    var deviceStatusArray = deviceStatuses.ToArray();
+
+                    if (deviceStatusArray.Length > 0)
+                    {
+                        var success = await PublishDeviceStatusAsync(
+                            deviceStatusArray,
+                            config,
+                            cancellationToken
+                        );
+                        if (success)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} device statuses via v3 API",
+                                deviceStatusArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync device status");
+                            allSuccess = false;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing device status via v3 API");
+                    allSuccess = false;
+                }
+
+                // Sync profiles
+                try
+                {
+                    var profiles = await FetchProfilesV3Async(null);
+                    var profilesArray = profiles.ToArray();
+
+                    if (profilesArray.Length > 0)
+                    {
+                        var success = await PublishProfileDataAsync(
+                            profilesArray,
+                            config,
+                            cancellationToken
+                        );
+                        if (success)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} profiles via v3 API",
+                                profilesArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync profiles");
+                            allSuccess = false;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing profiles via v3 API");
+                    allSuccess = false;
+                }
+
+                // Sync food
+                try
+                {
+                    var foods = await FetchFoodV3Async(null);
+                    var foodsArray = foods.ToArray();
+
+                    if (foodsArray.Length > 0)
+                    {
+                        var success = await PublishFoodDataAsync(
+                            foodsArray,
+                            config,
+                            cancellationToken
+                        );
+                        if (success)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} food entries via v3 API",
+                                foodsArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync food");
+                            allSuccess = false;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing food via v3 API");
+                    allSuccess = false;
+                }
+
+                if (allSuccess)
+                {
+                    _logger.LogInformation("Nightscout v3 API data sync completed successfully");
+                }
+                else
+                {
+                    _logger.LogWarning("Nightscout v3 API data sync completed with some failures");
+                }
+
+                return allSuccess;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during Nightscout v3 API data sync");
+                return false;
+            }
+        }
+
+        #endregion
 
         public override async Task<IEnumerable<Entry>> FetchGlucoseDataAsync(DateTime? since = null)
         {
@@ -562,6 +1138,169 @@ namespace Nocturne.Connectors.Nightscout.Services
         }
 
         /// <summary>
+        /// Fetch profiles from source Nightscout
+        /// </summary>
+        public async Task<IEnumerable<Profile>> FetchProfilesAsync(DateTime? since = null)
+        {
+            try
+            {
+                var baseUrl = "/api/v1/profile.json";
+                var url = BuildAuthenticatedUrl(baseUrl);
+
+                _logger.LogDebug("Fetching Nightscout profiles: {Url}", baseUrl);
+
+                // Profiles require authentication - use both header and query param
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                AddApiSecretHeader(request);
+
+                var response = await _httpClient.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError(
+                        "Failed to fetch Nightscout profiles: {StatusCode} - {Error}",
+                        response.StatusCode,
+                        errorContent
+                    );
+                    return Enumerable.Empty<Profile>();
+                }
+
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                _logger.LogDebug(
+                    "Profile JSON response: {Json}",
+                    jsonContent.Length > 500 ? jsonContent.Substring(0, 500) + "..." : jsonContent
+                );
+
+                var profiles = JsonSerializer.Deserialize<Profile[]>(jsonContent);
+
+                if (profiles == null || profiles.Length == 0)
+                {
+                    _logger.LogDebug("No profiles returned from source Nightscout");
+                    return Enumerable.Empty<Profile>();
+                }
+
+                _logger.LogInformation(
+                    "Successfully fetched {Count} profiles from source Nightscout",
+                    profiles.Length
+                );
+                return profiles;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching profiles from source Nightscout");
+                return Enumerable.Empty<Profile>();
+            }
+        }
+
+        /// <summary>
+        /// Fetch food entries from source Nightscout
+        /// </summary>
+        public async Task<IEnumerable<Food>> FetchFoodAsync(DateTime? since = null)
+        {
+            try
+            {
+                var count = 10000;
+                var baseUrl = $"/api/v1/food.json?count={count}";
+                var url = BuildAuthenticatedUrl(baseUrl);
+
+                _logger.LogDebug("Fetching Nightscout food entries: {Url}", baseUrl);
+
+                // Food requires authentication - use both header and query param
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                AddApiSecretHeader(request);
+
+                var response = await _httpClient.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError(
+                        "Failed to fetch Nightscout food entries: {StatusCode} - {Error}",
+                        response.StatusCode,
+                        errorContent
+                    );
+                    return Enumerable.Empty<Food>();
+                }
+
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                var foods = JsonSerializer.Deserialize<Food[]>(jsonContent);
+
+                if (foods == null || foods.Length == 0)
+                {
+                    _logger.LogDebug("No food entries returned from source Nightscout");
+                    return Enumerable.Empty<Food>();
+                }
+
+                _logger.LogInformation(
+                    "Successfully fetched {Count} food entries from source Nightscout",
+                    foods.Length
+                );
+                return foods;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching food entries from source Nightscout");
+                return Enumerable.Empty<Food>();
+            }
+        }
+
+        /// <summary>
+        /// Fetch activity entries from source Nightscout
+        /// </summary>
+        public async Task<IEnumerable<Activity>> FetchActivityAsync(DateTime? since = null)
+        {
+            try
+            {
+                var startTime = since ?? DateTime.UtcNow.AddDays(-30);
+                var count = 10000;
+
+                var baseUrl =
+                    $"/api/v1/activity.json?find[created_at][$gte]={startTime:yyyy-MM-ddTHH:mm:ss.fffZ}&count={count}";
+                var url = BuildAuthenticatedUrl(baseUrl);
+
+                _logger.LogDebug("Fetching Nightscout activities: {Url}", baseUrl);
+
+                // Activity requires authentication - use both header and query param
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                AddApiSecretHeader(request);
+
+                var response = await _httpClient.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError(
+                        "Failed to fetch Nightscout activities: {StatusCode} - {Error}",
+                        response.StatusCode,
+                        errorContent
+                    );
+                    return Enumerable.Empty<Activity>();
+                }
+
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                var activities = JsonSerializer.Deserialize<Activity[]>(jsonContent);
+
+                if (activities == null || activities.Length == 0)
+                {
+                    _logger.LogDebug("No activities returned from source Nightscout");
+                    return Enumerable.Empty<Activity>();
+                }
+
+                _logger.LogInformation(
+                    "Successfully fetched {Count} activities from source Nightscout",
+                    activities.Length
+                );
+                return activities;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching activities from source Nightscout");
+                return Enumerable.Empty<Activity>();
+            }
+        }
+
+        /// <summary>
         /// Upload device status to target Nightscout
         /// </summary>
         public async Task<bool> UploadDeviceStatusToNightscoutAsync(
@@ -634,6 +1373,7 @@ namespace Nocturne.Connectors.Nightscout.Services
 
         /// <summary>
         /// Syncs Nightscout data using the API data submitter
+        /// Fetches and submits entries, treatments, and device status
         /// </summary>
         /// <param name="config">Connector configuration</param>
         /// <param name="cancellationToken">Cancellation token</param>
@@ -647,19 +1387,247 @@ namespace Nocturne.Connectors.Nightscout.Services
             {
                 _logger.LogInformation("Starting Nightscout data sync using API data submitter");
 
-                // Use the base class SyncDataAsync method which handles uploading to Nocturne API
-                var success = await SyncDataAsync(config, cancellationToken);
+                var allSuccess = true;
+                var sinceTimestamp = DateTime.UtcNow.AddHours(-24);
 
-                if (success)
+                // Sync glucose entries
+                try
+                {
+                    var entries = await FetchGlucoseDataAsync(sinceTimestamp);
+                    var entriesArray = entries.ToArray();
+
+                    if (entriesArray.Length > 0)
+                    {
+                        var entriesSuccess = await PublishGlucoseDataInBatchesAsync(
+                            entriesArray,
+                            config,
+                            cancellationToken
+                        );
+
+                        if (entriesSuccess)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} glucose entries",
+                                entriesArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync glucose entries");
+                            allSuccess = false;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("No glucose entries to sync");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing glucose entries");
+                    allSuccess = false;
+                }
+
+                // Sync treatments (insulin, carbs, temp basals, etc.)
+                try
+                {
+                    var treatments = await FetchTreatmentsAsync(sinceTimestamp);
+                    var treatmentsArray = treatments.ToArray();
+
+                    if (treatmentsArray.Length > 0)
+                    {
+                        var treatmentsSuccess = await PublishTreatmentDataAsync(
+                            treatmentsArray,
+                            config,
+                            cancellationToken
+                        );
+
+                        if (treatmentsSuccess)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} treatments",
+                                treatmentsArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync treatments");
+                            allSuccess = false;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("No treatments to sync");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing treatments");
+                    allSuccess = false;
+                }
+
+                // Sync device status (pump data, loop status, etc.)
+                try
+                {
+                    var deviceStatuses = await FetchDeviceStatusAsync(sinceTimestamp);
+                    var deviceStatusArray = deviceStatuses.ToArray();
+
+                    if (deviceStatusArray.Length > 0)
+                    {
+                        var deviceStatusSuccess = await PublishDeviceStatusAsync(
+                            deviceStatusArray,
+                            config,
+                            cancellationToken
+                        );
+
+                        if (deviceStatusSuccess)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} device status entries",
+                                deviceStatusArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync device status");
+                            allSuccess = false;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("No device status entries to sync");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing device status");
+                    allSuccess = false;
+                }
+
+                // Sync profiles
+                try
+                {
+                    var profiles = await FetchProfilesAsync(null);
+                    var profilesArray = profiles.ToArray();
+
+                    if (profilesArray.Length > 0)
+                    {
+                        var profilesSuccess = await PublishProfileDataAsync(
+                            profilesArray,
+                            config,
+                            cancellationToken
+                        );
+
+                        if (profilesSuccess)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} profiles",
+                                profilesArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync profiles");
+                            allSuccess = false;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("No profiles to sync");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing profiles");
+                    allSuccess = false;
+                }
+
+                // Sync food entries
+                try
+                {
+                    var foods = await FetchFoodAsync(null);
+                    var foodsArray = foods.ToArray();
+
+                    if (foodsArray.Length > 0)
+                    {
+                        var foodsSuccess = await PublishFoodDataAsync(
+                            foodsArray,
+                            config,
+                            cancellationToken
+                        );
+
+                        if (foodsSuccess)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} food entries",
+                                foodsArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync food entries");
+                            allSuccess = false;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("No food entries to sync");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing food entries");
+                    allSuccess = false;
+                }
+
+                // Sync activity entries
+                try
+                {
+                    var activities = await FetchActivityAsync(sinceTimestamp);
+                    var activitiesArray = activities.ToArray();
+
+                    if (activitiesArray.Length > 0)
+                    {
+                        var activitiesSuccess = await PublishActivityDataAsync(
+                            activitiesArray,
+                            config,
+                            cancellationToken
+                        );
+
+                        if (activitiesSuccess)
+                        {
+                            _logger.LogInformation(
+                                "Successfully synced {Count} activities",
+                                activitiesArray.Length
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to sync activities");
+                            allSuccess = false;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("No activities to sync");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing activities");
+                    allSuccess = false;
+                }
+
+                if (allSuccess)
                 {
                     _logger.LogInformation("Nightscout data sync completed successfully");
                 }
                 else
                 {
-                    _logger.LogWarning("Nightscout data sync failed");
+                    _logger.LogWarning("Nightscout data sync completed with some failures");
                 }
 
-                return success;
+                return allSuccess;
             }
             catch (Exception ex)
             {

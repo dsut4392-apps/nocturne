@@ -219,10 +219,10 @@ public class Treatment : ProcessableDocumentBase
     }
 
     /// <summary>
-    /// Gets or sets the timestamp in milliseconds since Unix epoch - optional field
+    /// Gets or sets the timestamp as an ISO 8601 string - optional field
     /// </summary>
     [JsonPropertyName("timestamp")]
-    public long? Timestamp { get; set; }
+    public string? Timestamp { get; set; }
 
     /// <summary>
     /// Calculates Mills from Created_at if Mills is not set - for API compatibility

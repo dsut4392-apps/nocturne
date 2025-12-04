@@ -6868,6 +6868,55 @@ export class ProfileClient {
     }
 
     /**
+     * Create or update profiles
+     * @param profiles Profiles to create or update
+     * @return Created profiles with assigned IDs
+     */
+    createProfiles(profiles: Profile[], signal?: AbortSignal): Promise<Profile[]> {
+        let url_ = this.baseUrl + "/api/v1/Profile";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(profiles);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreateProfiles(_response);
+        });
+    }
+
+    protected processCreateProfiles(response: Response): Promise<Profile[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Profile[];
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Profile[]>(null as any);
+    }
+
+    /**
      * Get the current active profile
      * @return The current active profile, or empty array if no profiles exist
      */
@@ -12346,7 +12395,7 @@ export interface Treatment extends ProcessableDocumentBase {
     carbTime?: number | undefined;
     boluscalc?: { [key: string]: any; } | undefined;
     utcOffset?: number | undefined;
-    timestamp?: number | undefined;
+    timestamp?: string | undefined;
     cuttedby?: string | undefined;
     cutting?: string | undefined;
     source?: string | undefined;
@@ -13456,8 +13505,12 @@ export interface OpenApsStatus {
 
 export interface LoopStatus {
     iob?: LoopIob | undefined;
-    cob?: number | undefined;
-    predicted?: any | undefined;
+    cob?: LoopCob | undefined;
+    predicted?: LoopPredicted | undefined;
+    recommendedBolus?: number | undefined;
+    name?: string | undefined;
+    version?: string | undefined;
+    timestamp?: string | undefined;
     recommended?: any | undefined;
     enacted?: any | undefined;
 }
@@ -13465,6 +13518,16 @@ export interface LoopStatus {
 export interface LoopIob {
     timestamp?: string | undefined;
     iob?: number | undefined;
+}
+
+export interface LoopCob {
+    timestamp?: string | undefined;
+    cob?: number | undefined;
+}
+
+export interface LoopPredicted {
+    values?: number[] | undefined;
+    startDate?: string | undefined;
 }
 
 export interface XDripJsStatus {
@@ -13480,7 +13543,8 @@ export interface RadioAdapterStatus {
 }
 
 export interface OverrideStatus {
-    timestamp?: number | undefined;
+    name?: string | undefined;
+    timestamp?: string | undefined;
     duration?: number | undefined;
     active?: boolean | undefined;
     multiplier?: number | undefined;

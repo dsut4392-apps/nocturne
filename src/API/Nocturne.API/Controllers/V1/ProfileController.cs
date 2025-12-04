@@ -100,6 +100,51 @@ public class ProfileController : ControllerBase
     }
 
     /// <summary>
+    /// Create or update profiles
+    /// </summary>
+    /// <param name="profiles">Profiles to create or update</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Created profiles with assigned IDs</returns>
+    [HttpPost]
+    [NightscoutEndpoint("/api/v1/profile")]
+    [ProducesResponseType(typeof(Profile[]), 200)]
+    [ProducesResponseType(400)]
+    public async Task<ActionResult<Profile[]>> CreateProfiles(
+        [FromBody] Profile[] profiles,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug(
+            "Profile POST endpoint requested with {Count} profiles from {RemoteIpAddress}",
+            profiles.Length,
+            HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown"
+        );
+
+        try
+        {
+            if (profiles.Length == 0)
+            {
+                _logger.LogDebug("No profiles provided in request body");
+                return Ok(Array.Empty<Profile>());
+            }
+
+            var createdProfiles = await _profileDataService.CreateProfilesAsync(
+                profiles,
+                cancellationToken
+            );
+            var result = createdProfiles.ToArray();
+
+            _logger.LogDebug("Created {Count} profiles", result.Length);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while creating profiles");
+            return StatusCode(500, Array.Empty<Profile>());
+        }
+    }
+
+    /// <summary>
     /// Get the current active profile
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>

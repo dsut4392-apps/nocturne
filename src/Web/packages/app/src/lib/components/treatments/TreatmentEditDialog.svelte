@@ -24,6 +24,7 @@
     TREATMENT_CATEGORIES,
   } from "$lib/constants/treatment-categories";
   import { cn } from "$lib/utils";
+  import { formatDateTime } from "$lib/utils/date-formatting";
 
   interface Props {
     open: boolean;
@@ -139,12 +140,6 @@
     };
 
     onSave(updated);
-  }
-
-  function formatDateTime(dateStr: string | undefined): string {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString() + " " + date.toLocaleTimeString();
   }
 
   function selectEventType(type: string) {

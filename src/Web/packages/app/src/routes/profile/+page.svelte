@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { enhance } from "$app/forms";
+  import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
   import {
     Card,
     CardContent,
@@ -10,36 +13,156 @@
   import { Button } from "$lib/components/ui/button";
   import * as Tabs from "$lib/components/ui/tabs";
   import * as Table from "$lib/components/ui/table";
+  import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
+  import {
+    ProfileCreateDialog,
+    ProfileDeleteDialog,
+    ProfileEditDialog,
+  } from "$lib/components/profile";
+  import type { CreateProfileData } from "$lib/components/profile/ProfileCreateDialog.svelte";
   import {
     User,
+    UserCircle,
+    Heart,
+    HeartPulse,
     Activity,
-    Target,
+    Syringe,
+    Pill,
     Droplet,
-    ChevronRight,
-    Settings,
+    Target,
+    Sun,
+    Moon,
+    Sunrise,
+    Sunset,
+    Dumbbell,
+    Bike,
+    Footprints,
+    Utensils,
+    Coffee,
+    Cake,
+    Baby,
+    Briefcase,
+    Home,
+    Plane,
+    Zap,
+    Shield,
+    Star,
+    Sparkles,
+    Clock,
+    Calendar,
     TrendingUp,
     History,
+    ChevronRight,
+    Settings,
+    Plus,
+    Trash2,
+    Edit,
+    MoreVertical,
+    type Icon,
   } from "lucide-svelte";
   import type { Profile, TimeValue } from "$lib/api";
+  import { formatDateDetailed } from "$lib/utils/date-formatting";
 
   interface Props {
     data: {
       profiles: Profile[];
       currentProfile: Profile | null;
+      selectedProfile: Profile | null;
+      selectedProfileId: string | null;
       totalProfiles: number;
     };
+    form?: {
+      message?: string;
+      error?: string;
+      createdProfile?: Profile;
+      updatedProfile?: Profile;
+      deletedProfileId?: string;
+    } | null;
   }
 
-  let { data }: Props = $props();
+  let { data, form }: Props = $props();
 
-  // Currently selected profile for detail view
-  let selectedProfileId = $state<string | null>(
-    data.currentProfile?._id ?? null
-  );
+  // Icon component map
+  const iconComponents: Record<string, typeof Icon> = {
+    "user": User,
+    "user-circle": UserCircle,
+    "heart": Heart,
+    "heart-pulse": HeartPulse,
+    "activity": Activity,
+    "syringe": Syringe,
+    "pill": Pill,
+    "droplet": Droplet,
+    "target": Target,
+    "sun": Sun,
+    "moon": Moon,
+    "sunrise": Sunrise,
+    "sunset": Sunset,
+    "dumbbell": Dumbbell,
+    "bike": Bike,
+    "footprints": Footprints,
+    "utensils": Utensils,
+    "coffee": Coffee,
+    "cake": Cake,
+    "baby": Baby,
+    "briefcase": Briefcase,
+    "home": Home,
+    "plane": Plane,
+    "zap": Zap,
+    "shield": Shield,
+    "star": Star,
+    "sparkles": Sparkles,
+    "clock": Clock,
+    "calendar": Calendar,
+    "trending-up": TrendingUp,
+  };
+
+  function getProfileIcon(profile: Profile): typeof Icon {
+    const iconId = (profile as any).icon ?? "user";
+    return iconComponents[iconId] ?? User;
+  }
+
+  // Currently selected profile ID - derived from URL or default
+  let selectedProfileId = $derived.by(() => {
+    const urlId = $page.url.searchParams.get("id");
+    return urlId ?? data.selectedProfileId ?? data.currentProfile?._id ?? null;
+  });
+
+  // Handle form results
+  $effect(() => {
+    if (form?.message) {
+      // Show success toast/notification
+      console.log("Success:", form.message);
+
+      if (form.createdProfile) {
+        showCreateDialog = false;
+        // Navigate to the new profile
+        selectProfile(form.createdProfile._id ?? null);
+      }
+
+      if (form.updatedProfile) {
+        showEditDialog = false;
+      }
+
+      if (form.deletedProfileId) {
+        showDeleteDialog = false;
+        profileToDelete = null;
+        // Navigate to another profile if we deleted the selected one
+        if (form.deletedProfileId === selectedProfileId) {
+          const remaining = data.profiles.filter(p => p._id !== form.deletedProfileId);
+          selectProfile(remaining[0]?._id ?? null);
+        }
+      }
+    }
+
+    if (form?.error) {
+      console.error("Error:", form.error);
+      isLoading = false;
+    }
+  });
 
   // Derived: get selected profile
   let selectedProfile = $derived(
-    data.profiles.find((p) => p._id === selectedProfileId) ?? null
+    data.profiles.find((p) => p._id === selectedProfileId) ?? data.currentProfile
   );
 
   // Derived: get selected profile's store names
@@ -47,7 +170,7 @@
     selectedProfile?.store ? Object.keys(selectedProfile.store).map(String) : []
   );
 
-  // Derived: get selected profile's default store
+  // Derived: get default store name and data
   let defaultStoreName = $derived(selectedProfile?.defaultProfile ?? "");
   let defaultStore = $derived(
     defaultStoreName && selectedProfile?.store
@@ -55,18 +178,93 @@
       : null
   );
 
-  function formatDate(dateString: string | undefined): string {
-    if (!dateString) return "Unknown";
+  // Dialog states
+  let showCreateDialog = $state(false);
+  let showEditDialog = $state(false);
+  let showDeleteDialog = $state(false);
+  let profileToDelete = $state<Profile | null>(null);
+  let editStoreName = $state<string | null>(null);
+  let isLoading = $state(false);
+
+  // Hidden form references
+  let createFormEl = $state<HTMLFormElement | null>(null);
+  let updateFormEl = $state<HTMLFormElement | null>(null);
+  let deleteFormEl = $state<HTMLFormElement | null>(null);
+
+  function selectProfile(profileId: string | null) {
+    selectedProfileId = profileId;
+    // Update URL without full navigation
+    const url = new URL(window.location.href);
+    if (profileId) {
+      url.searchParams.set("id", profileId);
+    } else {
+      url.searchParams.delete("id");
+    }
+    goto(url.toString(), { replaceState: true, noScroll: true });
+  }
+
+  function formatRelativeTime(dateString: string | undefined): string {
+    if (!dateString) return "";
     try {
-      return new Date(dateString).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 0) return "Today";
+      if (diffDays === 1) return "Yesterday";
+      if (diffDays < 7) return `${diffDays} days ago`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+      if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+      return `${Math.floor(diffDays / 365)} years ago`;
     } catch {
-      return dateString;
+      return "";
+    }
+  }
+
+  function openEditDialog(storeName?: string) {
+    editStoreName = storeName ?? defaultStoreName;
+    showEditDialog = true;
+  }
+
+  function openDeleteDialog(profile: Profile) {
+    profileToDelete = profile;
+    showDeleteDialog = true;
+  }
+
+  // Form submission handlers
+  function handleCreateProfile(profileData: CreateProfileData) {
+    if (!createFormEl) return;
+    isLoading = true;
+
+    const input = createFormEl.querySelector('input[name="profileData"]') as HTMLInputElement;
+    if (input) {
+      input.value = JSON.stringify(profileData);
+      createFormEl.requestSubmit();
+    }
+  }
+
+  function handleSaveProfile(profile: Profile) {
+    if (!updateFormEl || !profile._id) return;
+    isLoading = true;
+
+    const idInput = updateFormEl.querySelector('input[name="profileId"]') as HTMLInputElement;
+    const dataInput = updateFormEl.querySelector('input[name="profileData"]') as HTMLInputElement;
+    if (idInput && dataInput) {
+      idInput.value = profile._id;
+      dataInput.value = JSON.stringify(profile);
+      updateFormEl.requestSubmit();
+    }
+  }
+
+  function handleDeleteProfile() {
+    if (!deleteFormEl || !profileToDelete?._id) return;
+    isLoading = true;
+
+    const input = deleteFormEl.querySelector('input[name="profileId"]') as HTMLInputElement;
+    if (input) {
+      input.value = profileToDelete._id;
+      deleteFormEl.requestSubmit();
     }
   }
 </script>
@@ -78,6 +276,53 @@
     content="Manage your diabetes therapy profile settings"
   />
 </svelte:head>
+
+<!-- Hidden forms for server actions -->
+<form
+  bind:this={createFormEl}
+  method="POST"
+  action="?/createProfile"
+  use:enhance={() => {
+    return async ({ update }) => {
+      await update();
+      isLoading = false;
+    };
+  }}
+  class="hidden"
+>
+  <input type="hidden" name="profileData" value="" />
+</form>
+
+<form
+  bind:this={updateFormEl}
+  method="POST"
+  action="?/updateProfile"
+  use:enhance={() => {
+    return async ({ update }) => {
+      await update();
+      isLoading = false;
+    };
+  }}
+  class="hidden"
+>
+  <input type="hidden" name="profileId" value="" />
+  <input type="hidden" name="profileData" value="" />
+</form>
+
+<form
+  bind:this={deleteFormEl}
+  method="POST"
+  action="?/deleteProfile"
+  use:enhance={() => {
+    return async ({ update }) => {
+      await update();
+      isLoading = false;
+    };
+  }}
+  class="hidden"
+>
+  <input type="hidden" name="profileId" value="" />
+</form>
 
 <div class="container mx-auto p-6 max-w-5xl space-y-6">
   <!-- Header -->
@@ -95,10 +340,16 @@
         </p>
       </div>
     </div>
-    <Badge variant="secondary" class="gap-1">
-      <History class="h-3 w-3" />
-      {data.totalProfiles} profile{data.totalProfiles !== 1 ? "s" : ""}
-    </Badge>
+    <div class="flex items-center gap-2">
+      <Button onclick={() => (showCreateDialog = true)}>
+        <Plus class="h-4 w-4 mr-2" />
+        New Profile
+      </Button>
+      <Badge variant="secondary" class="gap-1">
+        <History class="h-3 w-3" />
+        {data.totalProfiles} profile{data.totalProfiles !== 1 ? "s" : ""}
+      </Badge>
+    </div>
   </div>
 
   {#if !data.currentProfile}
@@ -119,10 +370,16 @@
               insulin sensitivity factors, and carb ratios.
             </p>
           </div>
-          <Button variant="outline" href="/settings/services">
-            <Settings class="h-4 w-4 mr-2" />
-            Configure Data Sources
-          </Button>
+          <div class="flex items-center justify-center gap-2">
+            <Button onclick={() => (showCreateDialog = true)}>
+              <Plus class="h-4 w-4 mr-2" />
+              Create Profile
+            </Button>
+            <Button variant="outline" href="/settings/services">
+              <Settings class="h-4 w-4 mr-2" />
+              Configure Data Sources
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -136,27 +393,28 @@
             Profile History
           </CardTitle>
           <CardDescription>
-            Select a profile to view its settings
+            Select a profile to view its settings. The most recently used profile is shown first.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {#each data.profiles as profile}
+              {@const ProfileIcon = getProfileIcon(profile)}
+              {@const isSelected = selectedProfileId === profile._id}
+              {@const isActive = profile._id === data.currentProfile?._id}
               <button
                 class="flex items-center gap-3 p-3 rounded-lg border text-left transition-colors
-                       {selectedProfileId === profile._id
+                       {isSelected
                   ? 'border-primary bg-primary/5'
                   : 'hover:bg-accent/50'}"
-                onclick={() => (selectedProfileId = profile._id ?? null)}
+                onclick={() => selectProfile(profile._id ?? null)}
               >
                 <div
                   class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg
-                         {selectedProfileId === profile._id
-                    ? 'bg-primary/10'
-                    : 'bg-muted'}"
+                         {isSelected ? 'bg-primary/10' : 'bg-muted'}"
                 >
-                  <User
-                    class="h-5 w-5 {selectedProfileId === profile._id
+                  <ProfileIcon
+                    class="h-5 w-5 {isSelected
                       ? 'text-primary'
                       : 'text-muted-foreground'}"
                   />
@@ -166,7 +424,7 @@
                     <span class="font-medium truncate">
                       {profile.defaultProfile ?? "Unnamed Profile"}
                     </span>
-                    {#if profile._id === data.currentProfile?._id}
+                    {#if isActive}
                       <Badge
                         variant="default"
                         class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 text-xs"
@@ -176,12 +434,11 @@
                     {/if}
                   </div>
                   <p class="text-xs text-muted-foreground truncate">
-                    {formatDate(profile.created_at)}
+                    {formatRelativeTime(profile.created_at)} • {formatDateDetailed(profile.created_at).split(",")[0]}
                   </p>
                 </div>
                 <ChevronRight
-                  class="h-4 w-4 text-muted-foreground shrink-0 {selectedProfileId ===
-                  profile._id
+                  class="h-4 w-4 text-muted-foreground shrink-0 {isSelected
                     ? 'text-primary'
                     : ''}"
                 />
@@ -211,9 +468,30 @@
                 {/if}
               </CardTitle>
               <CardDescription>
-                Created {formatDate(selectedProfile.created_at)}
+                Created {formatDateDetailed(selectedProfile.created_at)}
               </CardDescription>
             </div>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <Button variant="outline" size="icon">
+                  <MoreVertical class="h-4 w-4" />
+                </Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content align="end">
+                <DropdownMenu.Item onclick={() => openEditDialog()}>
+                  <Edit class="h-4 w-4 mr-2" />
+                  Edit Profile
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item
+                  class="text-destructive focus:text-destructive"
+                  onclick={() => openDeleteDialog(selectedProfile!)}
+                >
+                  <Trash2 class="h-4 w-4 mr-2" />
+                  Delete Profile
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
           </div>
         </CardHeader>
         <CardContent>
@@ -249,19 +527,25 @@
       <!-- Profile Stores -->
       {#if profileStoreNames.length > 0}
         <Tabs.Root value={defaultStoreName || profileStoreNames[0]}>
-          <Tabs.List class="w-full justify-start">
-            {#each profileStoreNames as storeName}
-              <Tabs.Trigger value={storeName} class="gap-2">
-                <User class="h-4 w-4" />
-                {storeName}
-                {#if storeName === defaultStoreName}
-                  <Badge variant="secondary" class="text-xs ml-1">
-                    Default
-                  </Badge>
-                {/if}
-              </Tabs.Trigger>
-            {/each}
-          </Tabs.List>
+          <div class="flex items-center justify-between">
+            <Tabs.List class="justify-start">
+              {#each profileStoreNames as storeName}
+                <Tabs.Trigger value={storeName} class="gap-2">
+                  <User class="h-4 w-4" />
+                  {storeName}
+                  {#if storeName === defaultStoreName}
+                    <Badge variant="secondary" class="text-xs ml-1">
+                      Default
+                    </Badge>
+                  {/if}
+                </Tabs.Trigger>
+              {/each}
+            </Tabs.List>
+            <Button variant="outline" size="sm" onclick={() => openEditDialog()}>
+              <Edit class="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          </div>
 
           {#each profileStoreNames as storeName}
             {@const store = selectedProfile.store?.[storeName]}
@@ -410,6 +694,10 @@
                 This profile doesn't contain any therapy settings (basal, carb
                 ratios, etc.)
               </p>
+              <Button variant="outline" class="mt-4" onclick={() => openEditDialog()}>
+                <Edit class="h-4 w-4 mr-2" />
+                Add Settings
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -417,6 +705,37 @@
     {/if}
   {/if}
 </div>
+
+<!-- Dialogs -->
+<ProfileCreateDialog
+  bind:open={showCreateDialog}
+  {isLoading}
+  onClose={() => (showCreateDialog = false)}
+  onSave={handleCreateProfile}
+/>
+
+<ProfileEditDialog
+  bind:open={showEditDialog}
+  profile={selectedProfile ?? null}
+  storeName={editStoreName}
+  {isLoading}
+  onClose={() => {
+    showEditDialog = false;
+    editStoreName = null;
+  }}
+  onSave={handleSaveProfile}
+/>
+
+<ProfileDeleteDialog
+  bind:open={showDeleteDialog}
+  profile={profileToDelete}
+  {isLoading}
+  onClose={() => {
+    showDeleteDialog = false;
+    profileToDelete = null;
+  }}
+  onConfirm={handleDeleteProfile}
+/>
 
 <!-- Profile Time Value Card Component -->
 {#snippet ProfileTimeValueCard({

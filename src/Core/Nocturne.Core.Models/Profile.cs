@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Nocturne.Core.Models.Serializers;
 
 namespace Nocturne.Core.Models;
 
@@ -28,8 +29,10 @@ public class Profile
 
     /// <summary>
     /// Gets or sets the time in milliseconds since the Unix epoch
+    /// Nightscout may send this as either a number or a string
     /// </summary>
     [JsonPropertyName("mills")]
+    [JsonConverter(typeof(FlexibleLongConverter))]
     public long Mills { get; set; }
 
     /// <summary>
@@ -66,18 +69,21 @@ public class ProfileData
     /// Gets or sets the duration of insulin action in hours
     /// </summary>
     [JsonPropertyName("dia")]
+    [JsonConverter(typeof(FlexibleDoubleConverter))]
     public double Dia { get; set; } = 3.0;
 
     /// <summary>
     /// Gets or sets the carbs absorption rate in grams per hour
     /// </summary>
     [JsonPropertyName("carbs_hr")]
+    [JsonConverter(typeof(FlexibleIntConverter))]
     public int CarbsHr { get; set; } = 20;
 
     /// <summary>
     /// Gets or sets the carb absorption delay in minutes
     /// </summary>
     [JsonPropertyName("delay")]
+    [JsonConverter(typeof(FlexibleIntConverter))]
     public int Delay { get; set; } = 20;
 
     /// <summary>
@@ -102,36 +108,42 @@ public class ProfileData
     /// Gets or sets the carbs absorption rate for high GI foods
     /// </summary>
     [JsonPropertyName("carbs_hr_high")]
+    [JsonConverter(typeof(FlexibleNullableIntConverter))]
     public int? CarbsHrHigh { get; set; }
 
     /// <summary>
     /// Gets or sets the carbs absorption rate for medium GI foods
     /// </summary>
     [JsonPropertyName("carbs_hr_medium")]
+    [JsonConverter(typeof(FlexibleNullableIntConverter))]
     public int? CarbsHrMedium { get; set; }
 
     /// <summary>
     /// Gets or sets the carbs absorption rate for low GI foods
     /// </summary>
     [JsonPropertyName("carbs_hr_low")]
+    [JsonConverter(typeof(FlexibleNullableIntConverter))]
     public int? CarbsHrLow { get; set; }
 
     /// <summary>
     /// Gets or sets the delay for high GI carbs
     /// </summary>
     [JsonPropertyName("delay_high")]
+    [JsonConverter(typeof(FlexibleNullableIntConverter))]
     public int? DelayHigh { get; set; }
 
     /// <summary>
     /// Gets or sets the delay for medium GI carbs
     /// </summary>
     [JsonPropertyName("delay_medium")]
+    [JsonConverter(typeof(FlexibleNullableIntConverter))]
     public int? DelayMedium { get; set; }
 
     /// <summary>
     /// Gets or sets the delay for low GI carbs
     /// </summary>
     [JsonPropertyName("delay_low")]
+    [JsonConverter(typeof(FlexibleNullableIntConverter))]
     public int? DelayLow { get; set; }
 
     /// <summary>
@@ -186,6 +198,7 @@ public class TimeValue
     /// Gets or sets the value for this time period
     /// </summary>
     [JsonPropertyName("value")]
+    [JsonConverter(typeof(FlexibleDoubleConverter))]
     public double Value { get; set; }
 
     /// <summary>

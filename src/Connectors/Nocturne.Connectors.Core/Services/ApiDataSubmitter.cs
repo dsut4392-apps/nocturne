@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,7 @@ public class ApiDataSubmitter : IApiDataSubmitter
     private readonly HttpClient _httpClient;
     private readonly ILogger<ApiDataSubmitter>? _logger;
     private readonly ResiliencePipeline _retryPipeline;
-    private readonly string? _apiSecret;
+    private readonly string? _apiSecretHash;
     private readonly string _baseUrl;
 
     public ApiDataSubmitter(
@@ -30,7 +31,8 @@ public class ApiDataSubmitter : IApiDataSubmitter
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _baseUrl = baseUrl?.TrimEnd('/') ?? throw new ArgumentNullException(nameof(baseUrl));
-        _apiSecret = apiSecret;
+        // Pre-compute the SHA1 hash of the API secret (Nightscout expects hashed secrets)
+        _apiSecretHash = !string.IsNullOrEmpty(apiSecret) ? ComputeSha1Hash(apiSecret) : null;
         _logger = logger;
 
         // Create retry pipeline with exponential backoff
@@ -263,11 +265,222 @@ public class ApiDataSubmitter : IApiDataSubmitter
         );
     }
 
+    /// <inheritdoc />
+    public async Task<bool> SubmitProfilesAsync(
+        IEnumerable<Profile> profiles,
+        string source,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var profilesArray = profiles.ToArray();
+        if (profilesArray.Length == 0)
+        {
+            _logger?.LogDebug("No profiles to submit");
+            return true;
+        }
+
+        return await _retryPipeline.ExecuteAsync(
+            async ct =>
+            {
+                var url = $"{_baseUrl}/api/v1/profile";
+                var request = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = JsonContent.Create(profilesArray),
+                };
+
+                AddAuthenticationHeader(request);
+
+                _logger?.LogInformation(
+                    "Submitting {Count} profiles from {Source} to {Url}",
+                    profilesArray.Length,
+                    source,
+                    url
+                );
+
+                var response = await _httpClient.SendAsync(request, ct);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger?.LogInformation(
+                        "Successfully submitted {Count} profiles from {Source}",
+                        profilesArray.Length,
+                        source
+                    );
+                    return true;
+                }
+
+                var errorContent = await response.Content.ReadAsStringAsync(ct);
+                _logger?.LogError(
+                    "Failed to submit profiles. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode,
+                    errorContent
+                );
+
+                if (
+                    (int)response.StatusCode >= 500
+                    || response.StatusCode == HttpStatusCode.RequestTimeout
+                )
+                {
+                    throw new HttpRequestException(
+                        $"Server error {response.StatusCode}: {errorContent}"
+                    );
+                }
+
+                return false;
+            },
+            cancellationToken
+        );
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SubmitFoodAsync(
+        IEnumerable<Food> foods,
+        string source,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var foodsArray = foods.ToArray();
+        if (foodsArray.Length == 0)
+        {
+            _logger?.LogDebug("No food entries to submit");
+            return true;
+        }
+
+        return await _retryPipeline.ExecuteAsync(
+            async ct =>
+            {
+                var url = $"{_baseUrl}/api/v1/food";
+                var request = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = JsonContent.Create(foodsArray),
+                };
+
+                AddAuthenticationHeader(request);
+
+                _logger?.LogInformation(
+                    "Submitting {Count} food entries from {Source} to {Url}",
+                    foodsArray.Length,
+                    source,
+                    url
+                );
+
+                var response = await _httpClient.SendAsync(request, ct);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger?.LogInformation(
+                        "Successfully submitted {Count} food entries from {Source}",
+                        foodsArray.Length,
+                        source
+                    );
+                    return true;
+                }
+
+                var errorContent = await response.Content.ReadAsStringAsync(ct);
+                _logger?.LogError(
+                    "Failed to submit food entries. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode,
+                    errorContent
+                );
+
+                if (
+                    (int)response.StatusCode >= 500
+                    || response.StatusCode == HttpStatusCode.RequestTimeout
+                )
+                {
+                    throw new HttpRequestException(
+                        $"Server error {response.StatusCode}: {errorContent}"
+                    );
+                }
+
+                return false;
+            },
+            cancellationToken
+        );
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SubmitActivityAsync(
+        IEnumerable<Activity> activities,
+        string source,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var activitiesArray = activities.ToArray();
+        if (activitiesArray.Length == 0)
+        {
+            _logger?.LogDebug("No activities to submit");
+            return true;
+        }
+
+        return await _retryPipeline.ExecuteAsync(
+            async ct =>
+            {
+                var url = $"{_baseUrl}/api/v1/activity";
+                var request = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = JsonContent.Create(activitiesArray),
+                };
+
+                AddAuthenticationHeader(request);
+
+                _logger?.LogInformation(
+                    "Submitting {Count} activities from {Source} to {Url}",
+                    activitiesArray.Length,
+                    source,
+                    url
+                );
+
+                var response = await _httpClient.SendAsync(request, ct);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger?.LogInformation(
+                        "Successfully submitted {Count} activities from {Source}",
+                        activitiesArray.Length,
+                        source
+                    );
+                    return true;
+                }
+
+                var errorContent = await response.Content.ReadAsStringAsync(ct);
+                _logger?.LogError(
+                    "Failed to submit activities. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode,
+                    errorContent
+                );
+
+                if (
+                    (int)response.StatusCode >= 500
+                    || response.StatusCode == HttpStatusCode.RequestTimeout
+                )
+                {
+                    throw new HttpRequestException(
+                        $"Server error {response.StatusCode}: {errorContent}"
+                    );
+                }
+
+                return false;
+            },
+            cancellationToken
+        );
+    }
+
     private void AddAuthenticationHeader(HttpRequestMessage request)
     {
-        if (!string.IsNullOrEmpty(_apiSecret))
+        if (!string.IsNullOrEmpty(_apiSecretHash))
         {
-            request.Headers.Add("api-secret", _apiSecret);
+            request.Headers.Add("api-secret", _apiSecretHash);
         }
+    }
+
+    /// <summary>
+    /// Compute SHA1 hash of a string (lowercase hex) - matches Nightscout's expected format
+    /// </summary>
+    private static string ComputeSha1Hash(string input)
+    {
+        var bytes = Encoding.UTF8.GetBytes(input);
+        var hash = SHA1.HashData(bytes);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

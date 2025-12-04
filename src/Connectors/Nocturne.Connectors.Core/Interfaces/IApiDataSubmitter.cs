@@ -45,4 +45,43 @@ public interface IApiDataSubmitter
         string source,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Submit profiles to the API
+    /// </summary>
+    /// <param name="profiles">Profiles to submit</param>
+    /// <param name="source">Source connector identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if submission was successful</returns>
+    Task<bool> SubmitProfilesAsync(
+        IEnumerable<Profile> profiles,
+        string source,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Submit food items to the API
+    /// </summary>
+    /// <param name="foods">Food items to submit</param>
+    /// <param name="source">Source connector identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if submission was successful</returns>
+    Task<bool> SubmitFoodAsync(
+        IEnumerable<Food> foods,
+        string source,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Submit activity events to the API
+    /// </summary>
+    /// <param name="activities">Activity events to submit</param>
+    /// <param name="source">Source connector identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if submission was successful</returns>
+    Task<bool> SubmitActivityAsync(
+        IEnumerable<Activity> activities,
+        string source,
+        CancellationToken cancellationToken = default
+    );
 }

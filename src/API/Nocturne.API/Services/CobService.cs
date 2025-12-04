@@ -413,13 +413,20 @@ public class CobService : ICobService
     public CobResult FromDeviceStatus(DeviceStatus deviceStatusEntry)
     {
         // Highest priority: Loop COB
-        if (deviceStatusEntry.Loop?.Cob.HasValue == true)
+        if (deviceStatusEntry.Loop?.Cob?.Cob.HasValue == true)
         {
-            // Use device status mills since Loop COB doesn't have separate timestamp in current models
-            var timestamp = deviceStatusEntry.Mills;
+            // Use Loop COB timestamp if available, otherwise device status mills
+            var timestamp =
+                deviceStatusEntry.Loop.Cob.Timestamp != null
+                    ? (
+                        DateTime.TryParse(deviceStatusEntry.Loop.Cob.Timestamp, out var ts)
+                            ? ((DateTimeOffset)ts).ToUnixTimeMilliseconds()
+                            : deviceStatusEntry.Mills
+                    )
+                    : deviceStatusEntry.Mills;
             return new CobResult
             {
-                Cob = deviceStatusEntry.Loop.Cob.Value,
+                Cob = deviceStatusEntry.Loop.Cob.Cob.Value,
                 Source = "Loop",
                 Device = deviceStatusEntry.Device,
                 Mills = timestamp,

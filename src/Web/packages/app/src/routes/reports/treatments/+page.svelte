@@ -26,6 +26,7 @@
     formatInsulinDisplay,
     formatCarbDisplay,
   } from "$lib/utils/calculate/treatment-stats.js";
+  import { formatDateTime } from "$lib/utils/date-formatting";
 
   let { data, form } = $props();
 
@@ -219,12 +220,6 @@
     setTimeout(() => {
       statusMessage = null;
     }, 5000);
-  }
-
-  function formatDate(dateStr: string | undefined): string {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString() + " " + date.toLocaleTimeString();
   }
 
   // Check if any filters are active

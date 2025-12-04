@@ -14,6 +14,7 @@
   import { getEventType } from "$lib/constants/event-types";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import type { Treatment } from "$lib/api";
+  import { formatDateTime } from "$lib/utils/date-formatting";
 
   interface Props {
     treatments: Treatment[];
@@ -136,13 +137,6 @@
     allColumns.filter((column) => hasColumnData(column.key, treatments))
   );
 
-  // Format functions
-  function formatDate(dateStr: string | undefined): string {
-    if (!dateStr) return "-";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString() + " " + date.toLocaleTimeString();
-  }
-
   // Simple value formatters for protein, insulin, carbs, fat
   function formatTruthy(value: any): string {
     return value ? value : "-";
@@ -260,7 +254,7 @@
                   aria-label={`Select treatment ${treatment._id}`}
                 />
               {:else if column.key === "time"}
-                {formatDate(treatment.created_at)}
+                {formatDateTime(treatment.created_at)}
               {:else if column.key === "eventType"}
                 {#if treatment.eventType}
                   {@const eventType = getEventType(treatment.eventType)}

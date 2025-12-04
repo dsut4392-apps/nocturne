@@ -48,6 +48,7 @@
     Check,
   } from "lucide-svelte";
   import { cn } from "$lib/utils";
+  import { formatDateTimeCompact } from "$lib/utils/date-formatting";
 
   interface Props {
     treatments: Treatment[];
@@ -111,17 +112,6 @@
   });
 
   // Format functions
-  function formatDateTime(dateStr: string | undefined): string {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
   function formatNumber(
     value: number | undefined | null,
     unit?: string
@@ -161,7 +151,7 @@
       accessorFn: (row) => row.created_at,
       header: ({ column }) =>
         renderSnippet(sortableHeaderSnippet, { column, label: "Time" }),
-      cell: ({ row }) => formatDateTime(row.original.created_at),
+      cell: ({ row }) => formatDateTimeCompact(row.original.created_at),
       sortingFn: (rowA, rowB) => {
         const a = new Date(rowA.original.created_at || 0).getTime();
         const b = new Date(rowB.original.created_at || 0).getTime();

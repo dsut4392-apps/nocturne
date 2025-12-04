@@ -1,6 +1,62 @@
-import { getRequestEvent, query } from "$app/server";
+import { getRequestEvent, query, form } from "$app/server";
+import { invalid } from "@sveltejs/kit";
 import type { Profile } from "$lib/api";
 import { z } from "zod";
+
+// ============================================================================
+// Zod Schemas for Profile Validation
+// ============================================================================
+
+const timeValueSchema = z.object({
+  time: z.string().optional(),
+  value: z.number().optional(),
+});
+
+const profileDataSchema = z.object({
+  dia: z.number().optional(),
+  carbs_hr: z.number().optional(),
+  delay: z.number().optional(),
+  timezone: z.string().optional(),
+  units: z.string().optional(),
+  basal: z.array(timeValueSchema).optional(),
+  carbratio: z.array(timeValueSchema).optional(),
+  sens: z.array(timeValueSchema).optional(),
+  target_low: z.array(timeValueSchema).optional(),
+  target_high: z.array(timeValueSchema).optional(),
+});
+
+const profileSchema = z.object({
+  _id: z.string().optional(),
+  defaultProfile: z.string().optional(),
+  startDate: z.string().optional(),
+  mills: z.number().optional(),
+  created_at: z.string().optional(),
+  units: z.string().optional(),
+  icon: z.string().optional(),
+  store: z.record(z.string(), profileDataSchema).optional(),
+});
+
+const createProfileSchema = z.object({
+  defaultProfile: z.string().min(1, "Profile name is required"),
+  units: z.string().default("mg/dL"),
+  icon: z.string().optional(),
+  timezone: z.string().optional(),
+  dia: z.number().default(4),
+  carbs_hr: z.number().default(20),
+});
+
+const updateProfileSchema = z.object({
+  profileId: z.string().min(1, "Profile ID is required"),
+  profile: profileSchema,
+});
+
+const deleteProfileSchema = z.object({
+  profileId: z.string().min(1, "Profile ID is required"),
+});
+
+// ============================================================================
+// Query Functions
+// ============================================================================
 
 /**
  * Get all profiles from the backend
@@ -55,6 +111,104 @@ export const getCurrentProfile = query(z.object({}), async () => {
   });
 
   return sortedProfiles[0];
+});
+
+// ============================================================================
+// Form Functions (Remote Mutations)
+// ============================================================================
+
+/**
+ * Create a new profile
+ */
+export const createProfileForm = form(createProfileSchema, async (data, issue) => {
+  const { locals } = getRequestEvent();
+  const { apiClient } = locals;
+
+  try {
+    const now = Date.now();
+    const storeName = data.defaultProfile;
+
+    // Build the profile structure
+    const newProfile: Profile = {
+      defaultProfile: data.defaultProfile,
+      startDate: new Date(now).toISOString(),
+      mills: now,
+      created_at: new Date(now).toISOString(),
+      units: data.units,
+      // @ts-expect-error - custom field for icon
+      icon: data.icon,
+      store: {
+        [storeName]: {
+          dia: data.dia,
+          carbs_hr: data.carbs_hr,
+          delay: 0,
+          timezone: data.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+          units: data.units,
+          basal: [{ time: "00:00", value: 1.0 }],
+          carbratio: [{ time: "00:00", value: 10 }],
+          sens: [{ time: "00:00", value: 50 }],
+          target_low: [{ time: "00:00", value: 80 }],
+          target_high: [{ time: "00:00", value: 120 }],
+        },
+      },
+    };
+
+    const result = await apiClient.profile.createProfile(newProfile);
+
+    return {
+      success: true,
+      message: "Profile created successfully",
+      profile: Array.isArray(result) ? result[0] : result,
+    };
+  } catch (error) {
+    console.error("Error creating profile:", error);
+    invalid(issue("Failed to create profile. Please try again."));
+  }
+});
+
+/**
+ * Update an existing profile
+ */
+export const updateProfileForm = form(updateProfileSchema, async (data, issue) => {
+  const { locals } = getRequestEvent();
+  const { apiClient } = locals;
+
+  try {
+    const updatedProfile = await apiClient.profile.updateProfile(
+      data.profileId,
+      data.profile as Profile
+    );
+
+    return {
+      success: true,
+      message: "Profile updated successfully",
+      profile: updatedProfile,
+    };
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    invalid(issue("Failed to update profile. Please try again."));
+  }
+});
+
+/**
+ * Delete a profile
+ */
+export const deleteProfileForm = form(deleteProfileSchema, async (data, issue) => {
+  const { locals } = getRequestEvent();
+  const { apiClient } = locals;
+
+  try {
+    await apiClient.profile.deleteProfile(data.profileId);
+
+    return {
+      success: true,
+      message: "Profile deleted successfully",
+      deletedProfileId: data.profileId,
+    };
+  } catch (error) {
+    console.error("Error deleting profile:", error);
+    invalid(issue("Failed to delete profile. Please try again."));
+  }
 });
 
 /**

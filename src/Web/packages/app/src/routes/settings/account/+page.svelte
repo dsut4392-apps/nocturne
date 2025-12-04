@@ -15,6 +15,7 @@
   } from "lucide-svelte";
   import type { PageData } from "./$types";
   import { formatSessionExpiry } from "$lib/stores/auth.svelte";
+  import { formatDate } from "$lib/utils/date-formatting";
 
   const { data }: { data: PageData } = $props();
 
@@ -38,12 +39,6 @@
     const diff = expiresAt.getTime() - now.getTime();
     return Math.max(0, Math.floor(diff / 1000));
   });
-
-  /** Format date for display */
-  function formatDate(date: Date | string | undefined): string {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleString();
-  }
 
   /** Handle logout */
   function handleLogout() {

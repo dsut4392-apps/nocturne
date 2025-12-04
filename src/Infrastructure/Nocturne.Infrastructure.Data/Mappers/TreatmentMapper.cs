@@ -47,7 +47,7 @@ public static class TreatmentMapper
             BolusCalcJson =
                 treatment.BolusCalc != null ? JsonSerializer.Serialize(treatment.BolusCalc) : null,
             UtcOffset = treatment.UtcOffset,
-            Timestamp = treatment.Timestamp,
+            Timestamp = ParseTimestampToLong(treatment.Timestamp),
             CuttedBy = treatment.CuttedBy,
             Cutting = treatment.Cutting,
             Source = treatment.Source,
@@ -117,7 +117,7 @@ public static class TreatmentMapper
             CarbTime = entity.CarbTime,
             BolusCalc = DeserializeJsonProperty<Dictionary<string, object>>(entity.BolusCalcJson),
             UtcOffset = entity.UtcOffset,
-            Timestamp = entity.Timestamp,
+            Timestamp = FormatTimestampToString(entity.Timestamp),
             CuttedBy = entity.CuttedBy,
             Cutting = entity.Cutting,
             Source = entity.Source,
@@ -184,7 +184,7 @@ public static class TreatmentMapper
         entity.BolusCalcJson =
             treatment.BolusCalc != null ? JsonSerializer.Serialize(treatment.BolusCalc) : null;
         entity.UtcOffset = treatment.UtcOffset;
-        entity.Timestamp = treatment.Timestamp;
+        entity.Timestamp = ParseTimestampToLong(treatment.Timestamp);
         entity.CuttedBy = treatment.CuttedBy;
         entity.Cutting = treatment.Cutting;
         entity.Source = treatment.Source;
@@ -262,5 +262,43 @@ public static class TreatmentMapper
         {
             return default;
         }
+    }
+
+    /// <summary>
+    /// Parse ISO 8601 timestamp string to Unix milliseconds
+    /// </summary>
+    private static long? ParseTimestampToLong(string? timestamp)
+    {
+        if (string.IsNullOrEmpty(timestamp))
+            return null;
+
+        if (
+            DateTime.TryParse(
+                timestamp,
+                null,
+                System.Globalization.DateTimeStyles.RoundtripKind,
+                out var dateTime
+            )
+        )
+        {
+            return (
+                (DateTimeOffset)DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
+            ).ToUnixTimeMilliseconds();
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Format Unix milliseconds to ISO 8601 timestamp string
+    /// </summary>
+    private static string? FormatTimestampToString(long? timestamp)
+    {
+        if (!timestamp.HasValue)
+            return null;
+
+        return DateTimeOffset
+            .FromUnixTimeMilliseconds(timestamp.Value)
+            .ToString("yyyy-MM-ddTHH:mm:ssZ");
     }
 }

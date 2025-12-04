@@ -298,16 +298,40 @@ public class LoopStatus
     public LoopIob? Iob { get; set; }
 
     /// <summary>
-    /// Gets or sets the COB (Carbs on Board) value
+    /// Gets or sets the COB (Carbs on Board) information
     /// </summary>
     [JsonPropertyName("cob")]
-    public double? Cob { get; set; }
+    public LoopCob? Cob { get; set; }
 
     /// <summary>
     /// Gets or sets the predicted glucose values
     /// </summary>
     [JsonPropertyName("predicted")]
-    public object? Predicted { get; set; }
+    public LoopPredicted? Predicted { get; set; }
+
+    /// <summary>
+    /// Gets or sets the recommended bolus amount
+    /// </summary>
+    [JsonPropertyName("recommendedBolus")]
+    public double? RecommendedBolus { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Loop name/identifier
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Loop version
+    /// </summary>
+    [JsonPropertyName("version")]
+    public string? Version { get; set; }
+
+    /// <summary>
+    /// Gets or sets the timestamp
+    /// </summary>
+    [JsonPropertyName("timestamp")]
+    public string? Timestamp { get; set; }
 
     /// <summary>
     /// Gets or sets the recommended action
@@ -320,6 +344,42 @@ public class LoopStatus
     /// </summary>
     [JsonPropertyName("enacted")]
     public object? Enacted { get; set; }
+}
+
+/// <summary>
+/// Represents Loop COB (Carbs on Board) information
+/// </summary>
+public class LoopCob
+{
+    /// <summary>
+    /// Gets or sets the timestamp
+    /// </summary>
+    [JsonPropertyName("timestamp")]
+    public string? Timestamp { get; set; }
+
+    /// <summary>
+    /// Gets or sets the COB value
+    /// </summary>
+    [JsonPropertyName("cob")]
+    public double? Cob { get; set; }
+}
+
+/// <summary>
+/// Represents Loop predicted glucose values
+/// </summary>
+public class LoopPredicted
+{
+    /// <summary>
+    /// Gets or sets the predicted glucose values
+    /// </summary>
+    [JsonPropertyName("values")]
+    public double[]? Values { get; set; }
+
+    /// <summary>
+    /// Gets or sets the start date of the prediction
+    /// </summary>
+    [JsonPropertyName("startDate")]
+    public string? StartDate { get; set; }
 }
 
 /// <summary>
@@ -394,10 +454,16 @@ public class RadioAdapterStatus
 public class OverrideStatus
 {
     /// <summary>
-    /// Gets or sets the timestamp
+    /// Gets or sets the override name
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the timestamp as ISO 8601 string
     /// </summary>
     [JsonPropertyName("timestamp")]
-    public long? Timestamp { get; set; }
+    public string? Timestamp { get; set; }
 
     /// <summary>
     /// Gets or sets the duration

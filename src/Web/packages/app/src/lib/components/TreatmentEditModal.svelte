@@ -7,6 +7,7 @@
   import { Textarea } from "$lib/components/ui/textarea";
   import * as Card from "$lib/components/ui/card";
   import type { Treatment } from "$lib/api";
+  import { formatDateForInput } from "$lib/utils/date-formatting";
 
   let {
     treatment,
@@ -38,18 +39,6 @@
     "Sensor Change",
     "Pump Battery Change",
   ];
-
-  function formatDateForInput(dateStr: string | undefined): string {
-    if (!dateStr) return "";
-    const date = new Date(dateStr);
-    // Format as YYYY-MM-DDTHH:MM for datetime-local input
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const day = date.getDate().toString().padStart(2, "0");
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  }
 
   function updateDateTime(value: string) {
     if (value) {

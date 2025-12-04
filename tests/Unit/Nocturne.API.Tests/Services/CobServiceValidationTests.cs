@@ -83,7 +83,7 @@ public class CobServiceValidationTests
             {
                 Device = "Loop",
                 Mills = DateTimeOffset.UtcNow.AddMinutes(-5).ToUnixTimeMilliseconds(),
-                Loop = new LoopStatus { Cob = 25.5 },
+                Loop = new LoopStatus { Cob = new LoopCob { Cob = 25.5 } },
             },
         };
 
@@ -103,7 +103,7 @@ public class CobServiceValidationTests
         {
             Device = "MyLoop",
             Mills = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Loop = new LoopStatus { Cob = 15.7 },
+            Loop = new LoopStatus { Cob = new LoopCob { Cob = 15.7 } },
         };
 
         // Act

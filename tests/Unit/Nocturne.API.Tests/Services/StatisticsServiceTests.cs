@@ -545,7 +545,7 @@ public class StatisticsServiceTests
         var validTreatment = new Treatment
         {
             Id = "test123",
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Timestamp = DateTimeOffset.UtcNow.ToString("o"),
             Insulin = 5.0,
             Carbs = 45,
         };
@@ -581,7 +581,7 @@ public class StatisticsServiceTests
         var invalidTreatment = new Treatment
         {
             Id = "test123",
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Timestamp = DateTimeOffset.UtcNow.ToString("o"),
             Insulin = -5.0, // Invalid negative insulin
         };
 
@@ -601,19 +601,19 @@ public class StatisticsServiceTests
             new Treatment
             {
                 Id = "valid1",
-                Timestamp = 1000,
+                Timestamp = "2023-01-01T00:00:01.000Z",
                 Insulin = 5.0,
             },
             new Treatment
             {
                 Id = "",
-                Timestamp = 2000,
+                Timestamp = "2023-01-01T00:00:02.000Z",
                 Insulin = 3.0,
             }, // Invalid ID
             new Treatment
             {
                 Id = "valid2",
-                Timestamp = 3000,
+                Timestamp = "2023-01-01T00:00:03.000Z",
                 Carbs = 15,
             },
             new Treatment

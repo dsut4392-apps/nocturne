@@ -915,7 +915,7 @@ public class DataFormatServiceTests
             Notes = "Test treatment",
             EnteredBy = "TestUser",
             Created_at = "2023-01-01T12:00:00.000Z",
-            Timestamp = 1234567890,
+            Timestamp = "2023-01-01T12:00:00.000Z",
         };
     }
 

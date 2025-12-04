@@ -326,7 +326,10 @@ public class CobServiceTests
         {
             Mills = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             Device = "loop://iPhone",
-            Loop = new LoopStatus { Cob = 25.5 },
+            Loop = new LoopStatus
+            {
+                Cob = new LoopCob { Cob = 25.5, Timestamp = DateTime.UtcNow.ToString("o") },
+            },
         };
 
         // Act
@@ -373,7 +376,7 @@ public class CobServiceTests
             {
                 Mills = time - 5 * 60 * 1000, // Recent
                 Device = "loop://iPhone",
-                Loop = new LoopStatus { Cob = 15.0 },
+                Loop = new LoopStatus { Cob = new LoopCob { Cob = 15.0 } },
             },
         };
 
@@ -400,7 +403,7 @@ public class CobServiceTests
             {
                 Mills = time - 35 * 60 * 1000, // Stale (older than 30min threshold)
                 Device = "loop://iPhone",
-                Loop = new LoopStatus { Cob = 15.0 },
+                Loop = new LoopStatus { Cob = new LoopCob { Cob = 15.0 } },
             },
         };
 
@@ -536,7 +539,7 @@ public class CobServiceTests
             {
                 Device = "loop://iPhone",
                 Mills = time - 1,
-                Loop = new LoopStatus { Cob = 5.0 },
+                Loop = new LoopStatus { Cob = new LoopCob { Cob = 5.0 } },
             },
         };
 

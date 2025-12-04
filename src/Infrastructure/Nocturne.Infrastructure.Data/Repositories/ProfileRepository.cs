@@ -118,19 +118,47 @@ public class ProfileRepository
     }
 
     /// <summary>
-    /// Create new profiles
+    /// Create new profiles (uses upsert logic to handle duplicates)
     /// </summary>
     public async Task<IEnumerable<Profile>> CreateProfilesAsync(
         IEnumerable<Profile> profiles,
         CancellationToken cancellationToken = default
     )
     {
-        var entities = profiles.Select(ProfileMapper.ToEntity).ToList();
+        var result = new List<ProfileEntity>();
 
-        await _context.Profiles.AddRangeAsync(entities, cancellationToken);
+        foreach (var profile in profiles)
+        {
+            var entity = ProfileMapper.ToEntity(profile);
+
+            // Check if profile already exists by ID or OriginalId
+            var existingEntity = await _context.Profiles.FirstOrDefaultAsync(
+                p =>
+                    p.Id == entity.Id
+                    || (
+                        !string.IsNullOrEmpty(entity.OriginalId)
+                        && p.OriginalId == entity.OriginalId
+                    ),
+                cancellationToken
+            );
+
+            if (existingEntity != null)
+            {
+                // Update existing profile
+                ProfileMapper.UpdateEntity(existingEntity, profile);
+                result.Add(existingEntity);
+            }
+            else
+            {
+                // Add new profile
+                await _context.Profiles.AddAsync(entity, cancellationToken);
+                result.Add(entity);
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
-        return entities.Select(ProfileMapper.ToDomainModel);
+        return result.Select(ProfileMapper.ToDomainModel);
     }
 
     /// <summary>

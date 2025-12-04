@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Nocturne.Core.Models.Serializers;
 
 namespace Nocturne.Core.Models;
 
@@ -6,6 +7,7 @@ namespace Nocturne.Core.Models;
 /// Represents a Nightscout food record for the API
 /// Compatible with the legacy Nightscout food collection
 /// </summary>
+[JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
 public class Food
 {
     /// <summary>
@@ -92,12 +94,14 @@ public class Food
     /// Gets or sets whether to hide after use (only for type="quickpick")
     /// </summary>
     [JsonPropertyName("hideafteruse")]
+    [JsonConverter(typeof(FlexibleNonNullableBooleanJsonConverter))]
     public bool HideAfterUse { get; set; }
 
     /// <summary>
     /// Gets or sets whether the quickpick is hidden (only for type="quickpick")
     /// </summary>
     [JsonPropertyName("hidden")]
+    [JsonConverter(typeof(FlexibleNonNullableBooleanJsonConverter))]
     public bool Hidden { get; set; }
 
     /// <summary>
@@ -110,6 +114,7 @@ public class Food
 /// <summary>
 /// Represents a food item within a quickpick
 /// </summary>
+[JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
 public class QuickPickFood
 {
     /// <summary>

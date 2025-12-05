@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Nocturne.Aspire.Host.Extensions;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Core.Constants;
+using Nocturne.Core.Contracts;
 using Scalar.Aspire;
 
 class Program
@@ -140,12 +141,35 @@ class Program
             remoteDatabase = builder.AddConnectionString(ServiceNames.PostgreSql);
         }
 
+        // Build the oref Rust library to WebAssembly
+        // Note: AddRustApp uses 'cargo run' which requires a binary target.
+        // Since oref is a library, we use AddExecutable with 'cargo build' instead.
+        var orefPath = Path.Combine(solutionRoot, "src", "Core", "oref");
+        Console.WriteLine("[Aspire] Adding oref Rust/WASM build task...");
+
+        var oref = builder
+            .AddExecutable(
+                "oref-wasm-build",
+                "cargo",
+                orefPath,
+                "build",
+                "--lib",
+                "--release",
+                "--features",
+                "wasm",
+                "--target",
+                "wasm32-unknown-unknown"
+            )
+            .ExcludeFromManifest();
+
         // Add the Nocturne API service (without embedded connectors)
         // Aspire will auto-generate a Dockerfile during publish
         var api = builder
             .AddProject<Projects.Nocturne_API>(ServiceNames.NocturneApi)
+            .WaitFor(oref)
             .WithExternalHttpEndpoints();
 
+        oref.WithParentRelationship(api);
         // Configure database connection based on mode
         if (managedDatabase != null)
         {
@@ -267,66 +291,28 @@ class Program
             // The parameters above are defined for visibility in Aspire dashboard and secret management
         }
 
-        // Build the bridge package synchronously to ensure artifacts exist
-        // Only build in development mode; in publish mode, assume it's already built by the CI/CD pipeline
-        // @TODO in future it would be better to have Aspire handle building multi-project repos more elegantly
-        if (!builder.ExecutionContext.IsPublishMode)
-        {
-            var bridgePackagePath = Path.Combine(solutionRoot, "src", "Web", "packages", "bridge");
-            Console.WriteLine("[Aspire] Building @nocturne/bridge...");
+        // Build the @nocturne/bridge TypeScript package
+        // This is a build-time dependency for the web app
+        var bridgePackagePath = Path.Combine(solutionRoot, "src", "Web", "packages", "bridge");
+        Console.WriteLine("[Aspire] Adding @nocturne/bridge build task...");
 
-            // On Windows, pnpm is a .cmd file that requires shell execution
-            // On Linux, pnpm is a shell script that also requires shell execution
-            // Use cmd.exe /c on Windows and sh -c on Linux to properly resolve the command
-            var isWindows = OperatingSystem.IsWindows();
-            var buildProcess = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = isWindows ? "cmd.exe" : "/bin/sh",
-                    Arguments = isWindows ? "/c pnpm run build" : "-c \"pnpm run build\"",
-                    WorkingDirectory = bridgePackagePath,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                },
-            };
-
-            buildProcess.Start();
-
-            // Read output streams asynchronously to avoid deadlock
-            // If the process output buffer fills up before WaitForExit() returns, it will block forever
-            var stdoutTask = buildProcess.StandardOutput.ReadToEndAsync();
-            var stderrTask = buildProcess.StandardError.ReadToEndAsync();
-
-            await buildProcess.WaitForExitAsync();
-
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
-
-            if (buildProcess.ExitCode != 0)
-            {
-                throw new InvalidOperationException($"Failed to build @nocturne/bridge: {stderr}");
-            }
-
-            Console.WriteLine("[Aspire] @nocturne/bridge built successfully");
-        }
-        else
-        {
-            Console.WriteLine(
-                "[Aspire] Skipping @nocturne/bridge build (publish mode - assuming pre-built)"
-            );
-        }
+        // Use AddPnpmApp to run the build script - this will install packages and run the build
+        // Note: This runs as a one-shot build task, not a persistent service
+        var bridge = builder
+            .AddPnpmApp("nocturne-bridge-build", bridgePackagePath, scriptName: "build")
+            .WithPnpmPackageInstallation();
 
         // Add the SvelteKit web application (with integrated WebSocket bridge)
         var webPackagePath = Path.Combine(solutionRoot, "src", "Web", "packages", "app");
 
         var web = builder
             .AddViteApp(ServiceNames.NocturneWeb, webPackagePath, packageManager: "pnpm")
+            .WithPnpmPackageInstallation()
             .WithExternalHttpEndpoints()
             .WaitFor(api)
+            .WaitFor(bridge)
             .WithReference(api)
+            .WithReference(bridge)
             .WithEnvironment("PUBLIC_API_URL", api.GetEndpoint("http"))
             .WithEnvironment("NOCTURNE_API_URL", api.GetEndpoint("http"))
             .WithEnvironment(ServiceNames.ConfigKeys.ApiSecret, apiSecret)

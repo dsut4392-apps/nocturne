@@ -339,11 +339,26 @@ public class ApiDataSubmitter : IApiDataSubmitter
         CancellationToken cancellationToken = default
     )
     {
-        var foodsArray = foods.ToArray();
+        // Filter out food entries without a name as Nightscout requires it
+        var foodsArray = foods
+            .Where(f => !string.IsNullOrWhiteSpace(f.Name))
+            .ToArray();
+
         if (foodsArray.Length == 0)
         {
-            _logger?.LogDebug("No food entries to submit");
+            _logger?.LogDebug("No valid food entries to submit (all entries missing name)");
             return true;
+        }
+
+        var totalCount = foods.Count();
+        var filteredCount = totalCount - foodsArray.Length;
+        if (filteredCount > 0)
+        {
+            _logger?.LogWarning(
+                "Filtered out {FilteredCount} food entries without names (total: {TotalCount})",
+                filteredCount,
+                totalCount
+            );
         }
 
         return await _retryPipeline.ExecuteAsync(

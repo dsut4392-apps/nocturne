@@ -3684,6 +3684,56 @@ export class ServicesClient {
         }
         return Promise.resolve<DataSourceDeleteResult>(null as any);
     }
+
+    /**
+     * Trigger a manual sync of all enabled connectors.
+    This will sync data for the configured lookback period for all enabled connectors.
+    Only available if ManualSyncLookbackDays is configured in appsettings.
+     * @return Result of the manual sync operation
+     */
+    triggerManualSync(signal?: AbortSignal): Promise<ManualSyncResult> {
+        let url_ = this.baseUrl + "/api/v4/services/manual-sync";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTriggerManualSync(_response);
+        });
+    }
+
+    protected processTriggerManualSync(response: Response): Promise<ManualSyncResult> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ManualSyncResult;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ManualSyncResult>(null as any);
+    }
 }
 
 export class UISettingsClient {
@@ -13200,6 +13250,7 @@ export interface ServicesOverview {
     availableConnectors?: AvailableConnector[];
     uploaderApps?: UploaderApp[];
     apiEndpoint?: ApiEndpointInfo;
+    manualSyncEnabled?: boolean;
 }
 
 export interface DataSourceInfo {
@@ -13300,6 +13351,26 @@ export interface DataSourceDeleteResult {
     deviceStatusDeleted?: number;
     dataSource?: string;
     error?: string | undefined;
+}
+
+export interface ManualSyncResult {
+    success?: boolean;
+    totalConnectors?: number;
+    successfulConnectors?: number;
+    failedConnectors?: number;
+    connectorResults?: ConnectorSyncResult[];
+    startTime?: Date;
+    endTime?: Date;
+    duration?: string;
+    errorMessage?: string | undefined;
+}
+
+export interface ConnectorSyncResult {
+    connectorName?: string;
+    success?: boolean;
+    errorMessage?: string | undefined;
+    duration?: string;
+    recordsSynced?: number | undefined;
 }
 
 export interface UISettingsConfiguration {

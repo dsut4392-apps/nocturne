@@ -15,16 +15,19 @@ public class DataSourceService : IDataSourceService
 {
     private readonly NocturneDbContext _context;
     private readonly IPostgreSqlService _postgreSqlService;
+    private readonly IManualSyncService _manualSyncService;
     private readonly ILogger<DataSourceService> _logger;
 
     public DataSourceService(
         NocturneDbContext context,
         IPostgreSqlService postgreSqlService,
+        IManualSyncService manualSyncService,
         ILogger<DataSourceService> logger
     )
     {
         _context = context;
         _postgreSqlService = postgreSqlService;
+        _manualSyncService = manualSyncService;
         _logger = logger;
     }
 
@@ -621,6 +624,10 @@ public class DataSourceService : IDataSourceService
     {
         var dataSources = await GetActiveDataSourcesAsync(cancellationToken);
 
+        // Check if manual sync is enabled and if there are any active connectors
+        var hasActiveConnectors = dataSources.Any(ds => ds.Category == "connector");
+        var manualSyncEnabled = _manualSyncService.IsEnabled() && hasActiveConnectors;
+
         return new ServicesOverview
         {
             ActiveDataSources = dataSources,
@@ -635,6 +642,7 @@ public class DataSourceService : IDataSourceService
                 TreatmentsEndpoint = "/api/v1/treatments",
                 DeviceStatusEndpoint = "/api/v1/devicestatus",
             },
+            ManualSyncEnabled = manualSyncEnabled,
         };
     }
 

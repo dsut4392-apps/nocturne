@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Nocturne.API.Services;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models.Services;
 
@@ -15,16 +16,19 @@ namespace Nocturne.API.Controllers.V4;
 public class ServicesController : ControllerBase
 {
     private readonly IDataSourceService _dataSourceService;
+    private readonly IManualSyncService _manualSyncService;
     private readonly ILogger<ServicesController> _logger;
     private readonly IConfiguration _configuration;
 
     public ServicesController(
         IDataSourceService dataSourceService,
+        IManualSyncService manualSyncService,
         ILogger<ServicesController> logger,
         IConfiguration configuration
     )
     {
         _dataSourceService = dataSourceService;
+        _manualSyncService = manualSyncService;
         _logger = logger;
         _configuration = configuration;
     }
@@ -281,6 +285,47 @@ public class ServicesController : ControllerBase
         {
             _logger.LogError(ex, "Error deleting data for data source: {Id}", id);
             return StatusCode(500, new { error = "Failed to delete data source data" });
+        }
+    }
+
+    /// <summary>
+    /// Trigger a manual sync of all enabled connectors.
+    /// This will sync data for the configured lookback period for all enabled connectors.
+    /// Only available if ManualSyncLookbackDays is configured in appsettings.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result of the manual sync operation</returns>
+    [HttpPost("manual-sync")]
+    [ProducesResponseType(typeof(ManualSyncResult), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(500)]
+    public async Task<ActionResult<ManualSyncResult>> TriggerManualSync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogInformation("Manual sync triggered via API");
+
+        if (!_manualSyncService.IsEnabled())
+        {
+            _logger.LogWarning("Manual sync is not enabled");
+            return BadRequest(new { error = "Manual sync is not enabled. Configure ManualSyncLookbackDays in appsettings." });
+        }
+
+        try
+        {
+            var result = await _manualSyncService.TriggerManualSyncAsync(cancellationToken);
+
+            if (!result.Success)
+            {
+                return StatusCode(500, result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error triggering manual sync");
+            return StatusCode(500, new { error = "Failed to trigger manual sync" });
         }
     }
 

@@ -224,6 +224,14 @@ builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 // Data source service for services/connectors management
 builder.Services.AddScoped<IDataSourceService, DataSourceService>();
 
+// Configure manual sync settings
+builder.Services.Configure<ManualSyncSettings>(
+    builder.Configuration.GetSection(ManualSyncSettings.SectionName)
+);
+
+// Manual sync service for triggering connector syncs
+builder.Services.AddScoped<IManualSyncService, ManualSyncService>();
+
 // Device age tracking services
 builder.Services.AddScoped<ICannulaAgeService, CannulaAgeService>();
 builder.Services.AddScoped<ISensorAgeService, SensorAgeService>();

@@ -189,7 +189,6 @@
 
     for (const uploader of servicesOverview.uploaderApps) {
       const uploaderIdLower = (uploader.id ?? "").toLowerCase();
-      const uploaderNameLower = (uploader.name ?? "").toLowerCase();
 
       // Match by source type
       if (sourceLower === uploaderIdLower) return uploader;
@@ -1051,8 +1050,7 @@
         >
           <p class="text-sm text-purple-800 dark:text-purple-200">
             <strong>This is demo data</strong>
-             — synthetic glucose readings generated for testing and demonstration
-            purposes.
+            — synthetic glucose readings generated for testing and demonstration purposes.
           </p>
         </div>
 
@@ -1253,7 +1251,7 @@
             <div class="space-y-2 mt-4">
               <label for="confirm-delete" class="text-sm font-medium">
                 Type <strong>DELETE</strong>
-                 to confirm:
+                to confirm:
               </label>
               <input
                 id="confirm-delete"

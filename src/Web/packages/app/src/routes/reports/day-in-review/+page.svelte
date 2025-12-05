@@ -3,7 +3,7 @@
   import { scaleTime, scaleLinear } from "d3-scale";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import type { Entry, Treatment } from "$lib/api";
+  import type { Entry, Treatment, TreatmentSummary } from "$lib/api";
   import { DEFAULT_THRESHOLDS } from "$lib/constants";
   import { TIR_COLORS_HEX } from "$lib/constants/tir-colors";
   import * as Card from "$lib/components/ui/card";
@@ -224,62 +224,40 @@
     };
   });
 
-  // Calculate treatment totals
   const treatmentStats = $derived.by(() => {
-    const treatments = dayData.treatments as Treatment[];
+    const summary = dayData.treatmentSummary as TreatmentSummary | null;
+    const totalBolus = summary?.totals?.insulin?.bolus ?? 0;
+    const totalBasal = summary?.totals?.insulin?.basal ?? 0;
+    const totalCarbs = summary?.totals?.food?.carbs ?? 0;
+    const totalInsulin = totalBolus + totalBasal;
 
-    let totalCarbs = 0;
-    let totalBolus = 0;
-    let totalBasal = 0;
-    let totalInsulin = 0;
+    // Count treatments with bolus/carbs for display
+    const treatments = dayData.treatments as Treatment[];
     let bolusCount = 0;
     let carbCount = 0;
-    let positiveBasalTemp = 0;
-    let negativeBasalTemp = 0;
-
     for (const treatment of treatments) {
       if (treatment.carbs && treatment.carbs > 0) {
-        totalCarbs += treatment.carbs;
         carbCount++;
       }
-
       if (treatment.insulin && treatment.insulin > 0) {
-        totalInsulin += treatment.insulin;
         const eventType = treatment.eventType?.toLowerCase() ?? "";
         if (!eventType.includes("basal") && !eventType.includes("temp")) {
-          totalBolus += treatment.insulin;
           bolusCount++;
         }
       }
-
-      if (
-        treatment.eventType?.toLowerCase().includes("basal") ||
-        treatment.eventType?.toLowerCase().includes("temp")
-      ) {
-        if (treatment.rate !== undefined && treatment.duration) {
-          const basalAmount = (treatment.rate * treatment.duration) / 60;
-          totalBasal += basalAmount;
-          if (treatment.rate > 0) {
-            positiveBasalTemp += basalAmount;
-          }
-        }
-      }
     }
-
-    // Calculate base basal (rough estimate based on typical 24-hour coverage)
-    const baseBasal = totalBasal * 0.8; // Approximate
 
     return {
       totalCarbs,
       totalBolus,
       totalBasal,
-      totalInsulin: totalBolus + totalBasal,
+      totalInsulin,
       bolusCount,
       carbCount,
-      positiveBasalTemp,
-      negativeBasalTemp,
-      baseBasal,
-      totalDailyInsulin: totalBolus + totalBasal,
+      positiveBasalTemp: 0, // Not calculated on frontend
+      negativeBasalTemp: 0,
+      baseBasal: totalBasal * 0.8, // Approximate
+      totalDailyInsulin: totalInsulin,
     };
   });
 

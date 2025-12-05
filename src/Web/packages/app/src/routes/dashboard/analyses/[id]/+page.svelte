@@ -10,17 +10,10 @@
   import { Button } from "$lib/components/ui/button";
   import { Separator } from "$lib/components/ui/separator";
   import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-  } from "$lib/components/ui/tabs";
-  import {
     AlertTriangle,
+    AlertCircle,
     Clock,
     Server,
-    AlertCircle,
-    Info,
     CheckCircle,
     Copy,
     ArrowLeft,
@@ -28,8 +21,8 @@
   import { page } from "$app/state";
   import { getAnalysisById } from "../../data.remote";
 
-  // Get ID from route params
-  const analysisId = $derived(page.params.id);
+  // Get ID from route params (guaranteed to exist in [id] route)
+  const analysisId = $derived(page.params.id ?? "");
 
   // Fetch analysis using remote function
   const data = $derived(await getAnalysisById(analysisId));
@@ -374,7 +367,7 @@
                     <Button
                       variant="ghost"
                       size="sm"
-                      on:click={() =>
+                      onclick={() =>
                         copyToClipboard(discrepancy.nightscoutValue)}
                     >
                       <Copy class="h-3 w-3" />
@@ -395,7 +388,7 @@
                     <Button
                       variant="ghost"
                       size="sm"
-                      on:click={() =>
+                      onclick={() =>
                         copyToClipboard(discrepancy.nocturneValue)}
                     >
                       <Copy class="h-3 w-3" />

@@ -3,7 +3,7 @@
   import { setFoodState } from "./food-context.js";
   import FoodEditor from "./FoodEditor.svelte";
   import QuickPicksList from "./QuickPicksList.svelte";
-  import type { FoodRecord, QuickPickRecord } from "./types";
+  import type { FoodRecord } from "./types";
   import FoodList from "./FoodList.svelte";
   import { getFoodData } from "./data.remote";
   import { onMount } from "svelte";

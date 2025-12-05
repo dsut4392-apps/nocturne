@@ -1,5 +1,6 @@
 import { getRequestEvent, query } from "$app/server";
 import type { Entry, Treatment, DeviceStatus } from "$lib/api";
+import { z } from "zod";
 
 /**
  * Response structure for point-in-time data
@@ -52,10 +53,14 @@ export interface PointInTimeData {
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+const pointInTimeSchema = z.object({
+  timestamp: z.number(),
+});
+
 /**
  * Query function to fetch detailed data for a specific point in time
  */
-export const getPointInTimeData = query(async (timestamp: number): Promise<PointInTimeData | null> => {
+export const getPointInTimeData = query(pointInTimeSchema, async ({ timestamp }): Promise<PointInTimeData | null> => {
   const event = getRequestEvent();
   if (!event) return null;
 
@@ -135,7 +140,7 @@ export const getPointInTimeData = query(async (timestamp: number): Promise<Point
   try {
     // Fetch device status around this time
     const deviceStatusResult = await apiClient.deviceStatus.getDeviceStatus();
-    const deviceStatuses = (deviceStatusResult?.result ?? []) as DeviceStatus[];
+    const deviceStatuses = (deviceStatusResult?.data ?? []) as DeviceStatus[];
 
     // Find closest device status to the timestamp
     const closestStatus = deviceStatuses.reduce((closest: DeviceStatus | null, status: DeviceStatus) => {

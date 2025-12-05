@@ -30,13 +30,16 @@ import {
   ServicesClient,
   LocalAuthClient,
   OidcClient,
+  BatteryClient,
 } from "./generated/nocturne-api-client";
 
 /**
- * API client wrapper for the Nocturne API This wrapper provides a convenient
- * interface to the auto-generated NSwag client
+ * API client wrapper for the Nocturne API
+ *
+ * This wrapper provides a convenient interface to the auto-generated NSwag client. It must be manually updated with any endpoints that are added.
  */
 export class ApiClient {
+  public readonly baseUrl: string;
   public readonly client: Client;
   public readonly authentication: AuthenticationClient;
   public readonly authorization: AuthorizationClient;
@@ -69,12 +72,14 @@ export class ApiClient {
   public readonly services: ServicesClient;
   public readonly localAuth: LocalAuthClient;
   public readonly oidc: OidcClient;
+  public readonly battery: BatteryClient;
 
   constructor(
     baseUrl: string,
     http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }
   ) {
     const apiBaseUrl = baseUrl;
+    this.baseUrl = apiBaseUrl;
 
     if (!apiBaseUrl) {
       throw new Error(
@@ -115,6 +120,7 @@ export class ApiClient {
     this.services = new ServicesClient(apiBaseUrl, http);
     this.localAuth = new LocalAuthClient(apiBaseUrl, http);
     this.oidc = new OidcClient(apiBaseUrl, http);
+    this.battery = new BatteryClient(apiBaseUrl, http);
   }
 
   /** Get the underlying main client for direct access if needed */

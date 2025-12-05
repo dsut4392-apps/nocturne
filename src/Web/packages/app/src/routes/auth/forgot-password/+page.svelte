@@ -48,7 +48,7 @@
           <div
             class="rounded-md bg-destructive/10 p-4 text-sm text-destructive"
           >
-            {error.message}
+            {error instanceof Error ? error.message : "An error occurred"}
           </div>
           <Button class="mt-4 w-full" onclick={() => window.location.reload()}>
             Try Again
@@ -129,7 +129,7 @@
               >
                 <div class="flex gap-3">
                   <AlertTriangle
-                    class="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0"
+                    class="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0"
                   />
                   <div class="text-yellow-800 dark:text-yellow-200">
                     <p class="font-medium">Email delivery not configured</p>

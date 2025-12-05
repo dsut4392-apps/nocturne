@@ -134,6 +134,16 @@ export interface DashboardWidgets {
   predictions: boolean;
   agp: boolean;
   dailyStats: boolean;
+  batteryStatus: boolean;
+}
+
+export interface BatteryDisplaySettings {
+  warnThreshold: number;
+  urgentThreshold: number;
+  enableAlerts: boolean;
+  recentMinutes: number;
+  showVoltage: boolean;
+  showStatistics: boolean;
 }
 
 export interface PluginSettings {
@@ -145,6 +155,7 @@ export interface FeatureSettings {
   display: DisplaySettings;
   dashboardWidgets: DashboardWidgets;
   plugins: Record<string, PluginSettings>;
+  battery: BatteryDisplaySettings;
 }
 
 // Notification Settings

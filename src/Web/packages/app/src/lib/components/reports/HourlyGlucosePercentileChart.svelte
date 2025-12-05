@@ -1,6 +1,6 @@
 <script lang="ts">
   import { AreaChart } from "layerchart";
-  import { TIR_COLORS_CSS } from "$lib/constants/tir-colors";
+  import { scaleLinear } from "d3-scale";
 
   interface HourlyPercentileData {
     hour: number;
@@ -16,19 +16,6 @@
   }: {
     data: HourlyPercentileData[];
   } = $props();
-
-  // Format hour for display
-  function formatHour(hour: number): string {
-    if (hour === 0) return "12 AM";
-    if (hour < 12) return `${hour} AM`;
-    if (hour === 12) return "12 PM";
-    return `${hour - 12} PM`;
-  }
-
-  // Format glucose value
-  function formatGlucose(value: number): string {
-    return Math.round(value).toString();
-  }
 </script>
 
 <div class="w-full">
@@ -60,19 +47,17 @@
             key: "p75",
             value: (d) => d.p75,
             color: "#000055",
-            fillBetween: "p25",
           },
           {
             key: "p90",
             value: (d) => d.p90,
             color: "#a0a0FF",
-            fillBetween: "p10",
           },
         ]}
         xDomain={[0, 23]}
         yDomain={[0, 400]}
-        xScale="linear"
-        yScale="linear"
+        xScale={scaleLinear()}
+        yScale={scaleLinear()}
         padding={{ top: 20, right: 20, bottom: 40, left: 60 }}
       />
     </div>

@@ -198,29 +198,23 @@ export function filterTreatments(
 }
 
 /**
- * Calculate treatment statistics
+ * Count treatments by category and event type for UI display purposes only.
+ * All insulin/carb totals should come from backend TreatmentSummary.
  */
-export interface TreatmentStats {
+export interface TreatmentCounts {
   total: number;
-  withInsulin: number;
-  withCarbs: number;
-  totalInsulin: number;
-  totalCarbs: number;
-  avgInsulinPerBolus: number;
-  avgCarbsPerEntry: number;
   byCategoryCount: Record<TreatmentCategoryId, number>;
   byEventTypeCount: Record<string, number>;
 }
 
-export function calculateTreatmentStats(treatments: Treatment[]): TreatmentStats {
-  const stats: TreatmentStats = {
+/**
+ * Count treatments by category and event type.
+ * NOTE: This only counts treatments for UI categorization tabs/filters.
+ * Do NOT use this for insulin/carb calculations - use backend TreatmentSummary instead.
+ */
+export function countTreatmentsByCategory(treatments: Treatment[]): TreatmentCounts {
+  const counts: TreatmentCounts = {
     total: treatments.length,
-    withInsulin: 0,
-    withCarbs: 0,
-    totalInsulin: 0,
-    totalCarbs: 0,
-    avgInsulinPerBolus: 0,
-    avgCarbsPerEntry: 0,
     byCategoryCount: {
       bolus: 0,
       basal: 0,
@@ -232,34 +226,16 @@ export function calculateTreatmentStats(treatments: Treatment[]): TreatmentStats
   };
 
   for (const t of treatments) {
-    // Insulin stats
-    if (t.insulin && t.insulin > 0) {
-      stats.withInsulin++;
-      stats.totalInsulin += t.insulin;
-    }
-
-    // Carb stats
-    if (t.carbs && t.carbs > 0) {
-      stats.withCarbs++;
-      stats.totalCarbs += t.carbs;
-    }
-
     // Category count
     const category = getCategoryForEventType(t.eventType || "");
     if (category) {
-      stats.byCategoryCount[category]++;
+      counts.byCategoryCount[category]++;
     }
 
     // Event type count
     const eventType = t.eventType || "<none>";
-    stats.byEventTypeCount[eventType] = (stats.byEventTypeCount[eventType] || 0) + 1;
+    counts.byEventTypeCount[eventType] = (counts.byEventTypeCount[eventType] || 0) + 1;
   }
 
-  // Calculate averages
-  stats.avgInsulinPerBolus =
-    stats.withInsulin > 0 ? stats.totalInsulin / stats.withInsulin : 0;
-  stats.avgCarbsPerEntry =
-    stats.withCarbs > 0 ? stats.totalCarbs / stats.withCarbs : 0;
-
-  return stats;
+  return counts;
 }

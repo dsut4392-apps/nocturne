@@ -186,6 +186,23 @@
         return a - b;
       },
     },
+    // Rate column (for basal treatments)
+    {
+      id: "rate",
+      accessorKey: "rate",
+      header: ({ column }) =>
+        renderSnippet(sortableHeaderSnippet, { column, label: "Rate" }),
+      cell: ({ row }) => {
+        const rate = row.original.rate ?? row.original.absolute;
+        if (rate === undefined || rate === null) return "—";
+        return `${rate.toFixed(2)} U/hr`;
+      },
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.original.rate ?? rowA.original.absolute ?? 0;
+        const b = rowB.original.rate ?? rowB.original.absolute ?? 0;
+        return a - b;
+      },
+    },
     // Carbs column
     {
       id: "carbs",
@@ -640,7 +657,7 @@
   </Popover.Root>
 {/snippet}
 
-{#snippet additionalPropertiesSnippet({ props }: { props: Record })}
+{#snippet additionalPropertiesSnippet({ props }: { props: Record<string, unknown> })}
   <Tooltip.Root>
     <Tooltip.Trigger>
       {#snippet child({ props: triggerProps })}

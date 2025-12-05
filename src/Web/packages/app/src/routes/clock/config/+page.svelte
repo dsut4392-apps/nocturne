@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { browser } from "$app/environment";
-  import { page } from "$app/state";
   import * as Card from "$lib/components/ui/card";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
@@ -83,9 +82,6 @@
       maxSize: 0,
     },
   };
-
-  // Get preset face from URL params
-  const presetFace = $derived(page.url.searchParams.get("face"));
 
   // Get realtime store for live preview
   const realtimeStore = getRealtimeStore();

@@ -141,22 +141,20 @@
       const inRangeCount = totalReadings - lowCount - highCount;
 
       // Calculate treatment totals
+      // NOTE: For daily breakdowns, we sum individual treatment values
+      // The backend TreatmentSummary provides accurate totals for the full period,
+      // but here we need per-day values for the calendar visualization.
       let totalCarbs = 0;
       let totalInsulin = 0;
 
       for (const treatment of dayTreatments) {
-        if (treatment.carbs) {
+        // Add carbs if present
+        if (treatment.carbs && treatment.carbs > 0) {
           totalCarbs += treatment.carbs;
         }
-        if (treatment.insulin) {
+        // Add insulin if present (bolus treatments have insulin field)
+        if (treatment.insulin && treatment.insulin > 0) {
           totalInsulin += treatment.insulin;
-        }
-        if (
-          treatment.eventType === "Temp Basal" &&
-          treatment.rate !== undefined &&
-          treatment.duration
-        ) {
-          totalInsulin += (treatment.rate * treatment.duration) / 60;
         }
       }
 

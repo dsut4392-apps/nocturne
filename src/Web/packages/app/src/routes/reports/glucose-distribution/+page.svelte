@@ -275,7 +275,9 @@
           </Card.Title>
         </Card.Header>
         <Card.Content>
-          <p class="text-destructive-foreground">{error.message}</p>
+          <p class="text-destructive-foreground">
+            {error instanceof Error ? error.message : String(error)}
+          </p>
           <Button
             variant="outline"
             class="mt-4"
@@ -317,7 +319,7 @@
                   startAngle + (d.value / totalValue) * Math.PI * 2;
                 acc.push({ ...d, startAngle, endAngle });
                 return acc;
-              }, [] as Array)}
+              }, [] as Array<{ name: string; value: number; color: string; startAngle: number; endAngle: number }>)}
               <div class="h-[300px] w-[300px]">
                 <Chart>
                   <Svg>

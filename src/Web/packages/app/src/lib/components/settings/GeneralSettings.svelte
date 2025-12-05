@@ -25,6 +25,12 @@
   }
 
   let { settings }: Props = $props();
+
+  // Convert numeric timeFormat to string for Select
+  let timeFormatValue = $derived(settings.timeFormat.toString());
+
+  // Convert numeric focusHours to string for Select
+  let focusHoursValue = $derived(settings.focusHours.toString());
 </script>
 
 <Card class="settings-section">
@@ -46,7 +52,12 @@
 
     <div class="input-row">
       <Label for="timeFormat">Time Format:</Label>
-      <Select type="single" bind:value={settings.timeFormat}>
+      <Select
+        type="single"
+        value={timeFormatValue}
+        onValueChange={(v: string) =>
+          (settings.timeFormat = parseInt(v ?? "12") === 24 ? 24 : 12)}
+      >
         <SelectTrigger />
         <SelectContent>
           {#each timeFormatOptions as option}
@@ -72,7 +83,12 @@
 
     <div class="input-row">
       <Label for="focusHours">Focus Hours:</Label>
-      <Select bind:value={settings.focusHours}>
+      <Select
+        type="single"
+        value={focusHoursValue}
+        onValueChange={(v: string) =>
+          (settings.focusHours = parseInt(v ?? "3"))}
+      >
         <SelectTrigger />
         <SelectContent>
           {#each focusHoursOptions as option}

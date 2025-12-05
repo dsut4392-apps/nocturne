@@ -50,15 +50,18 @@
             })}
           </TableCell>
           <TableCell
-            class={getGlucoseColor(entry.analytics.basicStats.mean, thresholds)}
+            class={getGlucoseColor(
+              entry.analytics?.basicStats?.mean ?? 0,
+              thresholds
+            )}
           >
-            {Math.round(entry.analytics.basicStats.mean) || "N/A"}
+            {Math.round(entry.analytics?.basicStats?.mean ?? 0) || "N/A"}
           </TableCell>
           <TableCell class="text-sm">
             {#if entry.readingsCount > 0}
               <div>
-                {Math.round(entry.analytics.basicStats.min)} - {Math.round(
-                  entry.analytics.basicStats.max
+                {Math.round(entry.analytics?.basicStats?.min ?? 0)} - {Math.round(
+                  entry.analytics?.basicStats?.max ?? 0
                 )}
               </div>
             {:else}
@@ -69,32 +72,35 @@
             {entry.readingsCount}
           </TableCell>
           <TableCell>
-            {entry.analytics.basicStats.standardDeviation
+            {entry.analytics?.basicStats?.standardDeviation
               ? `${Math.round(entry.analytics.basicStats.standardDeviation)}`
               : "N/A"}
           </TableCell>
           <TableCell class="text-sm">
             {#if entry.readingsCount > 0}
               <div class="text-green-600">
-                {entry.analytics.timeInRange.percentages.target}% Target
+                {entry.analytics?.timeInRange?.percentages?.target ?? 0}% Target
               </div>
               <div class="text-blue-600">
-                {entry.analytics.timeInRange.percentages.tightTarget ??
-                  entry.analytics.timeInRange.percentages.target}% TTIR
+                {entry.analytics?.timeInRange?.percentages?.tightTarget ??
+                  entry.analytics?.timeInRange?.percentages?.target ??
+                  0}% TTIR
               </div>
               <div class="text-xs text-gray-500">
                 ({thresholds.targetBottom}-{thresholds.tightTargetTop} mg/dL)
               </div>
-              {#if entry.analytics.timeInRange.percentages.low + entry.analytics.timeInRange.percentages.severeLow > 0}
+              {#if (entry.analytics?.timeInRange?.percentages?.low ?? 0) + (entry.analytics?.timeInRange?.percentages?.severeLow ?? 0) > 0}
                 <div class="text-red-600">
-                  {entry.analytics.timeInRange.percentages.low +
-                    entry.analytics.timeInRange.percentages.severeLow}% Low
+                  {(entry.analytics?.timeInRange?.percentages?.low ?? 0) +
+                    (entry.analytics?.timeInRange?.percentages?.severeLow ??
+                      0)}% Low
                 </div>
               {/if}
-              {#if entry.analytics.timeInRange.percentages.high + entry.analytics.timeInRange.percentages.severeHigh > 0}
+              {#if (entry.analytics?.timeInRange?.percentages?.high ?? 0) + (entry.analytics?.timeInRange?.percentages?.severeHigh ?? 0) > 0}
                 <div class="text-orange-600">
-                  {entry.analytics.timeInRange.percentages.high +
-                    entry.analytics.timeInRange.percentages.severeHigh}% High
+                  {(entry.analytics?.timeInRange?.percentages?.high ?? 0) +
+                    (entry.analytics?.timeInRange?.percentages?.severeHigh ??
+                      0)}% High
                 </div>
               {/if}
             {:else}
@@ -107,9 +113,9 @@
             </span>
             <div class="text-xs text-gray-500">
               B: {formatInsulinDisplay(
-                entry.treatmentSummary.totals.insulin.bolus
+                entry.treatmentSummary?.totals?.insulin?.bolus
               )}U | Ba: {formatInsulinDisplay(
-                entry.treatmentSummary.totals.insulin.basal
+                entry.treatmentSummary?.totals?.insulin?.basal
               )}U
             </div>
           </TableCell>

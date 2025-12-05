@@ -1,7 +1,7 @@
 import type { RequestHandler } from "./$types";
 import { redirect } from "@sveltejs/kit";
-import { PUBLIC_API_URL } from "$env/static/public";
 import { env } from "$env/dynamic/private";
+import { env as publicEnv } from "$env/dynamic/public";
 
 /**
  * POST handler for logout
@@ -11,7 +11,7 @@ export const POST: RequestHandler = async ({ fetch, cookies }) => {
   try {
     // Use NOCTURNE_API_URL for server-side (internal Docker network) if available,
     // otherwise fall back to PUBLIC_API_URL for development
-    const apiBaseUrl = env.NOCTURNE_API_URL || PUBLIC_API_URL;
+    const apiBaseUrl = env.NOCTURNE_API_URL || publicEnv.PUBLIC_API_URL;
 
     if (apiBaseUrl) {
       // Get the refresh token to send with the logout request
@@ -79,7 +79,7 @@ export const GET: RequestHandler = async ({ fetch, cookies }) => {
   // For now, we'll redirect to the login page after clearing cookies
 
   try {
-    const apiBaseUrl = env.NOCTURNE_API_URL || PUBLIC_API_URL;
+    const apiBaseUrl = env.NOCTURNE_API_URL || publicEnv.PUBLIC_API_URL;
 
     if (apiBaseUrl) {
       const refreshToken = cookies.get(".Nocturne.RefreshToken");

@@ -49,13 +49,17 @@
     if (isAllSelected) {
       selectedTreatments = new Set();
     } else {
-      selectedTreatments = new Set(treatments.map((t) => t._id));
+      selectedTreatments = new Set(
+        treatments
+          .map((t) => t._id)
+          .filter((id): id is string => id !== undefined)
+      );
     }
   }
 
   function handleBulkDelete() {
-    const selectedTreatmentObjects = treatments.filter((t) =>
-      selectedTreatments.has(t._id)
+    const selectedTreatmentObjects = treatments.filter(
+      (t) => t._id !== undefined && selectedTreatments.has(t._id)
     );
     if (onBulkDelete && selectedTreatmentObjects.length > 0) {
       onBulkDelete(selectedTreatmentObjects);
@@ -248,9 +252,13 @@
             >
               {#if column.key === "select"}
                 <Checkbox
-                  checked={selectedTreatments.has(treatment._id)}
-                  onCheckedChange={() =>
-                    toggleTreatmentSelection(treatment._id)}
+                  checked={treatment._id !== undefined &&
+                    selectedTreatments.has(treatment._id)}
+                  onCheckedChange={() => {
+                    if (treatment._id !== undefined) {
+                      toggleTreatmentSelection(treatment._id);
+                    }
+                  }}
                   aria-label={`Select treatment ${treatment._id}`}
                 />
               {:else if column.key === "time"}

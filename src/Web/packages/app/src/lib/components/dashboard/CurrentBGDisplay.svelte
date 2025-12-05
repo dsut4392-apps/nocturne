@@ -2,7 +2,6 @@
   import { browser } from "$app/environment";
   import type { Entry } from "$lib/api";
   import { Badge } from "$lib/components/ui/badge";
-  import { getDirectionInfo } from "$lib/utils";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
   import { Clock } from "lucide-svelte";
 
@@ -20,7 +19,6 @@
   }
 
   let {
-    entries,
     currentBG,
     direction,
     bgDelta,
@@ -32,7 +30,8 @@
 
   // Use realtime store values as fallback when props not provided
   const displayCurrentBG = $derived(currentBG ?? realtimeStore.currentBG);
-  const displayDirection = $derived(direction ?? realtimeStore.direction);
+  // Direction is derived but reserved for future use
+  void (direction ?? realtimeStore.direction);
   const displayBgDelta = $derived(bgDelta ?? realtimeStore.bgDelta);
   const displayDemoMode = $derived(demoMode ?? realtimeStore.demoMode);
 

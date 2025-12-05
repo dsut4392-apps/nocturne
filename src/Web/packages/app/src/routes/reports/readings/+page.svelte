@@ -26,7 +26,9 @@
 
   {#snippet failed(error)}
     <div class="p-4 text-center">
-      <p class="text-destructive">{error.message}</p>
+      <p class="text-destructive">
+        {error instanceof Error ? error.message : String(error)}
+      </p>
     </div>
   {/snippet}
 

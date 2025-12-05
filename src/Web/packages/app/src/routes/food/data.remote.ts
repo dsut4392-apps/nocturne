@@ -23,7 +23,7 @@ export const getFoodData = query(async () => {
 
 		records.forEach((record) => {
 			if (record.type === 'food') {
-				foodList.push(record);
+				foodList.push(record as FoodRecord);
 
 				// Build categories structure
 				const foodRecord = record;

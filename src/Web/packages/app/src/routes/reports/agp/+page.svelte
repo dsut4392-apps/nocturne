@@ -129,7 +129,9 @@
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p class="text-destructive-foreground">{error.message}</p>
+          <p class="text-destructive-foreground">
+            {error instanceof Error ? error.message : "An error occurred"}
+          </p>
           <Button
             variant="outline"
             class="mt-4"

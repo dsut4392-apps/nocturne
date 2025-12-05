@@ -1,6 +1,7 @@
 import { getRequestEvent, query } from "$app/server";
 import type { Entry, Treatment } from "$lib/api";
 import { DEFAULT_THRESHOLDS } from "$lib/constants";
+import { z } from "zod";
 
 /**
  * Daily statistics for a single day
@@ -166,13 +167,18 @@ function calculateDayStats(
   };
 }
 
+const punchCardSchema = z.object({
+  fromDate: z.string(),
+  toDate: z.string(),
+});
+
 /**
  * Query function to fetch punch card data for a date range
  */
-export const getPunchCardData = query(async (
-  fromDate: string,
-  toDate: string
-): Promise<PunchCardData | null> => {
+export const getPunchCardData = query(punchCardSchema, async ({
+  fromDate,
+  toDate,
+}): Promise<PunchCardData | null> => {
   const event = getRequestEvent();
   if (!event) return null;
 
@@ -293,10 +299,14 @@ export const getPunchCardData = query(async (
   };
 });
 
+const dayInReviewSchema = z.object({
+  dateStr: z.string(),
+});
+
 /**
  * Query function to fetch detailed day data for the Day in Review report
  */
-export const getDayInReviewData = query(async (dateStr: string): Promise<{
+export const getDayInReviewData = query(dayInReviewSchema, async ({ dateStr }): Promise<{
   date: string;
   entries: Entry[];
   treatments: Treatment[];

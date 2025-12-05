@@ -1,7 +1,6 @@
 import { ApiClient } from "./api-client";
 import { browser } from "$app/environment";
-// @ts-expect-error aspire handles this import correctly
-import { PUBLIC_API_URL } from '$env/static/public';
+import { env as publicEnv } from "$env/dynamic/public";
 
 /**
  * Client-side API client instance This should be used in the browser when you
@@ -21,7 +20,7 @@ export function getApiClient(): ApiClient {
   }
 
   if (!clientApiClient) {
-    const apiBaseUrl = PUBLIC_API_URL || "http://localhost:1612";
+    const apiBaseUrl = publicEnv.PUBLIC_API_URL || "http://localhost:1612";
     // Use the browser's native fetch
     const httpClient = { fetch: window.fetch.bind(window) };
     clientApiClient = new ApiClient(apiBaseUrl, httpClient);

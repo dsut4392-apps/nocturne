@@ -1,25 +1,24 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { FoodRecord } from "../types";
+  import type { FoodRecord } from "./types";
 
   interface Props {
     foods: FoodRecord[];
     onDrop?: (food: FoodRecord, targetIndex: number) => void;
+    children?: import("svelte").Snippet<[{ food: FoodRecord; index: number }]>;
   }
 
-  let { foods, onDrop }: Props = $props();
+  let { foods, onDrop, children }: Props = $props();
 
   const dispatch = createEventDispatcher<{
     drop: { food: FoodRecord; targetIndex: number };
   }>();
 
-  let draggedItem: FoodRecord | null = $state(null);
   let dragOverIndex: number | null = $state(null);
 
   function handleDragStart(event: DragEvent, food: FoodRecord) {
     if (!event.dataTransfer) return;
 
-    draggedItem = food;
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("application/json", JSON.stringify(food));
 
@@ -33,7 +32,6 @@
   function handleDragEnd(event: DragEvent) {
     const target = event.target as HTMLElement;
     target.classList.remove("dragging");
-    draggedItem = null;
     dragOverIndex = null;
   }
 
@@ -85,7 +83,9 @@
       role="button"
       tabindex="0"
     >
-      <slot {food} {index} />
+      {#if children}
+        {@render children({ food, index })}
+      {/if}
     </div>
   {/each}
 </div>

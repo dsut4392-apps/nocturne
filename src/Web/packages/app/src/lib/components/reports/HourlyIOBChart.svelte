@@ -2,19 +2,12 @@
   import { AreaChart } from "layerchart";
   import * as ChartC from "$lib/components/ui/chart/index.js";
   import { getUniversalApiClient } from "$lib/api";
-  import type { Treatment } from "$lib/api";
   import { onMount } from "svelte";
 
-  interface IOBProfile {
-    getDIA?: (time: number, spec_profile?: unknown) => number;
-    getSensitivity?: (time: number, spec_profile?: unknown) => number;
-  }
   interface Props {
-    treatments: Treatment[];
     intervalMinutes?: number; // Time interval in minutes (defaults to 15)
-    profile?: IOBProfile; // Optional IOB profile for more accurate calculations
   }
-  let { treatments, intervalMinutes = 5, profile }: Props = $props();
+  let { intervalMinutes = 5 }: Props = $props();
 
   let chartData: Array<{
     timeSlot: number;
@@ -36,11 +29,11 @@
       error = null;
 
       const apiClient = getUniversalApiClient();
-      const response = await apiClient.iob.getHourlyIob({
+      const response = await apiClient.iob.getHourlyIob(
         intervalMinutes,
-        hours: 24,
-        startTime: undefined, // Use default start time (24 hours ago)
-      });
+        24, // hours
+        undefined // startTime - use default (24 hours ago)
+      );
 
       // Transform API response to match chart data format
       chartData =

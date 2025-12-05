@@ -15,8 +15,8 @@
 
   const realtimeStore = getRealtimeStore();
 
-  // Get face from route params
-  const face = $derived(page.params.face);
+  // Get face from route params (guaranteed to exist in [face] route)
+  const face = $derived(page.params.face ?? "");
 
   // Parse clock configuration from URL parameter
   const clockConfig = $derived<ClockConfig>(parseClockFace(face));
@@ -186,7 +186,7 @@
 </script>
 
 <svelte:head>
-  <title>Clock - {data.face}</title>
+  <title>Clock - {face}</title>
 </svelte:head>
 
 <!-- Navigation overlay (shows on hover) -->

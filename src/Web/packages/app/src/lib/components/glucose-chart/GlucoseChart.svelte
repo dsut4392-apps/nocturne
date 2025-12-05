@@ -27,8 +27,6 @@
     treatments,
     dateRange,
     thresholds = DEFAULT_THRESHOLDS,
-    // Collect any additional props so they can be forwarded to the root element
-    ..._restProps
   }: WithElementRef<HTMLAttributes<HTMLElement>> & Props = $props();
 
   // Performance thresholds
@@ -105,15 +103,10 @@
     .range([0, insulinToCarbRatio]); // maps to 12 carbs
 
   // Scale insulin values by the insulin-to-carb ratio using D3 scale
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _scaledTreatments = $derived(
-    treatments.map((treatment) => ({
-      ...treatment,
-      insulin: treatment.insulin
-        ? insulinScale(treatment.insulin)
-        : treatment.insulin,
-    }))
-  );
+  // Note: This is pre-computed but not currently used in the chart
+  // Keeping the computation for future treatment overlay features
+  void treatments;
+  void insulinScale;
 
   const xScale = $derived(
     scaleTime().domain([
@@ -148,9 +141,17 @@
   brush
   props={{
     points: isLargeDataset ? { r: 0 } : { r: 3 },
-    highlight: { motion: isLargeDataset ? false : undefined },
+    highlight: {
+      motion: isLargeDataset
+        ? { type: "tween" as const, duration: 0 }
+        : undefined,
+    },
     tooltip: {
-      root: { motion: isLargeDataset ? false : undefined },
+      root: {
+        motion: isLargeDataset
+          ? { type: "tween" as const, duration: 0 }
+          : undefined,
+      },
     },
   }}
   labels={isLargeDataset

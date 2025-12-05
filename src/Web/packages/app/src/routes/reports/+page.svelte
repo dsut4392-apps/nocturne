@@ -399,7 +399,9 @@
       <div class="flex items-center justify-center h-64">
         <div class="text-center space-y-4">
           <p class="text-destructive font-medium">Failed to load reports</p>
-          <p class="text-sm text-muted-foreground">{error.message}</p>
+          <p class="text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : "An error occurred"}
+          </p>
           <Button
             variant="outline"
             onclick={() => getReportsData(dateRangeInput).refresh()}
@@ -684,7 +686,10 @@
             glucose readings.
           </p>
           <pre
-            class="overflow-auto rounded-md border bg-muted/50 p-3 text-xs">{error.message}</pre>
+            class="overflow-auto rounded-md border bg-muted/50 p-3 text-xs"> {error instanceof
+            Error
+              ? error.message
+              : "An error occurred"}</pre>
         </CardContent>
       </Card>
     {/await}

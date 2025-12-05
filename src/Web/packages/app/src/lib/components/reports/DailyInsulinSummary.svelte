@@ -20,13 +20,13 @@
       <div class="flex justify-between">
         <span class="text-gray-600">Bolus insulin:</span>
         <span class="font-medium">
-          {formatInsulinDisplay(treatmentSummary.totals.insulin.bolus)}U
+          {formatInsulinDisplay(treatmentSummary?.totals?.insulin?.bolus)}U
         </span>
       </div>
       <div class="flex justify-between">
         <span class="text-gray-600">Total basal insulin:</span>
         <span class="font-medium">
-          {formatInsulinDisplay(treatmentSummary.totals.insulin.basal)}U
+          {formatInsulinDisplay(treatmentSummary?.totals?.insulin?.basal)}U
         </span>
       </div>
       <div class="flex justify-between border-t pt-2">
@@ -40,19 +40,19 @@
       <div class="flex justify-between">
         <span class="text-gray-600">Total carbs:</span>
         <span class="font-medium">
-          {formatCarbDisplay(treatmentSummary.totals.food.carbs)} g
+          {formatCarbDisplay(treatmentSummary?.totals?.food?.carbs)} g
         </span>
       </div>
       <div class="flex justify-between">
         <span class="text-gray-600">Total protein:</span>
         <span class="font-medium">
-          {formatCarbDisplay(treatmentSummary.totals.food.protein)} g
+          {formatCarbDisplay(treatmentSummary?.totals?.food?.protein)} g
         </span>
       </div>
       <div class="flex justify-between">
         <span class="text-gray-600">Total fat:</span>
         <span class="font-medium">
-          {formatCarbDisplay(treatmentSummary.totals.food.fat)} g
+          {formatCarbDisplay(treatmentSummary?.totals?.food?.fat)} g
         </span>
       </div>
     </div>

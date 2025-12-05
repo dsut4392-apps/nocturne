@@ -1,10 +1,8 @@
 import type { Handle } from "@sveltejs/kit";
 import { ApiClient } from "$lib/api/api-client";
 import type { HandleServerError } from "@sveltejs/kit";
-// @ts-expect-error aspire handles this import correctly
-import { PUBLIC_API_URL } from "$env/static/public";
-// @ts-expect-error aspire handles this import correctly
 import { env } from "$env/dynamic/private";
+import { env as publicEnv } from "$env/dynamic/public";
 import { createHash } from "crypto";
 import { sequence } from "@sveltejs/kit/hooks";
 import type { AuthUser } from "./app.d";
@@ -26,15 +24,13 @@ interface SessionInfo {
  * Auth handler - extracts session from cookies and validates with API
  */
 const authHandle: Handle = async ({ event, resolve }) => {
-  const requestPath = event.url.pathname;
-
   // Initialize auth state as unauthenticated
   event.locals.user = null;
   event.locals.isAuthenticated = false;
 
   // Use NOCTURNE_API_URL for server-side (internal Docker network) if available,
   // otherwise fall back to PUBLIC_API_URL for development
-  const apiBaseUrl = env.NOCTURNE_API_URL || PUBLIC_API_URL;
+  const apiBaseUrl = env.NOCTURNE_API_URL || publicEnv.PUBLIC_API_URL;
 
   if (!apiBaseUrl) {
     return resolve(event);
@@ -43,10 +39,6 @@ const authHandle: Handle = async ({ event, resolve }) => {
   // Check for auth cookie
   const authCookie = event.cookies.get("IsAuthenticated");
   const accessToken = event.cookies.get(".Nocturne.AccessToken");
-  const refreshToken = event.cookies.get(".Nocturne.RefreshToken");
-
-  // Log all cookies for debugging
-  const allCookies = event.cookies.getAll();
 
   if (!authCookie && !accessToken) {
     // No auth cookies, user is not authenticated
@@ -99,7 +91,7 @@ const proxyHandle: Handle = async ({ event, resolve }) => {
   if (event.url.pathname.startsWith("/api")) {
     // Use NOCTURNE_API_URL for server-side (internal Docker network) if available,
     // otherwise fall back to PUBLIC_API_URL for development
-    const apiBaseUrl = env.NOCTURNE_API_URL || PUBLIC_API_URL;
+    const apiBaseUrl = env.NOCTURNE_API_URL || publicEnv.PUBLIC_API_URL;
     if (!apiBaseUrl) {
       throw new Error(
         "Neither NOCTURNE_API_URL nor PUBLIC_API_URL is defined. Please set one in your environment variables."
@@ -143,7 +135,7 @@ const proxyHandle: Handle = async ({ event, resolve }) => {
 const apiClientHandle: Handle = async ({ event, resolve }) => {
   // Use NOCTURNE_API_URL for server-side (internal Docker network) if available,
   // otherwise fall back to PUBLIC_API_URL for development
-  const apiBaseUrl = env.NOCTURNE_API_URL || PUBLIC_API_URL;
+  const apiBaseUrl = env.NOCTURNE_API_URL || publicEnv.PUBLIC_API_URL;
   if (!apiBaseUrl) {
     throw new Error(
       "Neither NOCTURNE_API_URL nor PUBLIC_API_URL is defined. Please set one in your environment variables."

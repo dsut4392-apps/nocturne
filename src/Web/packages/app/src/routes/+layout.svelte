@@ -3,31 +3,24 @@
   import { page } from "$app/state";
   import { createRealtimeStore } from "$lib/stores/realtime-store.svelte";
   import { onMount } from "svelte";
-  import {
-    PUBLIC_WEBSOCKET_RECONNECT_ATTEMPTS,
-    PUBLIC_WEBSOCKET_RECONNECT_DELAY,
-    PUBLIC_WEBSOCKET_MAX_RECONNECT_DELAY,
-    PUBLIC_WEBSOCKET_PING_TIMEOUT,
-    PUBLIC_WEBSOCKET_PING_INTERVAL,
-  } from "$env/static/public";
   import * as Sidebar from "$lib/components/ui/sidebar";
   import { AppSidebar, MobileHeader } from "$lib/components/layout";
   import type { LayoutData } from "./$types";
+
+  // WebSocket config - defaults, can be overridden in production
+  const config = {
+    url: typeof window !== "undefined" ? window.location.origin : "",
+    reconnectAttempts: 10,
+    reconnectDelay: 5000,
+    maxReconnectDelay: 30000,
+    pingTimeout: 60000,
+    pingInterval: 25000,
+  };
 
   // Check if we're on a reports sub-page (not the main /reports page)
   const isReportsSubpage = $derived(page.url.pathname.startsWith("/reports/"));
 
   const { data, children } = $props<{ data: LayoutData; children: any }>();
-
-  // WebSocket bridge is integrated into the SvelteKit dev server
-  const config = {
-    url: typeof window !== "undefined" ? window.location.origin : "",
-    reconnectAttempts: parseInt(PUBLIC_WEBSOCKET_RECONNECT_ATTEMPTS) || 10,
-    reconnectDelay: parseInt(PUBLIC_WEBSOCKET_RECONNECT_DELAY) || 5000,
-    maxReconnectDelay: parseInt(PUBLIC_WEBSOCKET_MAX_RECONNECT_DELAY) || 30000,
-    pingTimeout: parseInt(PUBLIC_WEBSOCKET_PING_TIMEOUT) || 60000,
-    pingInterval: parseInt(PUBLIC_WEBSOCKET_PING_INTERVAL) || 25000,
-  };
 
   const realtimeStore = createRealtimeStore(config);
 

@@ -35,7 +35,7 @@
     const result = registerForm.result;
     if (result) {
       registrationResult = {
-        success: result.success,
+        success: result.success ?? false,
         requiresEmailVerification: result.requiresEmailVerification ?? false,
         requiresAdminApproval: result.requiresAdminApproval ?? false,
         message: result.message,
@@ -69,7 +69,7 @@
           <div
             class="rounded-md bg-destructive/10 p-4 text-sm text-destructive"
           >
-            {error.message}
+            {error instanceof Error ? error.message : "An error occurred"}
           </div>
           <Button class="mt-4 w-full" onclick={() => window.location.reload()}>
             Try Again

@@ -42,7 +42,6 @@
   let previewState = $state<PreviewState>({ isPlaying: false, soundId: null });
   let unsubscribe: (() => void) | null = null;
   let pixelRatio = $state(1);
-  let isLoadingPeaks = $state(false);
 
   // Computed: whether we're actively playing
   let playing = $derived(isPlaying || previewState.isPlaying);
@@ -207,8 +206,6 @@
 
   /** Load peaks for the current sound (custom or synthesized) */
   async function loadPeaks(soundId: string): Promise<void> {
-    isLoadingPeaks = true;
-
     try {
       if (isCustomSound(soundId)) {
         peaks = await loadCustomSoundPeaks(soundId);
@@ -216,7 +213,6 @@
         peaks = generateSynthesizedPeaks(soundId);
       }
     } finally {
-      isLoadingPeaks = false;
       updateCanvas();
     }
   }

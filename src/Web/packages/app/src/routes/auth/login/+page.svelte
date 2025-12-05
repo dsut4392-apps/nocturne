@@ -11,7 +11,7 @@
     getAuthState,
   } from "../auth.remote";
   import { page } from "$app/state";
-  import { goto } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
 
   // Check auth state and redirect if already logged in
   const authStateQuery = getAuthState();
@@ -33,9 +33,6 @@
 
   let selectedProvider = $state<string | null>(null);
   let isRedirecting = $state(false);
-
-  // Get return URL from query params
-  const returnUrl = $derived(page.url.searchParams.get("returnUrl") || "/");
 
   // Check if user just registered
   const justRegistered = $derived(

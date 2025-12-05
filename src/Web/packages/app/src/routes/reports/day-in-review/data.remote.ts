@@ -23,7 +23,7 @@ export const getDayInReviewData = query(
 		}
 
 		const { locals } = getRequestEvent();
-	const { apiClient } = locals;
+		const { apiClient } = locals;
 
 		// Set date boundaries
 		const dayStart = new Date(date);
@@ -39,11 +39,17 @@ export const getDayInReviewData = query(
 			apiClient.entries.getEntries2(entriesQuery).catch(() => []),
 			apiClient.treatments.getTreatments2(treatmentsQuery).catch(() => []),
 		]);
+		const analysis = await apiClient.statistics.analyzeGlucoseDataExtended({
+			entries,
+			treatments,
+			population: 0 as const,
+		}).catch(() => null);
 
 		return {
 			date: dateParam,
 			entries,
 			treatments,
+			treatmentSummary: analysis?.treatmentSummary ?? null,
 			dateRange: {
 				from: dayStart.toISOString(),
 				to: dayEnd.toISOString(),

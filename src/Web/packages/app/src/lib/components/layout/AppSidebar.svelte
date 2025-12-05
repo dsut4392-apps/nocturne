@@ -24,13 +24,14 @@
     Plug,
     Smartphone,
     Sparkles,
+    Calendar,
+    BatteryFull,
+    Sunrise,
   } from "lucide-svelte";
-  import type { AuthUser } from "../../../../app.d";
+  import type { AuthUser } from "$lib/stores/auth.svelte";
 
   interface Props {
-    /**
-     * Current authenticated user (passed from layout data)
-     */
+    /** Current authenticated user (passed from layout data) */
     user?: AuthUser | null;
   }
 
@@ -56,6 +57,11 @@
       children: [
         { title: "Overview", href: "/reports", icon: PieChart },
         { title: "AGP", href: "/reports/agp", icon: LineChart },
+        {
+          title: "Executive Summary",
+          href: "/reports/executive-summary",
+          icon: FileText,
+        },
         { title: "Readings", href: "/reports/readings", icon: Activity },
         { title: "Treatments", href: "/reports/treatments", icon: Syringe },
         {
@@ -69,9 +75,29 @@
           icon: TrendingUp,
         },
         {
-          title: "Executive Summary",
-          href: "/reports/executive-summary",
-          icon: FileText,
+          title: "Battery",
+          href: "/reports/battery",
+          icon: BatteryFull,
+        },
+        {
+          title: "Day in Review",
+          href: "/reports/day-in-review",
+          icon: Clock,
+        },
+        {
+          title: "Week to Week",
+          href: "/reports/week-to-week",
+          icon: Sunrise,
+        },
+        {
+          title: "Month to Month",
+          href: "/reports/month-to-month",
+          icon: Calendar,
+        },
+        {
+          title: "Glucose Distribution",
+          href: "/reports/glucose-distribution",
+          icon: PieChart,
         },
       ],
     },

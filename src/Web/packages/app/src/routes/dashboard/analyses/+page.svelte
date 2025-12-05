@@ -32,7 +32,13 @@
   import { goto } from "$app/navigation";
   import { getAnalyses } from "../data.remote";
 
-  // Get filter params from URL
+  // Get filter params from URL (for initial state)
+  const initialRequestPath = page.url.searchParams.get("requestPath") || "";
+  const initialOverallMatch = page.url.searchParams.get("overallMatch") || "";
+  const initialFromDate = page.url.searchParams.get("fromDate");
+  const initialToDate = page.url.searchParams.get("toDate");
+
+  // URL filters for server query (reactive)
   const urlFilters = $derived({
     requestPath: page.url.searchParams.get("requestPath") || undefined,
     overallMatch: page.url.searchParams.get("overallMatch")
@@ -49,10 +55,11 @@
 
   const { analyses, filters } = $derived(data);
 
-  let searchPath = $state(filters.requestPath || "");
-  let selectedMatch = $state(filters.overallMatch?.toString() || "");
-  let fromDate = $state(filters.fromDate ? filters.fromDate.split("T")[0] : "");
-  let toDate = $state(filters.toDate ? filters.toDate.split("T")[0] : "");
+  // Form state - initialized from URL params
+  let searchPath = $state(initialRequestPath);
+  let selectedMatch = $state(initialOverallMatch);
+  let fromDate = $state(initialFromDate ? initialFromDate.split("T")[0] : "");
+  let toDate = $state(initialToDate ? initialToDate.split("T")[0] : "");
 
   function applyFilters() {
     const params = new URLSearchParams();

@@ -23,10 +23,11 @@
   } from "lucide-svelte";
   import BasalBolusRatioChart from "$lib/components/reports/BasalBolusRatioChart.svelte";
   import InsulinDeliveryChart from "$lib/components/reports/InsulinDeliveryChart.svelte";
-  import type { Treatment } from "$lib/api";
+  import type { Treatment, TreatmentSummary } from "$lib/api";
   import { page } from "$app/state";
   import { getReportsData } from "$lib/data/reports.remote";
   import { getDateRangeInputFromUrl } from "$lib/utils/date-range";
+  import { countTreatmentsByCategory } from "$lib/constants/treatment-categories";
 
   // Build date range input from URL parameters
   const dateRangeInput = $derived(getDateRangeInputFromUrl(page.url, 30));
@@ -35,13 +36,24 @@
   const reportsQuery = $derived(getReportsData(dateRangeInput));
   const data = $derived(await reportsQuery);
 
-  const treatments = $derived(data?.treatments ?? []);
+  const treatments = $derived((data?.treatments ?? []) as Treatment[]);
   const dateRange = $derived(
     data?.dateRange ?? {
       from: new Date().toISOString(),
       to: new Date().toISOString(),
     }
   );
+
+  const treatmentSummary = $derived(
+    data?.analysis?.treatmentSummary ??
+      ({
+        totals: { food: { carbs: 0 }, insulin: { bolus: 0, basal: 0 } },
+        treatmentCount: 0,
+      } as TreatmentSummary)
+  );
+
+  // Count treatments by category for UI display
+  const counts = $derived(countTreatmentsByCategory(treatments));
 
   // Helper dates
   const startDate = $derived(new Date(dateRange.from));
@@ -55,110 +67,42 @@
     )
   );
 
-  // Helper functions
-  function isBolusTreatment(treatment: Treatment): boolean {
-    // Primary check: has insulin and not a basal type
-    if (treatment.insulin !== undefined && treatment.insulin > 0) {
-      const eventType = treatment.eventType?.toLowerCase() || "";
-      // Only exclude if explicitly basal
-      if (!eventType.includes("basal") && !eventType.includes("temp")) {
-        return true;
-      }
-    }
-    // Secondary check: eventType indicates bolus
-    const eventType = treatment.eventType?.toLowerCase() || "";
-    return (
-      eventType.includes("bolus") ||
-      eventType.includes("correction") ||
-      eventType.includes("smb")
-    );
-  }
-
-  function isBasalTreatment(treatment: Treatment): boolean {
-    const eventType = treatment.eventType?.toLowerCase() || "";
-    return (
-      eventType.includes("basal") ||
-      eventType === "tempbasal" ||
-      eventType === "temp basal" ||
-      treatment.rate !== undefined ||
-      treatment.absolute !== undefined
-    );
-  }
-
-  function getBasalInsulin(treatment: Treatment): number {
-    const rate = treatment.rate ?? treatment.absolute ?? 0;
-    const duration = treatment.duration ?? 0;
-    if (rate > 0 && duration > 0) {
-      return (rate * duration) / 60;
-    }
-    return 0;
-  }
-
-  // Calculate comprehensive insulin statistics
   const insulinStats = $derived.by(() => {
-    let totalBolus = 0;
-    let totalBasal = 0;
-    let bolusCount = 0;
-    let basalCount = 0;
-    let mealBoluses = 0;
-    let correctionBoluses = 0;
-    let totalCarbs = 0;
-    let carbCount = 0;
-
-    for (const treatment of treatments) {
-      if (isBolusTreatment(treatment)) {
-        totalBolus += treatment.insulin ?? 0;
-        bolusCount++;
-
-        const eventType = treatment.eventType?.toLowerCase() || "";
-        if (
-          eventType.includes("meal") ||
-          eventType.includes("carb") ||
-          eventType.includes("snack")
-        ) {
-          mealBoluses++;
-        } else if (
-          eventType.includes("correction") &&
-          !eventType.includes("smb")
-        ) {
-          // Count only explicit correction boluses, not SMBs which are AID micro-adjustments
-          correctionBoluses++;
-        }
-      } else if (isBasalTreatment(treatment)) {
-        totalBasal += getBasalInsulin(treatment);
-        basalCount++;
-      }
-
-      if (treatment.carbs && treatment.carbs > 0) {
-        totalCarbs += treatment.carbs;
-        carbCount++;
-      }
-    }
-
+    const totalBolus = treatmentSummary.totals?.insulin?.bolus ?? 0;
+    const totalBasal = treatmentSummary.totals?.insulin?.basal ?? 0;
     const totalInsulin = totalBolus + totalBasal;
+    const totalCarbs = treatmentSummary.totals?.food?.carbs ?? 0;
+
+    // Use category counts for bolus count
+    const bolusCount = counts.byCategoryCount.bolus;
+    const basalCount = counts.byCategoryCount.basal;
+
+    // Calculate percentages from backend totals
     const basalPercent =
       totalInsulin > 0 ? (totalBasal / totalInsulin) * 100 : 0;
     const bolusPercent =
       totalInsulin > 0 ? (totalBolus / totalInsulin) * 100 : 0;
     const tdd = totalInsulin / Math.max(1, dayCount);
     const avgBolus = bolusCount > 0 ? totalBolus / bolusCount : 0;
-    // Calculate I:C ratio using only meal boluses, not corrections
-    // Sum up insulin from meal boluses only
-    let mealBolusInsulin = 0;
+
+    // Count meal vs correction boluses from event types
+    let mealBoluses = 0;
+    let correctionBoluses = 0;
     for (const treatment of treatments) {
       const eventType = treatment.eventType?.toLowerCase() || "";
-      if (
-        (eventType.includes("meal") || eventType.includes("snack")) &&
-        treatment.insulin &&
-        treatment.insulin > 0
+      if (eventType.includes("meal") || eventType.includes("snack")) {
+        mealBoluses++;
+      } else if (
+        eventType.includes("correction") &&
+        !eventType.includes("smb")
       ) {
-        mealBolusInsulin += treatment.insulin;
+        correctionBoluses++;
       }
     }
+
+    // Calculate I:C ratio - use total carbs and bolus insulin
     const icRatio =
-      totalCarbs > 0 && mealBolusInsulin > 0
-        ? totalCarbs / mealBolusInsulin
-        : 0;
+      totalCarbs > 0 && totalBolus > 0 ? totalCarbs / totalBolus : 0;
 
     return {
       totalBolus,
@@ -173,7 +117,7 @@
       mealBoluses,
       correctionBoluses,
       totalCarbs,
-      carbCount,
+      carbCount: counts.byCategoryCount.carbs + counts.byCategoryCount.bolus,
       icRatio,
       bolusesPerDay: bolusCount / Math.max(1, dayCount),
     };

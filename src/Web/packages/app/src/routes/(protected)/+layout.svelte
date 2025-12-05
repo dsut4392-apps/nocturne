@@ -5,7 +5,7 @@
    */
   import type { LayoutData } from "./$types";
 
-  const { data, children } = $props<{ data: LayoutData; children: any }>();
+  const { children } = $props<{ data: LayoutData; children: any }>();
 </script>
 
 <!-- Pass through to child routes -->

@@ -15,25 +15,25 @@
     <div class="text-gray-600 text-xs">Average</div>
     <div
       class="font-semibold {getGlucoseColor(
-        dayData.analytics.basicStats.mean,
+        dayData.analytics?.basicStats?.mean ?? 0,
         thresholds
       )}"
     >
-      {Math.round(dayData.analytics.basicStats.mean)} mg/dL
+      {Math.round(dayData.analytics?.basicStats?.mean ?? 0)} mg/dL
     </div>
   </div>
   <div class="bg-gray-50 p-3 rounded">
     <div class="text-gray-600 text-xs">Range</div>
     <div class="font-semibold">
-      {Math.round(dayData.analytics.basicStats.min)} - {Math.round(
-        dayData.analytics.basicStats.max
+      {Math.round(dayData.analytics?.basicStats?.min ?? 0)} - {Math.round(
+        dayData.analytics?.basicStats?.max ?? 0
       )}
     </div>
   </div>
   <div class="bg-gray-50 p-3 rounded">
     <div class="text-gray-600 text-xs">Time in Range</div>
     <div class="font-semibold text-green-600">
-      {dayData.analytics.timeInRange.percentages.target}%
+      {dayData.analytics?.timeInRange?.percentages?.target ?? 0}%
     </div>
     <div class="text-xs text-gray-500">
       ({thresholds.targetBottom}-{thresholds.targetTop} mg/dL)
@@ -43,8 +43,9 @@
     <div class="text-gray-600 text-xs">Tight Time in Range</div>
     <div class="font-semibold text-blue-600">
       <!-- Use tight target percentage if available, otherwise fall back to regular target -->
-      {dayData.analytics.timeInRange.percentages.tightTarget ??
-        dayData.analytics.timeInRange.percentages.target}%
+      {dayData.analytics?.timeInRange?.percentages?.tightTarget ??
+        dayData.analytics?.timeInRange?.percentages?.target ??
+        0}%
     </div>
     <div class="text-xs text-gray-500">
       ({thresholds.targetBottom}-{thresholds.tightTargetTop} mg/dL)
@@ -53,15 +54,15 @@
   <div class="bg-gray-50 p-3 rounded">
     <div class="text-gray-600 text-xs">Low Events</div>
     <div class="font-semibold text-red-600">
-      {dayData.analytics.timeInRange.percentages.low +
-        dayData.analytics.timeInRange.percentages.severeLow}%
+      {(dayData.analytics?.timeInRange?.percentages?.low ?? 0) +
+        (dayData.analytics?.timeInRange?.percentages?.severeLow ?? 0)}%
     </div>
   </div>
   <div class="bg-gray-50 p-3 rounded">
     <div class="text-gray-600 text-xs">High Events</div>
     <div class="font-semibold text-orange-600">
-      {dayData.analytics.timeInRange.percentages.high +
-        dayData.analytics.timeInRange.percentages.severeHigh}%
+      {(dayData.analytics?.timeInRange?.percentages?.high ?? 0) +
+        (dayData.analytics?.timeInRange?.percentages?.severeHigh ?? 0)}%
     </div>
   </div>
 </div>

@@ -9409,6 +9409,264 @@ export class AlexaClient {
     }
 }
 
+export class BatteryClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get the current battery status for all tracked devices
+     * @param recentMinutes (optional) How many minutes back to consider for "recent" readings (default: 30)
+     * @return Current battery status for all devices
+     */
+    getCurrentBatteryStatus(recentMinutes?: number | undefined, signal?: AbortSignal): Promise<CurrentBatteryStatus> {
+        let url_ = this.baseUrl + "/api/v1/Battery/current?";
+        if (recentMinutes === null)
+            throw new globalThis.Error("The parameter 'recentMinutes' cannot be null.");
+        else if (recentMinutes !== undefined)
+            url_ += "recentMinutes=" + encodeURIComponent("" + recentMinutes) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetCurrentBatteryStatus(_response);
+        });
+    }
+
+    protected processGetCurrentBatteryStatus(response: Response): Promise<CurrentBatteryStatus> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CurrentBatteryStatus;
+            return result200;
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CurrentBatteryStatus>(null as any);
+    }
+
+    /**
+     * Get battery readings for a device over a time period
+     * @param device (optional) Device identifier (optional, returns all devices if not specified)
+     * @param from (optional) Start time in milliseconds since Unix epoch
+     * @param to (optional) End time in milliseconds since Unix epoch
+     * @return Battery readings for the specified period
+     */
+    getBatteryReadings(device?: string | null | undefined, from?: number | null | undefined, to?: number | null | undefined, signal?: AbortSignal): Promise<BatteryReading[]> {
+        let url_ = this.baseUrl + "/api/v1/Battery/readings?";
+        if (device !== undefined && device !== null)
+            url_ += "device=" + encodeURIComponent("" + device) + "&";
+        if (from !== undefined && from !== null)
+            url_ += "from=" + encodeURIComponent("" + from) + "&";
+        if (to !== undefined && to !== null)
+            url_ += "to=" + encodeURIComponent("" + to) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetBatteryReadings(_response);
+        });
+    }
+
+    protected processGetBatteryReadings(response: Response): Promise<BatteryReading[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as BatteryReading[];
+            return result200;
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<BatteryReading[]>(null as any);
+    }
+
+    /**
+     * Get battery statistics for a device or all devices
+     * @param device (optional) Device identifier (optional, returns all devices if not specified)
+     * @param from (optional) Start time in milliseconds since Unix epoch (default: 7 days ago)
+     * @param to (optional) End time in milliseconds since Unix epoch (default: now)
+     * @return Battery statistics for the specified period
+     */
+    getBatteryStatistics(device?: string | null | undefined, from?: number | null | undefined, to?: number | null | undefined, signal?: AbortSignal): Promise<BatteryStatistics[]> {
+        let url_ = this.baseUrl + "/api/v1/Battery/statistics?";
+        if (device !== undefined && device !== null)
+            url_ += "device=" + encodeURIComponent("" + device) + "&";
+        if (from !== undefined && from !== null)
+            url_ += "from=" + encodeURIComponent("" + from) + "&";
+        if (to !== undefined && to !== null)
+            url_ += "to=" + encodeURIComponent("" + to) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetBatteryStatistics(_response);
+        });
+    }
+
+    protected processGetBatteryStatistics(response: Response): Promise<BatteryStatistics[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as BatteryStatistics[];
+            return result200;
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<BatteryStatistics[]>(null as any);
+    }
+
+    /**
+     * Get charge cycle history for a device
+     * @param device (optional) Device identifier (optional, returns all devices if not specified)
+     * @param from (optional) Start time in milliseconds since Unix epoch
+     * @param to (optional) End time in milliseconds since Unix epoch
+     * @param limit (optional) Maximum number of cycles to return (default: 100)
+     * @return Charge cycles for the specified period
+     */
+    getChargeCycles(device?: string | null | undefined, from?: number | null | undefined, to?: number | null | undefined, limit?: number | undefined, signal?: AbortSignal): Promise<ChargeCycle[]> {
+        let url_ = this.baseUrl + "/api/v1/Battery/cycles?";
+        if (device !== undefined && device !== null)
+            url_ += "device=" + encodeURIComponent("" + device) + "&";
+        if (from !== undefined && from !== null)
+            url_ += "from=" + encodeURIComponent("" + from) + "&";
+        if (to !== undefined && to !== null)
+            url_ += "to=" + encodeURIComponent("" + to) + "&";
+        if (limit === null)
+            throw new globalThis.Error("The parameter 'limit' cannot be null.");
+        else if (limit !== undefined)
+            url_ += "limit=" + encodeURIComponent("" + limit) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetChargeCycles(_response);
+        });
+    }
+
+    protected processGetChargeCycles(response: Response): Promise<ChargeCycle[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ChargeCycle[];
+            return result200;
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ChargeCycle[]>(null as any);
+    }
+
+    /**
+     * Get list of all known devices with battery data
+     * @return List of device identifiers
+     */
+    getKnownDevices(signal?: AbortSignal): Promise<string[]> {
+        let url_ = this.baseUrl + "/api/v1/Battery/devices";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetKnownDevices(_response);
+        });
+    }
+
+    protected processGetKnownDevices(response: Response): Promise<string[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as string[];
+            return result200;
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<string[]>(null as any);
+    }
+}
+
 export class CountClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -13145,6 +13403,7 @@ export interface FeatureSettings {
     display?: DisplaySettings;
     dashboardWidgets?: DashboardWidgets;
     plugins?: { [key: string]: PluginSettings; };
+    battery?: BatteryDisplaySettings;
 }
 
 export interface DisplaySettings {
@@ -13163,11 +13422,21 @@ export interface DashboardWidgets {
     predictions?: boolean;
     agp?: boolean;
     dailyStats?: boolean;
+    batteryStatus?: boolean;
 }
 
 export interface PluginSettings {
     enabled?: boolean;
     description?: string;
+}
+
+export interface BatteryDisplaySettings {
+    warnThreshold?: number;
+    urgentThreshold?: number;
+    enableAlerts?: boolean;
+    recentMinutes?: number;
+    showVoltage?: boolean;
+    showStatistics?: boolean;
 }
 
 export interface NotificationSettings {
@@ -13997,6 +14266,80 @@ export interface AlexaIntent {
 export interface AlexaSlot {
     name?: string;
     value?: string;
+}
+
+export interface CurrentBatteryStatus {
+    level?: number | undefined;
+    display?: string;
+    status?: string;
+    min?: BatteryReading | undefined;
+    devices?: { [key: string]: DeviceBatteryStatus; };
+}
+
+export interface BatteryReading {
+    id?: string | undefined;
+    device?: string;
+    battery?: number | undefined;
+    voltage?: number | undefined;
+    isCharging?: boolean;
+    temperature?: number | undefined;
+    mills?: number;
+    timestamp?: string | undefined;
+    display?: string;
+    level?: number;
+    notification?: string | undefined;
+}
+
+export interface DeviceBatteryStatus {
+    uri?: string;
+    name?: string;
+    statuses?: BatteryReading[];
+    min?: BatteryReading | undefined;
+}
+
+export interface BatteryStatistics {
+    device?: string;
+    displayName?: string;
+    periodStartMills?: number;
+    periodEndMills?: number;
+    readingCount?: number;
+    currentLevel?: number | undefined;
+    isCharging?: boolean;
+    lastReadingMills?: number | undefined;
+    averageLevel?: number | undefined;
+    minLevel?: number | undefined;
+    maxLevel?: number | undefined;
+    chargeCycleCount?: number;
+    averageChargeDurationMinutes?: number | undefined;
+    averageDischargeDurationMinutes?: number | undefined;
+    averageTimeBetweenChargesHours?: number | undefined;
+    longestDischargeDurationMinutes?: number | undefined;
+    shortestDischargeDurationMinutes?: number | undefined;
+    timeAbove80Percent?: number;
+    timeBetween30And80Percent?: number;
+    timeBelow30Percent?: number;
+    timeBelow20Percent?: number;
+    warningEventCount?: number;
+    urgentEventCount?: number;
+    display?: string;
+    level?: number;
+    status?: string;
+}
+
+export interface ChargeCycle {
+    id?: string | undefined;
+    device?: string;
+    chargeStartMills?: number | undefined;
+    chargeStartLevel?: number | undefined;
+    chargeEndMills?: number | undefined;
+    chargeEndLevel?: number | undefined;
+    dischargeStartMills?: number | undefined;
+    dischargeStartLevel?: number | undefined;
+    dischargeEndMills?: number | undefined;
+    dischargeEndLevel?: number | undefined;
+    chargeDurationMinutes?: number | undefined;
+    dischargeDurationMinutes?: number | undefined;
+    isComplete?: boolean;
 }
 
 /** Response object for count endpoints */

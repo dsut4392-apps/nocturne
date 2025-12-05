@@ -3,13 +3,13 @@
   import { goto } from "$app/navigation";
   import { getAnalysisDetail } from "../data.remote";
 
-  // Get ID from route params
-  const analysisId = $derived(page.params.id);
+  // Get ID from route params (guaranteed to exist in [id] route)
+  const analysisId = $derived(page.params.id ?? "");
 
   // Fetch analysis data using remote function
   const analysisData = $derived(await getAnalysisDetail(analysisId));
 
-  let analysis = $state(analysisData.analysis);
+  const analysis = $derived(analysisData.analysis);
 
   // Helper to get match type display
   function getMatchTypeDisplay(matchType: number) {
@@ -61,7 +61,8 @@
   }
 
   // Helper to get discrepancy type display
-  function getDiscrepancyTypeDisplay(type: number) {
+  function getDiscrepancyTypeDisplay(type: number | undefined) {
+    if (type === undefined) return "Unknown";
     const types = [
       "Status Code",
       "Header",
@@ -77,31 +78,9 @@
     return types[type] || "Unknown";
   }
 
-  // Helper to get severity display
-  function getSeverityDisplay(severity: number) {
-    const severities = [
-      {
-        value: 0,
-        label: "Minor",
-        class: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-      },
-      {
-        value: 1,
-        label: "Major",
-        class:
-          "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-      },
-      {
-        value: 2,
-        label: "Critical",
-        class: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-      },
-    ];
-    return severities.find((s) => s.value === severity) || severities[0];
-  }
-
   // Format timestamp
-  function formatTime(timestamp: string) {
+  function formatTime(timestamp: Date | string | undefined) {
+    if (!timestamp) return "N/A";
     return new Date(timestamp).toLocaleString();
   }
 
@@ -112,14 +91,14 @@
   }
 
   // Group discrepancies by severity
-  let discrepanciesBySeverity = $derived({
+  const discrepanciesBySeverity = $derived({
     critical:
       analysis.discrepancies?.filter((d: any) => d.severity === 2) || [],
     major: analysis.discrepancies?.filter((d: any) => d.severity === 1) || [],
     minor: analysis.discrepancies?.filter((d: any) => d.severity === 0) || [],
   });
 
-  const matchType = $derived(getMatchTypeDisplay(analysis.overallMatch));
+  const matchType = $derived(getMatchTypeDisplay(analysis.overallMatch ?? 0));
 </script>
 
 <div class="container mx-auto p-6 space-y-6">

@@ -34,8 +34,16 @@
   };
 
   $effect(() => {
+    // Get pixel ratio with fallback for older browsers
+    const screenWithDPI = screen as Screen & {
+      deviceXDPI?: number;
+      logicalXDPI?: number;
+    };
     pixelRatio =
-      window.devicePixelRatio || screen.deviceXDPI / screen.logicalXDPI;
+      window.devicePixelRatio ||
+      (screenWithDPI.deviceXDPI && screenWithDPI.logicalXDPI
+        ? screenWithDPI.deviceXDPI / screenWithDPI.logicalXDPI
+        : 1);
     updateSize(canvasWidth, canvasHeight, peaks);
   });
 
@@ -83,7 +91,7 @@
 
     if (params.gradientColors.length > 0) {
       const gradient = ctx.createLinearGradient(0, 0, canvasWidth, 0);
-      params.gradientColors.forEach((color, index) => {
+      params.gradientColors.forEach((color: string, index: number) => {
         const stop = index / (params.gradientColors.length - 1); // Calculate stop dynamically
         gradient.addColorStop(stop, color);
       });
@@ -131,7 +139,7 @@
 
     if (params.gradientColors.length > 0) {
       const gradient = ctx.createLinearGradient(0, 0, canvasWidth, 0);
-      params.gradientColors.forEach((color, index) => {
+      params.gradientColors.forEach((color: string, index: number) => {
         const stop = index / (params.gradientColors.length - 1); // Calculate stop dynamically
         gradient.addColorStop(stop, color);
       });

@@ -252,7 +252,9 @@
     dialogData = null;
 
     try {
-      const result = await getPointInTimeData(point.originalTimestamp);
+      const result = await getPointInTimeData({
+        timestamp: point.originalTimestamp,
+      });
       dialogData = result as PointInTimeData | null;
     } catch (error) {
       console.error("Failed to fetch point data:", error);

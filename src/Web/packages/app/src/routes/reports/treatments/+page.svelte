@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state";
 
-  import type { Treatment } from "$lib/api";
+  import type { Treatment, TreatmentSummary } from "$lib/api";
   import {
     TreatmentsDataTable,
     TreatmentCategoryTabs,
@@ -11,7 +11,7 @@
   import {
     TREATMENT_CATEGORIES,
     type TreatmentCategoryId,
-    calculateTreatmentStats,
+    countTreatmentsByCategory,
   } from "$lib/constants/treatment-categories";
 
   import { Button } from "$lib/components/ui/button";
@@ -52,23 +52,31 @@
   const reportsQuery = $derived(getReportsData(dateRangeInput));
   const data = $derived(await reportsQuery);
 
-  // Compute stats from layout data
-  const stats = $derived(
-    calculateTreatmentStats(data.treatments as Treatment[])
+  const treatmentSummary = $derived(
+    data.analysis?.treatmentSummary ??
+      ({
+        totals: { food: { carbs: 0 }, insulin: { bolus: 0, basal: 0 } },
+        treatmentCount: 0,
+      } as TreatmentSummary)
   );
 
-  // Get filter state from URL params
-  const categoryParam = $derived(page.url.searchParams.get("category"));
-  const searchParam = $derived(page.url.searchParams.get("search"));
-  const eventTypesParam = $derived(page.url.searchParams.get("eventTypes"));
+  // Count treatments by category for UI tabs (no insulin/carb calculations)
+  const counts = $derived(
+    countTreatmentsByCategory(data.treatments as Treatment[])
+  );
 
-  // State
+  // Get filter state from URL params (used only for initial values)
+  const initialCategory = page.url.searchParams.get("category");
+  const initialSearch = page.url.searchParams.get("search");
+  const initialEventTypes = page.url.searchParams.get("eventTypes");
+
+  // State - initialized from URL params
   let activeCategory = $state<TreatmentCategoryId | "all">(
-    (categoryParam as TreatmentCategoryId | "all") || "all"
+    (initialCategory as TreatmentCategoryId | "all") || "all"
   );
-  let searchQuery = $state(searchParam || "");
+  let searchQuery = $state(initialSearch || "");
   let selectedEventTypes = $state<string[]>(
-    eventTypesParam ? eventTypesParam.split(",") : []
+    initialEventTypes ? initialEventTypes.split(",") : []
   );
 
   // Modal states
@@ -126,11 +134,11 @@
     return filtered;
   });
 
-  // Filtered stats
-  let filteredStats = $derived(calculateTreatmentStats(filteredTreatments));
+  // Filtered stats - just counts for filtered view
+  let filteredCounts = $derived(countTreatmentsByCategory(filteredTreatments));
 
   // Category counts from original data
-  let categoryCounts = $derived(stats.byCategoryCount);
+  let categoryCounts = $derived(counts.byCategoryCount);
 
   // Available event types for filter
   let availableEventTypes = $derived.by(() => {
@@ -255,7 +263,9 @@
           </Card.Title>
         </Card.Header>
         <Card.Content>
-          <p class="text-destructive-foreground">{error.message}</p>
+          <p class="text-destructive-foreground">
+            {error instanceof Error ? error.message : String(error)}
+          </p>
           <Button
             variant="outline"
             class="mt-4"
@@ -290,8 +300,12 @@
       </p>
     </div>
 
-    <!-- Summary Stats -->
-    <TreatmentStatsCard stats={filteredStats} dateRange={data.dateRange} />
+    <!-- Summary Stats - uses backend TreatmentSummary for accurate totals -->
+    <TreatmentStatsCard
+      {treatmentSummary}
+      counts={filteredCounts}
+      dateRange={data.dateRange}
+    />
 
     <!-- Category Tabs -->
     <TreatmentCategoryTabs

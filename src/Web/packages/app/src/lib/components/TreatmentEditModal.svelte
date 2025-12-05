@@ -1,6 +1,5 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
-  import { getAPISecret } from "$lib/api/treatments";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
@@ -8,6 +7,20 @@
   import * as Card from "$lib/components/ui/card";
   import type { Treatment } from "$lib/api";
   import { formatDateForInput } from "$lib/utils/date-formatting";
+
+  // Helper to get API secret from cookie or local storage
+  function getAPISecret(): string | null {
+    if (typeof document !== "undefined") {
+      const cookies = document.cookie.split(";");
+      const secretCookie = cookies.find((c) =>
+        c.trim().startsWith("api-secret=")
+      );
+      if (secretCookie) {
+        return secretCookie.split("=")[1];
+      }
+    }
+    return null;
+  }
 
   let {
     treatment,
@@ -136,7 +149,7 @@
           <Input
             id="food"
             type="text"
-            bind:value={editedTreatment.food}
+            bind:value={editedTreatment.foodType}
             placeholder="e.g., Pizza, Apple, etc."
           />
         </div>
@@ -161,7 +174,7 @@
             id="notes"
             bind:value={editedTreatment.notes}
             placeholder="Additional notes about this treatment..."
-            rows="3"
+            rows={3}
           />
         </div>
 

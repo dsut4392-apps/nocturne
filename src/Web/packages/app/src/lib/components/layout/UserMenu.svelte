@@ -2,14 +2,7 @@
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
   import * as Avatar from "$lib/components/ui/avatar";
   import { Button } from "$lib/components/ui/button";
-  import {
-    User,
-    LogOut,
-    Settings,
-    Shield,
-    ChevronDown,
-    Clock,
-  } from "lucide-svelte";
+  import { User, LogOut, Settings, Shield, ChevronDown } from "lucide-svelte";
   import { goto } from "$app/navigation";
   import type { AuthUser } from "$lib/stores/auth.svelte";
 
@@ -43,7 +36,7 @@
 
 {#if user}
   <DropdownMenu.Root bind:open={isOpen}>
-    <DropdownMenu.Trigger asChild>
+    <DropdownMenu.Trigger>
       {#snippet child({ props })}
         <Button
           variant="ghost"
@@ -110,16 +103,16 @@
       {/if}
 
       <DropdownMenu.Group>
-        <DropdownMenu.Item href="/profile">
+        <DropdownMenu.Item onSelect={() => goto("/profile")}>
           <User class="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenu.Item>
-        <DropdownMenu.Item href="/settings">
+        <DropdownMenu.Item onSelect={() => goto("/settings")}>
           <Settings class="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenu.Item>
         {#if user.roles.includes("admin")}
-          <DropdownMenu.Item href="/admin">
+          <DropdownMenu.Item onSelect={() => goto("/admin")}>
             <Shield class="mr-2 h-4 w-4" />
             <span>Admin</span>
           </DropdownMenu.Item>

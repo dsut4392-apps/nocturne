@@ -13,12 +13,8 @@
     Activity,
     AlertTriangle,
     CheckCircle,
-    TrendingUp,
-    TrendingDown,
     Clock,
-    Server,
     BarChart3,
-    AlertCircle,
     Info,
     Settings,
     RefreshCw,
@@ -26,6 +22,7 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { getDashboardData } from "./data.remote";
+  import type { EndpointMetrics } from "$lib/api/generated/nocturne-api-client";
 
   // Get filter params from URL
   const urlFilters = $derived({
@@ -36,7 +33,7 @@
   // Fetch dashboard data using remote function
   const data = $derived(await getDashboardData(urlFilters));
 
-  const { metrics, endpoints, analyses, status, filters } = $derived(data);
+  const { metrics, endpoints, analyses, status } = $derived(data);
 
   // Helper function to get status color
   function getStatusColor(healthStatus: string): string {
@@ -117,7 +114,7 @@
       </p>
     </div>
     <div class="flex items-center gap-2">
-      <Button variant="outline" size="sm" on:click={refreshData}>
+      <Button variant="outline" size="sm" onclick={refreshData}>
         <RefreshCw class="h-4 w-4 mr-2" />
         Refresh
       </Button>
@@ -267,7 +264,7 @@
         <div class="space-y-3">
           {#each endpoints
             .slice(0, 5)
-            .sort((a, b) => b.criticalDifferences + b.majorDifferences - (a.criticalDifferences + a.majorDifferences)) as endpoint}
+            .sort((a: EndpointMetrics, b: EndpointMetrics) => (b.criticalDifferences ?? 0) + (b.majorDifferences ?? 0) - ((a.criticalDifferences ?? 0) + (a.majorDifferences ?? 0))) as endpoint}
             <div
               class="flex items-center justify-between p-2 rounded-lg border"
             >

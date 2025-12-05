@@ -1,15 +1,19 @@
 <script lang="ts">
   import * as Card from "$lib/components/ui/card";
   import { Badge } from "$lib/components/ui/badge";
-  import type { TreatmentStats } from "$lib/constants/treatment-categories";
+  import type { TreatmentSummary } from "$lib/api";
+  import type { TreatmentCounts } from "$lib/constants/treatment-categories";
   import { Syringe, Apple, Activity, TrendingUp, Clock } from "lucide-svelte";
 
   interface Props {
-    stats: TreatmentStats;
+    /** Backend-calculated treatment summary with accurate insulin/carb totals */
+    treatmentSummary: TreatmentSummary;
+    /** Frontend-counted category/event type breakdowns for UI display */
+    counts: TreatmentCounts;
     dateRange: { from: string; to: string };
   }
 
-  let { stats, dateRange }: Props = $props();
+  let { treatmentSummary, counts, dateRange }: Props = $props();
 
   // Calculate days in range
   let daysInRange = $derived.by(() => {
@@ -21,14 +25,32 @@
     );
   });
 
+  const totalInsulin = $derived(
+    (treatmentSummary.totals?.insulin?.bolus ?? 0) +
+      (treatmentSummary.totals?.insulin?.basal ?? 0)
+  );
+  const totalCarbs = $derived(treatmentSummary.totals?.food?.carbs ?? 0);
+  const bolusCount = $derived(counts.byCategoryCount.bolus);
+  const carbEntriesCount = $derived(
+    counts.byCategoryCount.carbs + counts.byCategoryCount.bolus
+  );
+
   // Calculate daily averages
-  let dailyAvgBoluses = $derived(stats.withInsulin / daysInRange);
-  let dailyAvgCarbs = $derived(stats.totalCarbs / daysInRange);
-  let dailyAvgInsulin = $derived(stats.totalInsulin / daysInRange);
+  let dailyAvgInsulin = $derived(totalInsulin / daysInRange);
+  let dailyAvgCarbs = $derived(totalCarbs / daysInRange);
+  let dailyAvgBoluses = $derived(bolusCount / daysInRange);
+
+  // Average per entry
+  let avgInsulinPerBolus = $derived(
+    bolusCount > 0 ? totalInsulin / bolusCount : 0
+  );
+  let avgCarbsPerEntry = $derived(
+    carbEntriesCount > 0 ? totalCarbs / carbEntriesCount : 0
+  );
 
   // Get top event types (sorted by count)
   let topEventTypes = $derived(
-    Object.entries(stats.byEventTypeCount)
+    Object.entries(counts.byEventTypeCount)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
   );
@@ -41,7 +63,7 @@
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-muted-foreground">Total</p>
-          <p class="text-2xl font-bold tabular-nums">{stats.total}</p>
+          <p class="text-2xl font-bold tabular-nums">{counts.total}</p>
         </div>
         <div
           class="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"
@@ -69,7 +91,7 @@
           <p
             class="text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400"
           >
-            {stats.totalInsulin.toFixed(1)}U
+            {totalInsulin.toFixed(1)}U
           </p>
         </div>
         <div
@@ -90,7 +112,7 @@
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-muted-foreground">Boluses</p>
-          <p class="text-2xl font-bold tabular-nums">{stats.withInsulin}</p>
+          <p class="text-2xl font-bold tabular-nums">{bolusCount}</p>
         </div>
         <div
           class="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center"
@@ -99,9 +121,7 @@
         </div>
       </div>
       <p class="text-xs text-muted-foreground mt-2">
-        {dailyAvgBoluses.toFixed(1)}/day • {stats.avgInsulinPerBolus.toFixed(
-          1
-        )}U avg
+        {dailyAvgBoluses.toFixed(1)}/day • {avgInsulinPerBolus.toFixed(1)}U avg
       </p>
     </Card.Content>
   </Card.Root>
@@ -115,7 +135,7 @@
           <p
             class="text-2xl font-bold tabular-nums text-green-600 dark:text-green-400"
           >
-            {stats.totalCarbs.toFixed(0)}g
+            {totalCarbs.toFixed(0)}g
           </p>
         </div>
         <div
@@ -136,7 +156,7 @@
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-muted-foreground">Meals</p>
-          <p class="text-2xl font-bold tabular-nums">{stats.withCarbs}</p>
+          <p class="text-2xl font-bold tabular-nums">{carbEntriesCount}</p>
         </div>
         <div
           class="h-10 w-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center"
@@ -145,7 +165,7 @@
         </div>
       </div>
       <p class="text-xs text-muted-foreground mt-2">
-        {stats.avgCarbsPerEntry.toFixed(0)}g avg/meal
+        {avgCarbsPerEntry.toFixed(0)}g avg/meal
       </p>
     </Card.Content>
   </Card.Root>

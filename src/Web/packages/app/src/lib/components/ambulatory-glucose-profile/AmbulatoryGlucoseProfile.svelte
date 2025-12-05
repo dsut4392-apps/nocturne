@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Entry } from "$lib/api";
   import { ApiClient, type AveragedStats } from "$lib/api";
-  import { PUBLIC_API_URL } from "$env/static/public";
+  import { env as publicEnv } from "$env/dynamic/public";
   import { DEFAULT_THRESHOLDS } from "$lib/constants";
   import { AreaChart } from "layerchart";
   import { onMount } from "svelte";
@@ -30,7 +30,7 @@
 
     // If we have entries but no stats, calculate them
     if (entries?.length) {
-      const apiClient = new ApiClient(PUBLIC_API_URL);
+      const apiClient = new ApiClient(publicEnv.PUBLIC_API_URL || "http://localhost:1612");
       apiClient.statistics
         .calculateAveragedStats(entries)
         .then((stats) => {

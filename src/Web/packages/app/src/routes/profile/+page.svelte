@@ -281,8 +281,10 @@
         <CardContent class="py-8">
           <div class="text-center space-y-2">
             <p class="text-destructive font-medium">Failed to load profiles</p>
-            <p class="text-sm text-muted-foreground">{error.message}</p>
-            <Button variant="outline" onclick={() => getProfiles().refresh()}>
+            <p class="text-sm text-muted-foreground">
+              {error instanceof Error ? error.message : "An error occurred"}
+            </p>
+            <Button variant="outline" onclick={() => profilesQuery.refresh()}>
               Try again
             </Button>
           </div>

@@ -10,7 +10,7 @@ describe('transformApiClient', () => {
   const testDir = path.join(__dirname, 'test-fixtures');
   const inputFile = path.join(testDir, 'input.ts');
   const outputFile = path.join(testDir, 'output.ts');
-  
+
   beforeEach(() => {
     // Create test directory if it doesn't exist
     if (!fs.existsSync(testDir)) {
@@ -44,7 +44,7 @@ describe('transformApiClient', () => {
     let match;
     while ((match = methodRegex.exec(content)) !== null) {
       const [fullMatch, methodName, params, returnType] = match;
-      
+
       if (methodName === 'constructor' || methodName.startsWith('process')) {
         continue;
       }
@@ -86,8 +86,7 @@ describe('transformApiClient', () => {
       const returnTypeClean = returnType.replace(/Promise<|>/g, '').replace(/[<>]/g, '');
       const capitalizedReturnType = returnTypeClean.charAt(0).toUpperCase() + returnTypeClean.slice(1);
       const interfaceName = `${methodName.charAt(0).toUpperCase() + methodName.slice(1)}${capitalizedReturnType}Params`;
-      const paramSignature = paramObjects.join(";\n  ");
-      
+
       // Check if this exact interface already exists
       if (!interfaceNames.has(interfaceName)) {
         interfaceNames.add(interfaceName);
@@ -97,7 +96,7 @@ describe('transformApiClient', () => {
 
       const destructuring = `const { ${paramNames.join(", ")} } = params;`;
       const newMethodSignature = `${methodName}(params: ${interfaceName}): ${returnType} {\n        ${destructuring}`;
-      
+
       methodReplacements.push({
         original: fullMatch,
         replacement: newMethodSignature
@@ -134,7 +133,7 @@ describe('transformApiClient', () => {
 export class TestClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
-    
+
     constructor(baseUrl?: string) {
         this.baseUrl = baseUrl ?? "";
     }
@@ -156,27 +155,27 @@ export class TestClient {
 }`;
 
     const result = applyTransformation(input);
-    
+
     // Check that the Prettify import was added
     expect(result).toContain('import { type Prettify } from "../../utils"');
-    
+
     // Check that interfaces were generated for multi-parameter methods
     expect(result).toContain('interface CreateUserUserParams extends Prettify<{');
     expect(result).toContain('name: string;');
     expect(result).toContain('email: string;');
     expect(result).toContain('signal?: AbortSignal;');
-    
+
     expect(result).toContain('interface UpdateUserUserParams extends Prettify<{');
     expect(result).toContain('id: string;');
     expect(result).toContain('data: UserData;');
-    
+
     // Check that method signatures were transformed
     expect(result).toContain('createUser(params: CreateUserUserParams): Promise<User> {');
     expect(result).toContain('const { name, email, signal } = params;');
-    
+
     expect(result).toContain('updateUser(params: UpdateUserUserParams): Promise<User> {');
     expect(result).toContain('const { id, data, signal } = params;');
-    
+
     // Check that single-parameter methods were NOT transformed
     expect(result).toContain('getUser(signal?: AbortSignal): Promise<User> {');
     expect(result).not.toContain('GetUserParams');
@@ -199,10 +198,10 @@ export class TestClient {
 }`;
 
     const result = applyTransformation(input);
-    
+
     // Method should remain unchanged
     expect(result).toContain('getSomething(signal?: AbortSignal): Promise<void> {');
-    
+
     // No interfaces should be generated
     expect(result).not.toContain('GetSomethingParams');
   });
@@ -224,10 +223,10 @@ export class TestClient {
 }`;
 
     const result = applyTransformation(input);
-    
+
     // Constructor should remain unchanged
     expect(result).toContain('constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {');
-    
+
     // No interfaces should be generated for constructors
     expect(result).not.toContain('ConstructorParams');
   });
@@ -249,10 +248,10 @@ export class TestClient {
 }`;
 
     const result = applyTransformation(input);
-    
+
     // Method should remain unchanged since it has no parameters
     expect(result).toContain('getAll(): Promise<User[]> {');
-    
+
     // No interfaces should be generated
     expect(result).not.toContain('GetAllParams');
   });
@@ -274,13 +273,13 @@ export class TestClient {
 }`;
 
     const result = applyTransformation(input);
-    
+
     // Check that complex types are preserved
     expect(result).toContain('interface ComplexMethodResponseParams extends Prettify<{');
     expect(result).toContain('data: { name: string; age: number };');
     expect(result).toContain('options: RequestOptions;');
     expect(result).toContain('signal?: AbortSignal;');
-    
+
     // Check that method signature was transformed
     expect(result).toContain('complexMethod(params: ComplexMethodResponseParams): Promise<Response> {');
     expect(result).toContain('const { data, options, signal } = params;');
@@ -303,11 +302,11 @@ export class TestClient {
 }`;
 
     const result = applyTransformation(input);
-    
+
     // Method should be transformed even with one non-signal parameter when signal is also present
     expect(result).toContain('deleteUser(params: DeleteUserVoidParams): Promise<void> {');
     expect(result).toContain('const { id, signal } = params;');
-    
+
     // Interface should be generated
     expect(result).toContain('interface DeleteUserVoidParams extends Prettify<{');
     expect(result).toContain('id: string;');
@@ -327,7 +326,7 @@ export class TestClient {
     createUser(name: string, email: string, signal?: AbortSignal): Promise<User> {
         let url_ = this.baseUrl + "/users";
         url_ = url_.replace(/[?&]$/, "");
-        
+
         let options_: RequestInit = {
             method: "POST",
             signal,
@@ -336,7 +335,7 @@ export class TestClient {
             },
             body: JSON.stringify({ name, email })
         };
-        
+
         return this.http.fetch(url_, options_).then((_response: Response) => {
             return this.processCreateUser(_response);
         });
@@ -344,7 +343,7 @@ export class TestClient {
 }`;
 
     const result = applyTransformation(input);
-    
+
     // Check that method body is preserved after destructuring
     expect(result).toContain('const { name, email, signal } = params;');
     expect(result).toContain('let url_ = this.baseUrl + "/users";');
@@ -377,11 +376,11 @@ export class NotificationsClient {
 }`;
 
     const result = applyTransformation(input);
-    
+
     // Should generate unique interface names based on return type
     expect(result).toContain('interface SendLoopNotificationLoopNotificationResponseParams');
     expect(result).toContain('interface SendLoopNotificationNotificationV2ResponseParams');
-    
+
     // Should not have duplicate interface names
     const allInterfaces = result.match(/interface \w+Params/g) || [];
     const uniqueInterfaces = new Set(allInterfaces);
@@ -405,7 +404,7 @@ export class TestClient {
 }`;
 
     const result = applyTransformation(input);
-    
+
     // Should not have signal? in destructuring
     expect(result).not.toContain('signal? }');
     expect(result).toContain('const { accessToken, signal } = params;');

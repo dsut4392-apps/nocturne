@@ -94,26 +94,30 @@
           />
           <!-- High Line (180) -->
           <Line
-            x1="0%"
-            x2="100%"
-            y1={180}
-            y2={180}
-            stroke="hsl(var(--destructive))"
-            stroke-width="1"
-            stroke-dasharray="5,5"
-            opacity={0.7}
+            {...{
+              x1: "0%",
+              x2: "100%",
+              y1: 180,
+              y2: 180,
+              stroke: "hsl(var(--destructive))",
+              "stroke-width": "1",
+              "stroke-dasharray": "5,5",
+              opacity: 0.7,
+            } as any}
           />
 
           <!-- Low line (70) -->
           <Line
-            x1="0%"
-            x2="100%"
-            y1={70}
-            y2={70}
-            stroke="hsl(var(--destructive))"
-            stroke-width="1"
-            stroke-dasharray="5,5"
-            opacity={0.7}
+            {...{
+              x1: "0%",
+              x2: "100%",
+              y1: 70,
+              y2: 70,
+              stroke: "hsl(var(--destructive))",
+              "stroke-width": "1",
+              "stroke-dasharray": "5,5",
+              opacity: 0.7,
+            } as any}
           />
         </Group>
         <!-- Custom box plots -->
@@ -125,63 +129,75 @@
 
             <!-- Box (IQR) -->
             <Rect
-              x={`${xPosition - boxWidthPercent / 2}%`}
-              y={data.q1}
-              width={`${boxWidthPercent}%`}
-              height={data.q3 - data.q1}
-              fill="hsl(var(--primary))"
-              fill-opacity="0.3"
-              stroke="hsl(var(--primary))"
-              stroke-width="2"
+              {...{
+                x: `${xPosition - boxWidthPercent / 2}%`,
+                y: data.q1,
+                width: `${boxWidthPercent}%`,
+                height: data.q3 - data.q1,
+                fill: "hsl(var(--primary))",
+                "fill-opacity": "0.3",
+                stroke: "hsl(var(--primary))",
+                "stroke-width": "2",
+              } as any}
             />
 
             <!-- Median line -->
             <Line
-              x1={`${xPosition - boxWidthPercent / 2}%`}
-              x2={`${xPosition + boxWidthPercent / 2}%`}
-              y1={data.median}
-              y2={data.median}
-              stroke="hsl(var(--primary))"
-              stroke-width="3"
+              {...{
+                x1: `${xPosition - boxWidthPercent / 2}%`,
+                x2: `${xPosition + boxWidthPercent / 2}%`,
+                y1: data.median,
+                y2: data.median,
+                stroke: "hsl(var(--primary))",
+                "stroke-width": "3",
+              } as any}
             />
 
             <!-- Upper whisker -->
             <Line
-              x1={`${xPosition}%`}
-              x2={`${xPosition}%`}
-              y1={data.q3}
-              y2={data.max}
-              stroke="hsl(var(--primary))"
-              stroke-width="1"
+              {...{
+                x1: `${xPosition}%`,
+                x2: `${xPosition}%`,
+                y1: data.q3,
+                y2: data.max,
+                stroke: "hsl(var(--primary))",
+                "stroke-width": "1",
+              } as any}
             />
 
             <!-- Lower whisker -->
             <Line
-              x1={`${xPosition}%`}
-              x2={`${xPosition}%`}
-              y1={data.q1}
-              y2={data.min}
-              stroke="hsl(var(--primary))"
-              stroke-width="1"
+              {...{
+                x1: `${xPosition}%`,
+                x2: `${xPosition}%`,
+                y1: data.q1,
+                y2: data.min,
+                stroke: "hsl(var(--primary))",
+                "stroke-width": "1",
+              } as any}
             />
 
             <!-- Whisker caps -->
             <Line
-              x1={`${xPosition - 1.5}%`}
-              x2={`${xPosition + 1.5}%`}
-              y1={data.max}
-              y2={data.max}
-              stroke="hsl(var(--primary))"
-              stroke-width="1"
+              {...{
+                x1: `${xPosition - 1.5}%`,
+                x2: `${xPosition + 1.5}%`,
+                y1: data.max,
+                y2: data.max,
+                stroke: "hsl(var(--primary))",
+                "stroke-width": "1",
+              } as any}
             />
 
             <Line
-              x1={`${xPosition - 1.5}%`}
-              x2={`${xPosition + 1.5}%`}
-              y1={data.min}
-              y2={data.min}
-              stroke="hsl(var(--primary))"
-              stroke-width="1"
+              {...{
+                x1: `${xPosition - 1.5}%`,
+                x2: `${xPosition + 1.5}%`,
+                y1: data.min,
+                y2: data.min,
+                stroke: "hsl(var(--primary))",
+                "stroke-width": "1",
+              } as any}
             />
 
             <!-- Outliers -->

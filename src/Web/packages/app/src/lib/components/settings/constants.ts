@@ -104,6 +104,12 @@ export function getDefaultSettings(): ClientSettings {
 			targetTop: 180,
 			targetBottom: 80,
 			low: 55
+		},
+		demoMode: {
+			enabled: false,
+			realTimeUpdates: false,
+			webSocketUrl: '',
+			showDemoIndicators: false
 		}
 	};
 }

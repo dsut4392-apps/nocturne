@@ -117,11 +117,33 @@ public class SettingsRepository
     )
     {
         var entities = settings.Select(SettingsMapper.ToEntity).ToList();
+        var resultEntities = new List<SettingsEntity>();
 
-        _context.Settings.AddRange(entities);
+        foreach (var entity in entities)
+        {
+            // Check if a setting with this ID already exists
+            var existingEntity = await _context.Settings.FirstOrDefaultAsync(
+                s => s.Id == entity.Id,
+                cancellationToken
+            );
+
+            if (existingEntity != null)
+            {
+                // Update existing entity instead of inserting a duplicate
+                _context.Entry(existingEntity).CurrentValues.SetValues(entity);
+                resultEntities.Add(existingEntity);
+            }
+            else
+            {
+                // Add new entity
+                _context.Settings.Add(entity);
+                resultEntities.Add(entity);
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
-        return entities.Select(SettingsMapper.ToDomainModel);
+        return resultEntities.Select(SettingsMapper.ToDomainModel);
     }
 
     /// <summary>

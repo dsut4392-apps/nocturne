@@ -125,11 +125,33 @@ public class ActivityRepository
     )
     {
         var entities = activities.Select(ActivityMapper.ToEntity).ToList();
+        var resultEntities = new List<ActivityEntity>();
 
-        await _context.Activities.AddRangeAsync(entities, cancellationToken);
+        foreach (var entity in entities)
+        {
+            // Check if an activity with this ID already exists
+            var existingEntity = await _context.Activities.FirstOrDefaultAsync(
+                a => a.Id == entity.Id,
+                cancellationToken
+            );
+
+            if (existingEntity != null)
+            {
+                // Update existing entity instead of inserting a duplicate
+                _context.Entry(existingEntity).CurrentValues.SetValues(entity);
+                resultEntities.Add(existingEntity);
+            }
+            else
+            {
+                // Add new entity
+                _context.Activities.Add(entity);
+                resultEntities.Add(entity);
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
-        return entities.Select(ActivityMapper.ToDomainModel);
+        return resultEntities.Select(ActivityMapper.ToDomainModel);
     }
 
     /// <summary>

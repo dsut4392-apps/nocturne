@@ -152,11 +152,33 @@ public class FoodRepository
     )
     {
         var entities = foods.Select(FoodMapper.ToEntity).ToList();
+        var resultEntities = new List<FoodEntity>();
 
-        _context.Foods.AddRange(entities);
+        foreach (var entity in entities)
+        {
+            // Check if a food with this ID already exists
+            var existingEntity = await _context.Foods.FirstOrDefaultAsync(
+                f => f.Id == entity.Id,
+                cancellationToken
+            );
+
+            if (existingEntity != null)
+            {
+                // Update existing entity instead of inserting a duplicate
+                _context.Entry(existingEntity).CurrentValues.SetValues(entity);
+                resultEntities.Add(existingEntity);
+            }
+            else
+            {
+                // Add new entity
+                _context.Foods.Add(entity);
+                resultEntities.Add(entity);
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
-        return entities.Select(FoodMapper.ToDomainModel);
+        return resultEntities.Select(FoodMapper.ToDomainModel);
     }
 
     /// <summary>

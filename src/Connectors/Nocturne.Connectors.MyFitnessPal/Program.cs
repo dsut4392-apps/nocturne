@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Extensions;
+using Nocturne.Connectors.Core.Health;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -36,9 +37,11 @@ public class Program
             new OptionsWrapper<MyFitnessPalConnectorConfiguration>(mfpConfig)
         );
 
-        builder
-            .Services.AddHttpClient<MyFitnessPalConnectorService>()
+        builder.Services.AddHttpClient<MyFitnessPalConnectorService>()
             .ConfigureMyFitnessPalClient();
+
+        // Register metrics tracker
+        builder.Services.AddSingleton<IConnectorMetricsTracker, ConnectorMetricsTracker>();
 
         // Configure API data submitter for HTTP-based data submission
         var apiUrl = builder.Configuration["NocturneApiUrl"];
@@ -62,7 +65,7 @@ public class Program
         builder.Services.AddHostedService<MyFitnessPalSyncService>();
 
         // Add health checks
-        builder.Services.AddHealthChecks().AddCheck<MyFitnessPalHealthCheck>("myfitnesspal");
+        builder.Services.AddHealthChecks().AddConnectorHealthCheck("myfitnesspal");
 
         var app = builder.Build();
 

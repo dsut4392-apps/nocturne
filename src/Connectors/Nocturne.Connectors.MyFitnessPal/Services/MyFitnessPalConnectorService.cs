@@ -55,9 +55,10 @@ public class MyFitnessPalConnectorService : BaseConnectorService<MyFitnessPalCon
         IOptions<MyFitnessPalConnectorConfiguration> config,
         ILogger<MyFitnessPalConnectorService> logger,
         IApiDataSubmitter? apiDataSubmitter = null,
+        IConnectorMetricsTracker? metricsTracker = null,
         Func<IEnumerable<Food>, CancellationToken, Task<IEnumerable<Food>>>? createFoodAsync = null
     )
-        : base(httpClient, logger, apiDataSubmitter)
+        : base(httpClient, logger, apiDataSubmitter, metricsTracker)
     {
         _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
         _createFoodAsync = createFoodAsync;
@@ -478,6 +479,7 @@ public class MyFitnessPalConnectorService : BaseConnectorService<MyFitnessPalCon
 
             if (success)
             {
+                _metricsTracker?.TrackEntries(foodList.Count);
                 _logger.LogInformation(
                     "Successfully synced {FoodCount} food entries from MyFitnessPal",
                     foodList.Count

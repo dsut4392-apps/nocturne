@@ -86,9 +86,10 @@ namespace Nocturne.Connectors.Dexcom.Services
             ILogger<DexcomConnectorService> logger,
             IRetryDelayStrategy retryDelayStrategy,
             IRateLimitingStrategy rateLimitingStrategy,
-            IApiDataSubmitter? apiDataSubmitter = null
+            IApiDataSubmitter? apiDataSubmitter = null,
+            IConnectorMetricsTracker? metricsTracker = null
         )
-            : base(httpClient, logger, apiDataSubmitter)
+            : base(httpClient, logger, apiDataSubmitter, metricsTracker)
         {
             _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
             _retryDelayStrategy =

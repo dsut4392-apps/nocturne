@@ -49,39 +49,64 @@ public class TreatmentService : ITreatmentService
     /// <returns>A JSON find query string with data_source filter</returns>
     private string BuildDemoModeFilterQuery(string? existingQuery = null)
     {
-        // When demo mode is enabled, filter for data_source = "demo-service"
-        // When demo mode is disabled, filter for data_source != "demo-service" (null or other sources)
-        string demoFilter;
-        if (_demoModeService.IsEnabled)
-        {
-            demoFilter = $"\"data_source\":\"{Core.Constants.DataSources.DemoService}\"";
-        }
-        else
-        {
-            // Use $ne operator to exclude demo service data
-            demoFilter =
-                $"\"data_source\":{{\"$ne\":\"{Core.Constants.DataSources.DemoService}\"}}";
-        }
+        // Check if existing query is JSON
+        bool isJson = !string.IsNullOrWhiteSpace(existingQuery) &&
+                      existingQuery.Trim().StartsWith("{") &&
+                      existingQuery.Trim().EndsWith("}");
 
-        if (string.IsNullOrWhiteSpace(existingQuery) || existingQuery == "{}")
+        if (isJson)
         {
-            return "{" + demoFilter + "}";
-        }
+            // JSON Logic
+            string demoFilter;
+            if (_demoModeService.IsEnabled)
+            {
+                demoFilter = $"\"data_source\":\"{Core.Constants.DataSources.DemoService}\"";
+            }
+            else
+            {
+                demoFilter = $"\"data_source\":{{\"$ne\":\"{Core.Constants.DataSources.DemoService}\"}}";
+            }
 
-        // Merge with existing query - insert demo filter into existing JSON object
-        var trimmed = existingQuery.Trim();
-        if (trimmed.StartsWith("{") && trimmed.EndsWith("}"))
-        {
-            var inner = trimmed.Substring(1, trimmed.Length - 2).Trim();
-            if (string.IsNullOrEmpty(inner))
+            if (string.IsNullOrWhiteSpace(existingQuery) || existingQuery == "{}")
             {
                 return "{" + demoFilter + "}";
             }
-            return "{" + demoFilter + "," + inner + "}";
-        }
 
-        // If query doesn't look like JSON, just return demo filter
-        return "{" + demoFilter + "}";
+            var trimmed = existingQuery!.Trim();
+            var inner = trimmed.Substring(1, trimmed.Length - 2).Trim();
+            return string.IsNullOrEmpty(inner) ? "{" + demoFilter + "}" : "{" + demoFilter + "," + inner + "}";
+        }
+        else
+        {
+            // URL Params Logic
+            var demoParamResponse = "";
+            if (_demoModeService.IsEnabled)
+            {
+                // find[data_source]=demo-service
+                demoParamResponse = $"find[data_source]={Core.Constants.DataSources.DemoService}";
+            }
+            else
+            {
+                // find[data_source][$ne]=demo-service
+                demoParamResponse = $"find[data_source][$ne]={Core.Constants.DataSources.DemoService}";
+            }
+
+            if (string.IsNullOrWhiteSpace(existingQuery))
+            {
+                // If query was empty, return standard JSON filter to be safe/consistent if repo expects json default?
+                // Actually repo handles URL string.
+                // But wait, if I return URL string, QueryParser must handle it.
+                // Using URL params is fine.
+                // BUT if existingQuery was empty/null, better to use JSON format as default?
+                // The previous code returned JSON. Let's stick to JSON for empty case.
+                return "{" + (_demoModeService.IsEnabled
+                    ? $"\"data_source\":\"{Core.Constants.DataSources.DemoService}\""
+                    : $"\"data_source\":{{\"$ne\":\"{Core.Constants.DataSources.DemoService}\"}}") + "}";
+            }
+
+            // Append to existing URL params
+            return $"{existingQuery}&{demoParamResponse}";
+        }
     }
 
     /// <summary>

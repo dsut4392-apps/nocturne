@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -128,7 +129,10 @@ public static class Extensions
         if (app.Environment.IsDevelopment())
         {
             // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks("/health");
+            app.MapHealthChecks("/health", new HealthCheckOptions
+            {
+                ResponseWriter = WriteResponse
+            });
 
             // Only health checks tagged with the "live" tag must pass for app to be considered alive
             app.MapHealthChecks(
@@ -138,5 +142,43 @@ public static class Extensions
         }
 
         return app;
+    }
+
+    private static Task WriteResponse(Microsoft.AspNetCore.Http.HttpContext context, HealthReport result)
+    {
+        context.Response.ContentType = "application/json; charset=utf-8";
+
+        var options = new System.Text.Json.JsonWriterOptions
+        {
+            Indented = true
+        };
+
+        using var stream = new System.IO.MemoryStream();
+        using (var writer = new System.Text.Json.Utf8JsonWriter(stream, options))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("status", result.Status.ToString());
+            writer.WriteStartObject("results");
+            foreach (var entry in result.Entries)
+            {
+                writer.WriteStartObject(entry.Key);
+                writer.WriteString("status", entry.Value.Status.ToString());
+                writer.WriteString("description", entry.Value.Description);
+                writer.WriteStartObject("data");
+                foreach (var item in entry.Value.Data)
+                {
+                    writer.WritePropertyName(item.Key);
+                    System.Text.Json.JsonSerializer.Serialize(writer, item.Value, item.Value?.GetType() ?? typeof(object));
+                }
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+            }
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        }
+
+        var json = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+
+        return context.Response.WriteAsync(json);
     }
 }

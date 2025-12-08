@@ -28,6 +28,7 @@ namespace Nocturne.Connectors.Core.Services
         protected readonly HttpClient _httpClient;
         protected readonly IApiDataSubmitter? _apiDataSubmitter;
         protected readonly ILogger _logger;
+        protected readonly IConnectorMetricsTracker? _metricsTracker;
         private const int MaxRetries = 3;
         private static readonly TimeSpan[] RetryDelays =
         {
@@ -50,12 +51,14 @@ namespace Nocturne.Connectors.Core.Services
         protected BaseConnectorService(
             HttpClient httpClient,
             ILogger logger,
-            IApiDataSubmitter? apiDataSubmitter = null
+            IApiDataSubmitter? apiDataSubmitter = null,
+            IConnectorMetricsTracker? metricsTracker = null
         )
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiDataSubmitter = apiDataSubmitter;
+            _metricsTracker = metricsTracker;
         }
 
         /// <summary>
@@ -745,6 +748,27 @@ namespace Nocturne.Connectors.Core.Services
                 {
                     var transformed = transformAction(data);
                     results.AddRange(transformed);
+
+                    // Track metrics if we have results
+                    if (results.Count > 0 && _metricsTracker != null)
+                    {
+                        // Try to find the latest timestamp from the results if possible
+                        // This assumes TResult might be Entry or has a timestamp, but TResult is generic.
+                        // We'll rely on the caller or just pass null for latestTimestamp for now,
+                        // or we can allow the transform to return the timestamp.
+                        // For now, let's just track the count.
+                        // Actually, we can check if TResult is Entry
+                        if (results.Count > 0)
+                        {
+                            DateTime? latestTime = null;
+                            if (results.LastOrDefault() is Entry lastEntry)
+                            {
+                                latestTime = lastEntry.Date;
+                            }
+
+                            _metricsTracker.TrackEntries(results.Count, latestTime);
+                        }
+                    }
                 }
 
                 _logger?.LogInformation("Retrieved {Count} items from source", results.Count);

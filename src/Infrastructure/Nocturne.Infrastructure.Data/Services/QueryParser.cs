@@ -35,6 +35,7 @@ public class QueryParser : IQueryParser
         {
             ["date"] = s => long.Parse(s),
             ["mills"] = s => long.Parse(s),
+            ["created_at"] = ParseIsoDateToMills,
             ["insulin"] = s => double.Parse(s),
             ["carbs"] = s => double.Parse(s),
             ["glucose"] = s => int.Parse(s),
@@ -429,7 +430,7 @@ public class QueryParser : IQueryParser
         // Map Nightscout field names to Entity property names
         return fieldName.ToLower() switch
         {
-            "date" or "mills" => "Mills",
+            "date" or "mills" or "created_at" => "Mills",
             "sgv" => "Sgv",
             "mbg" => "Mbg",
             "mgdl" => "Mgdl",
@@ -496,6 +497,32 @@ public class QueryParser : IQueryParser
         }
 
         return value.Trim('\'', '"');
+    }
+
+    private static object ParseIsoDateToMills(string value)
+    {
+        // Handle ISO 8601 date strings and convert to epoch milliseconds
+        // This enables queries like find[created_at][$gte]=2025-12-07T00:00:00.000Z
+        if (DateTimeOffset.TryParse(value, out var dateTime))
+        {
+            return dateTime.ToUnixTimeMilliseconds();
+        }
+
+        // If it's already a number (mills), parse it directly
+        if (long.TryParse(value, out var mills))
+        {
+            return mills;
+        }
+
+        // Fallback: try trimming quotes
+        var trimmed = value.Trim('\'', '"');
+        if (DateTimeOffset.TryParse(trimmed, out dateTime))
+        {
+            return dateTime.ToUnixTimeMilliseconds();
+        }
+
+        // Return as string if all else fails (will cause query to not match)
+        return value;
     }
 
     private static Expression BuildEqualExpression(Expression property, object value)

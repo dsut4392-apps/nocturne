@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Extensions;
+using Nocturne.Connectors.Core.Health;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -49,6 +50,9 @@ public class Program
 
         builder.Services.AddHttpClient<DexcomConnectorService>().ConfigureDexcomClient(serverUrl);
 
+        // Register metrics tracker
+        builder.Services.AddSingleton<IConnectorMetricsTracker, ConnectorMetricsTracker>();
+
         // Register strategies
         builder.Services.AddSingleton<IRetryDelayStrategy, ProductionRetryDelayStrategy>();
         builder.Services.AddSingleton<IRateLimitingStrategy, ProductionRateLimitingStrategy>();
@@ -71,7 +75,7 @@ public class Program
         builder.Services.AddHostedService<DexcomHostedService>();
 
         // Add health checks
-        builder.Services.AddHealthChecks().AddCheck<DexcomHealthCheck>("dexcom");
+        builder.Services.AddHealthChecks().AddConnectorHealthCheck("dexcom");
 
         var app = builder.Build();
 

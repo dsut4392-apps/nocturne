@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Extensions;
+using Nocturne.Connectors.Core.Health;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
@@ -42,6 +43,9 @@ public class Program
                 nightscoutConfig.SourceApiSecret
             );
 
+        // Register metrics tracker
+        builder.Services.AddSingleton<IConnectorMetricsTracker, ConnectorMetricsTracker>();
+
         // Register strategies
         builder.Services.AddSingleton<IRetryDelayStrategy, ProductionRetryDelayStrategy>();
         builder.Services.AddSingleton<IRateLimitingStrategy, ProductionRateLimitingStrategy>();
@@ -64,7 +68,7 @@ public class Program
         builder.Services.AddHostedService<NightscoutHostedService>();
 
         // Add health checks
-        builder.Services.AddHealthChecks().AddCheck<NightscoutHealthCheck>("nightscout");
+        builder.Services.AddHealthChecks().AddConnectorHealthCheck("nightscout");
 
         var app = builder.Build();
 

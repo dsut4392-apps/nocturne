@@ -17,6 +17,11 @@ public class StatisticsService : IStatisticsService
         "Snack Bolus",
         "Bolus Wizard",
         "Combo Bolus",
+        "Bolus",           // Generic bolus
+        "SMB",             // Super Micro Bolus (from loop systems like AndroidAPS)
+        "e-Bolus",         // Extended bolus
+        "Extended Bolus",  // Extended bolus variant
+        "Dual Wave",       // Combo bolus with extended portion
     };
 
     private static readonly IEnumerable<DistributionBin> DefaultDistributionBins = new[]

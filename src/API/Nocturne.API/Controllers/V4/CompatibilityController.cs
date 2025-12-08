@@ -302,6 +302,158 @@ public class CompatibilityController : ControllerBase
             return StatusCode(500, new { error = "Failed to generate text report" });
         }
     }
+
+    /// <summary>
+    /// Test API compatibility by comparing responses from Nightscout and Nocturne
+    /// </summary>
+    [HttpPost("test")]
+    [ProducesResponseType(typeof(ManualTestResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ManualTestResult>> TestApiComparison(
+        [FromBody] ManualTestRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(request.NightscoutUrl))
+        {
+            return BadRequest(new { error = "NightscoutUrl is required" });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.QueryPath))
+        {
+            return BadRequest(new { error = "QueryPath is required" });
+        }
+
+        var result = new ManualTestResult
+        {
+            QueryPath = request.QueryPath,
+            Method = request.Method ?? "GET",
+            Timestamp = DateTimeOffset.UtcNow,
+        };
+
+        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+
+        // Build URLs
+        var nightscoutBaseUrl = request.NightscoutUrl.TrimEnd('/');
+        var queryPath = request.QueryPath.StartsWith("/") ? request.QueryPath : "/" + request.QueryPath;
+        var nightscoutUrl = nightscoutBaseUrl + queryPath;
+
+        // Get Nocturne base URL from current request
+        var nocturneBaseUrl = $"{Request.Scheme}://{Request.Host}";
+        var nocturneUrl = nocturneBaseUrl + queryPath;
+
+        _logger.LogInformation(
+            "Manual compatibility test: Nightscout={NightscoutUrl}, Nocturne={NocturneUrl}",
+            nightscoutUrl,
+            nocturneUrl
+        );
+
+        // Fetch from Nightscout
+        var nsStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var nsRequest = new HttpRequestMessage(
+                request.Method?.ToUpperInvariant() == "POST" ? HttpMethod.Post : HttpMethod.Get,
+                nightscoutUrl
+            );
+
+            if (!string.IsNullOrWhiteSpace(request.ApiSecret))
+            {
+                nsRequest.Headers.Add("api-secret", request.ApiSecret);
+            }
+
+            if (!string.IsNullOrEmpty(request.RequestBody) && nsRequest.Method == HttpMethod.Post)
+            {
+                nsRequest.Content = new StringContent(
+                    request.RequestBody,
+                    System.Text.Encoding.UTF8,
+                    "application/json"
+                );
+            }
+
+            var nsResponse = await httpClient.SendAsync(nsRequest, cancellationToken);
+            nsStopwatch.Stop();
+
+            result.NightscoutStatusCode = (int)nsResponse.StatusCode;
+            result.NightscoutResponseTimeMs = nsStopwatch.ElapsedMilliseconds;
+            result.NightscoutResponse = await nsResponse.Content.ReadAsStringAsync(cancellationToken);
+
+            // Try to format JSON for better diffing
+            try
+            {
+                var json = System.Text.Json.JsonDocument.Parse(result.NightscoutResponse);
+                result.NightscoutResponse = System.Text.Json.JsonSerializer.Serialize(
+                    json,
+                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
+                );
+            }
+            catch
+            {
+                // Not JSON, keep raw response
+            }
+        }
+        catch (Exception ex)
+        {
+            nsStopwatch.Stop();
+            result.NightscoutResponseTimeMs = nsStopwatch.ElapsedMilliseconds;
+            result.NightscoutError = $"Failed to connect: {ex.Message}";
+            _logger.LogWarning(ex, "Error fetching from Nightscout: {Url}", nightscoutUrl);
+        }
+
+        // Fetch from Nocturne
+        var ncStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var ncRequest = new HttpRequestMessage(
+                request.Method?.ToUpperInvariant() == "POST" ? HttpMethod.Post : HttpMethod.Get,
+                nocturneUrl
+            );
+
+            if (!string.IsNullOrWhiteSpace(request.ApiSecret))
+            {
+                ncRequest.Headers.Add("api-secret", request.ApiSecret);
+            }
+
+            if (!string.IsNullOrEmpty(request.RequestBody) && ncRequest.Method == HttpMethod.Post)
+            {
+                ncRequest.Content = new StringContent(
+                    request.RequestBody,
+                    System.Text.Encoding.UTF8,
+                    "application/json"
+                );
+            }
+
+            var ncResponse = await httpClient.SendAsync(ncRequest, cancellationToken);
+            ncStopwatch.Stop();
+
+            result.NocturneStatusCode = (int)ncResponse.StatusCode;
+            result.NocturneResponseTimeMs = ncStopwatch.ElapsedMilliseconds;
+            result.NocturneResponse = await ncResponse.Content.ReadAsStringAsync(cancellationToken);
+
+            // Try to format JSON for better diffing
+            try
+            {
+                var json = System.Text.Json.JsonDocument.Parse(result.NocturneResponse);
+                result.NocturneResponse = System.Text.Json.JsonSerializer.Serialize(
+                    json,
+                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
+                );
+            }
+            catch
+            {
+                // Not JSON, keep raw response
+            }
+        }
+        catch (Exception ex)
+        {
+            ncStopwatch.Stop();
+            result.NocturneResponseTimeMs = ncStopwatch.ElapsedMilliseconds;
+            result.NocturneError = $"Failed to connect: {ex.Message}";
+            _logger.LogWarning(ex, "Error fetching from Nocturne: {Url}", nocturneUrl);
+        }
+
+        return Ok(result);
+    }
 }
 
 /// <summary>
@@ -377,4 +529,96 @@ public class AnalysisDetailDto
     public bool NocturneMissing { get; set; }
     public string? ErrorMessage { get; set; }
     public List<DiscrepancyDetailDto> Discrepancies { get; set; } = new();
+}
+
+/// <summary>
+/// Request for manual API comparison test
+/// </summary>
+public class ManualTestRequest
+{
+    /// <summary>
+    /// Base URL of the Nightscout server to compare against
+    /// </summary>
+    public string NightscoutUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// API secret (SHA1 hash or plain text)
+    /// </summary>
+    public string? ApiSecret { get; set; }
+
+    /// <summary>
+    /// API path to test (e.g., /api/v1/entries?count=10)
+    /// </summary>
+    public string QueryPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// HTTP method (GET, POST, etc.) - defaults to GET
+    /// </summary>
+    public string? Method { get; set; }
+
+    /// <summary>
+    /// Optional request body for POST/PUT requests
+    /// </summary>
+    public string? RequestBody { get; set; }
+}
+
+/// <summary>
+/// Result of manual API comparison test
+/// </summary>
+public class ManualTestResult
+{
+    /// <summary>
+    /// The API path that was tested
+    /// </summary>
+    public string QueryPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// HTTP method used
+    /// </summary>
+    public string Method { get; set; } = "GET";
+
+    /// <summary>
+    /// When the test was performed
+    /// </summary>
+    public DateTimeOffset Timestamp { get; set; }
+
+    /// <summary>
+    /// Raw JSON response from Nightscout
+    /// </summary>
+    public string? NightscoutResponse { get; set; }
+
+    /// <summary>
+    /// Raw JSON response from Nocturne
+    /// </summary>
+    public string? NocturneResponse { get; set; }
+
+    /// <summary>
+    /// HTTP status code from Nightscout
+    /// </summary>
+    public int? NightscoutStatusCode { get; set; }
+
+    /// <summary>
+    /// HTTP status code from Nocturne
+    /// </summary>
+    public int? NocturneStatusCode { get; set; }
+
+    /// <summary>
+    /// Response time from Nightscout in milliseconds
+    /// </summary>
+    public long NightscoutResponseTimeMs { get; set; }
+
+    /// <summary>
+    /// Response time from Nocturne in milliseconds
+    /// </summary>
+    public long NocturneResponseTimeMs { get; set; }
+
+    /// <summary>
+    /// Error message if Nightscout request failed
+    /// </summary>
+    public string? NightscoutError { get; set; }
+
+    /// <summary>
+    /// Error message if Nocturne request failed
+    /// </summary>
+    public string? NocturneError { get; set; }
 }

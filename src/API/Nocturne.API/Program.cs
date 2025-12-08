@@ -336,6 +336,7 @@ builder.Services.Configure<AnalyticsConfiguration>(
 
 // Register analytics services
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<IConnectorHealthService, ConnectorHealthService>();
 
 // Configure and register connector services as background workers
 ConfigureConnectorServices(builder);

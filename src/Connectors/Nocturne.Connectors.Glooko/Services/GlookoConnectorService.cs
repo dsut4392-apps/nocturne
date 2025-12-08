@@ -65,9 +65,10 @@ namespace Nocturne.Connectors.Glooko.Services
             IRetryDelayStrategy retryDelayStrategy,
             IRateLimitingStrategy rateLimitingStrategy,
             IConnectorFileService<GlookoBatchData>? fileService = null,
-            IApiDataSubmitter? apiDataSubmitter = null
+            IApiDataSubmitter? apiDataSubmitter = null,
+            IConnectorMetricsTracker? metricsTracker = null
         )
-            : base(httpClient, logger, apiDataSubmitter)
+            : base(httpClient, logger, apiDataSubmitter, metricsTracker)
         {
             _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
             _retryDelayStrategy =

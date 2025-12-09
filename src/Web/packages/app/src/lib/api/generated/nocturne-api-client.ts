@@ -1920,6 +1920,64 @@ export class OidcClient {
     }
 }
 
+export class PebbleClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get pebble-formatted data for smartwatch apps and CGM monitors
+    Returns current glucose, trend, delta, battery, IOB, and COB information
+     * @param units (optional) Units for glucose display (mg/dl or mmol)
+     * @param count (optional) Number of glucose readings to return (default: 1)
+     * @return Pebble-formatted response with bgs, cals, and status
+     */
+    getPebbleData(units?: string | null | undefined, count?: number | undefined, signal?: AbortSignal): Promise<PebbleResponse> {
+        let url_ = this.baseUrl + "/pebble?";
+        if (units !== undefined && units !== null)
+            url_ += "units=" + encodeURIComponent("" + units) + "&";
+        if (count === null)
+            throw new globalThis.Error("The parameter 'count' cannot be null.");
+        else if (count !== undefined)
+            url_ += "count=" + encodeURIComponent("" + count) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetPebbleData(_response);
+        });
+    }
+
+    protected processGetPebbleData(response: Response): Promise<PebbleResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PebbleResponse;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PebbleResponse>(null as any);
+    }
+}
+
 export class StatisticsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5866,6 +5924,175 @@ export class ServicesClient {
     }
 }
 
+export class StatusClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get detailed system status information
+     * @return Comprehensive system status including settings, api status, and server information
+     */
+    getStatus(signal?: AbortSignal): Promise<StatusResponse> {
+        let url_ = this.baseUrl + "/api/v4/Status";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetStatus(_response);
+        });
+    }
+
+    protected processGetStatus(response: Response): Promise<StatusResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as StatusResponse;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<StatusResponse>(null as any);
+    }
+
+    /**
+     * Get a simple health check status
+     * @return Simple ok/error status
+     */
+    getHealthStatus(signal?: AbortSignal): Promise<any> {
+        let url_ = this.baseUrl + "/api/v4/Status/health";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetHealthStatus(_response);
+        });
+    }
+
+    protected processGetHealthStatus(response: Response): Promise<any> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as any;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<any>(null as any);
+    }
+
+    /**
+     * Get the current system status with extended V3 information
+     * @return Extended system status information with permissions and authorization details
+     */
+    getStatus2(signal?: AbortSignal): Promise<V3StatusResponse> {
+        let url_ = this.baseUrl + "/api/v3/Status";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetStatus2(_response);
+        });
+    }
+
+    protected processGetStatus2(response: Response): Promise<V3StatusResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as V3StatusResponse;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<V3StatusResponse>(null as any);
+    }
+
+    /**
+     * Get the current system status.
+    Returns HTML by default for Nightscout compatibility, or JSON if Accept header requests it.
+     * @return Status response in HTML or JSON format
+     */
+    getStatus22(signal?: AbortSignal): Promise<FileResponse> {
+        let url_ = this.baseUrl + "/api/v1/Status";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/octet-stream"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetStatus22(_response);
+        });
+    }
+
+    protected processGetStatus22(response: Response): Promise<FileResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return response.blob().then(blob => { return { fileName: fileName, data: blob, status: status, headers: _headers }; });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<FileResponse>(null as any);
+    }
+}
+
 export class UISettingsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -9174,93 +9401,6 @@ export class SettingsClient {
             });
         }
         return Promise.resolve<void>(null as any);
-    }
-}
-
-export class StatusClient {
-    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
-    private baseUrl: string;
-    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
-
-    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
-        this.http = http ? http : window as any;
-        this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * Get the current system status with extended V3 information
-     * @return Extended system status information with permissions and authorization details
-     */
-    getStatus(signal?: AbortSignal): Promise<V3StatusResponse> {
-        let url_ = this.baseUrl + "/api/v3/Status";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetStatus(_response);
-        });
-    }
-
-    protected processGetStatus(response: Response): Promise<V3StatusResponse> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as V3StatusResponse;
-            return result200;
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<V3StatusResponse>(null as any);
-    }
-
-    /**
-     * Get the current system status
-     * @return System status information
-     */
-    getStatus2(signal?: AbortSignal): Promise<StatusResponse> {
-        let url_ = this.baseUrl + "/api/v1/Status";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetStatus2(_response);
-        });
-    }
-
-    protected processGetStatus2(response: Response): Promise<StatusResponse> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as StatusResponse;
-            return result200;
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<StatusResponse>(null as any);
     }
 }
 
@@ -12928,6 +13068,56 @@ export interface SessionInfo {
     expiresAt?: Date | undefined;
 }
 
+/** Pebble response model for 1:1 Nightscout compatibility */
+export interface PebbleResponse {
+    /** Status array containing current timestamp */
+    status?: PebbleStatus[];
+    /** Blood glucose readings array */
+    bgs?: PebbleBg[];
+    /** Calibration readings array */
+    cals?: PebbleCal[];
+}
+
+/** Pebble status entry */
+export interface PebbleStatus {
+    /** Current timestamp in milliseconds since epoch */
+    now?: number;
+}
+
+/** Pebble blood glucose entry */
+export interface PebbleBg {
+    /** Sensor glucose value (formatted as string for legacy compatibility) */
+    sgv?: string;
+    /** Numeric trend indicator (1-9) */
+    trend?: number;
+    /** Direction string (Flat, SingleUp, etc.) */
+    direction?: string;
+    /** Timestamp in milliseconds since epoch */
+    datetime?: number;
+    /** Delta from previous reading (formatted string) */
+    bgdelta?: string | undefined;
+    /** Battery percentage (formatted string) */
+    battery?: string | undefined;
+    /** Insulin on board (formatted string) */
+    iob?: string | undefined;
+    /** Bolus wizard preview (formatted string) */
+    bwp?: string | undefined;
+    /** Bolus wizard preview outcome */
+    bwpo?: number | undefined;
+    /** Carbs on board */
+    cob?: number | undefined;
+}
+
+/** Pebble calibration entry */
+export interface PebbleCal {
+    /** Calibration slope */
+    slope?: number | undefined;
+    /** Calibration intercept */
+    intercept?: number | undefined;
+    /** Calibration scale */
+    scale?: number | undefined;
+}
+
 export interface BasicGlucoseStats {
     count?: number;
     mean?: number;
@@ -12987,6 +13177,9 @@ export interface Entry extends ProcessableDocumentBase {
     mmol?: number | undefined;
     sgv?: number | undefined;
     direction?: string | undefined;
+    trend?: number | undefined;
+    trendRate?: number | undefined;
+    isCalibration?: boolean;
     type?: string;
     device?: string | undefined;
     notes?: string | undefined;
@@ -13170,6 +13363,15 @@ export interface Treatment extends ProcessableDocumentBase {
     remoteBolus?: number | undefined;
     reasonDisplay?: string | undefined;
     otp?: string | undefined;
+    syncIdentifier?: string | undefined;
+    insulinType?: string | undefined;
+    automatic?: boolean | undefined;
+    temp?: string | undefined;
+    amount?: number | undefined;
+    programmed?: number | undefined;
+    unabsorbed?: number | undefined;
+    type?: string | undefined;
+    bolusType?: string | undefined;
     data_source?: string | undefined;
     additional_properties?: { [key: string]: any; } | undefined;
 }
@@ -14290,6 +14492,22 @@ export interface ConnectorSyncResult {
     recordsSynced?: number | undefined;
 }
 
+export interface StatusResponse {
+    status?: string;
+    name?: string | undefined;
+    version?: string | undefined;
+    apiVersion?: string | undefined;
+    serverTime?: Date;
+    serverTimeEpoch?: number;
+    enabled?: string[] | undefined;
+    apiEnabled?: boolean;
+    roles?: string[] | undefined;
+    settings?: { [key: string]: any; } | undefined;
+    extendedSettings?: { [key: string]: any; } | undefined;
+    careportalEnabled?: boolean | undefined;
+    head?: string | undefined;
+}
+
 export interface UISettingsConfiguration {
     devices?: DeviceSettings;
     algorithm?: AlgorithmSettings;
@@ -14745,6 +14963,10 @@ export interface LoopStatus {
     enacted?: LoopEnacted | undefined;
     recommendedTempBasal?: LoopRecommendedTempBasal | undefined;
     failureReason?: string | undefined;
+    rileylinks?: RileyLinkStatus[] | undefined;
+    automaticDoseRecommendation?: LoopAutomaticDoseRecommendation | undefined;
+    currentCorrectionRange?: CorrectionRange | undefined;
+    forecastError?: any | undefined;
 }
 
 export interface LoopIob {
@@ -14779,6 +15001,27 @@ export interface LoopRecommendedTempBasal {
     timestamp?: string | undefined;
 }
 
+export interface RileyLinkStatus {
+    name?: string | undefined;
+    signal?: number | undefined;
+    timestamp?: string | undefined;
+    radioFirmware?: string | undefined;
+    bleFirmware?: string | undefined;
+    connected?: boolean | undefined;
+}
+
+export interface LoopAutomaticDoseRecommendation {
+    bolus?: number | undefined;
+    tempBasal?: LoopRecommendedTempBasal | undefined;
+    timestamp?: string | undefined;
+    notice?: string | undefined;
+}
+
+export interface CorrectionRange {
+    maxValue?: number | undefined;
+    minValue?: number | undefined;
+}
+
 export interface XDripJsStatus {
     state?: number | undefined;
     stateString?: string | undefined;
@@ -14798,11 +15041,6 @@ export interface OverrideStatus {
     active?: boolean | undefined;
     multiplier?: number | undefined;
     currentCorrectionRange?: CorrectionRange | undefined;
-}
-
-export interface CorrectionRange {
-    maxValue?: number | undefined;
-    minValue?: number | undefined;
 }
 
 export interface CgmStatus {
@@ -14882,6 +15120,8 @@ export interface Profile {
     created_at?: string | undefined;
     units?: string;
     store?: { [key: string]: ProfileData; };
+    enteredBy?: string | undefined;
+    loopSettings?: LoopProfileSettings | undefined;
 }
 
 export interface ProfileData {
@@ -14907,6 +15147,34 @@ export interface ProfileData {
 export interface TimeValue {
     time?: string;
     value?: number;
+    timeAsSeconds?: number | undefined;
+}
+
+export interface LoopProfileSettings {
+    deviceToken?: string | undefined;
+    bundleIdentifier?: string | undefined;
+    overridePresets?: LoopOverridePreset[] | undefined;
+    dosingEnabled?: boolean | undefined;
+    minimumBGGuard?: number | undefined;
+    preMealTargetRange?: LoopTargetRange | undefined;
+    workoutTargetRange?: LoopTargetRange | undefined;
+    maximumBolus?: number | undefined;
+    maximumBasalRatePerHour?: number | undefined;
+    dosingStrategy?: string | undefined;
+    scheduleOverride?: LoopOverridePreset | undefined;
+}
+
+export interface LoopOverridePreset {
+    name?: string | undefined;
+    symbol?: string | undefined;
+    duration?: number | undefined;
+    targetRange?: LoopTargetRange | undefined;
+    insulinNeedsScaleFactor?: number | undefined;
+}
+
+export interface LoopTargetRange {
+    minValue?: number | undefined;
+    maxValue?: number | undefined;
 }
 
 export interface Settings extends ProcessableDocumentBase {
@@ -15338,22 +15606,6 @@ export interface PushoverNotificationRequest {
     urlTitle?: string | undefined;
     retry?: number | undefined;
     expire?: number | undefined;
-}
-
-export interface StatusResponse {
-    status?: string;
-    name?: string | undefined;
-    version?: string | undefined;
-    apiVersion?: string | undefined;
-    serverTime?: Date;
-    serverTimeEpoch?: number;
-    enabled?: string[] | undefined;
-    apiEnabled?: boolean;
-    roles?: string[] | undefined;
-    settings?: { [key: string]: any; } | undefined;
-    extendedSettings?: { [key: string]: any; } | undefined;
-    careportalEnabled?: boolean | undefined;
-    head?: string | undefined;
 }
 
 export interface TimeQueryEcho {

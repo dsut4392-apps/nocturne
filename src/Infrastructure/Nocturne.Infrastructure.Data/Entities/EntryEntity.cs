@@ -63,6 +63,25 @@ public class EntryEntity
     public string? Direction { get; set; }
 
     /// <summary>
+    /// Numeric trend indicator (1-9) used by Dexcom and Loop
+    /// 1=DoubleUp, 2=SingleUp, 3=FortyFiveUp, 4=Flat, 5=FortyFiveDown, 6=SingleDown, 7=DoubleDown, 8=NotComputable, 9=RateOutOfRange
+    /// </summary>
+    [Column("trend")]
+    public int? Trend { get; set; }
+
+    /// <summary>
+    /// Rate of glucose change in mg/dL per minute
+    /// </summary>
+    [Column("trend_rate")]
+    public double? TrendRate { get; set; }
+
+    /// <summary>
+    /// Whether this entry is a calibration reading
+    /// </summary>
+    [Column("is_calibration")]
+    public bool IsCalibration { get; set; }
+
+    /// <summary>
     /// Entry type (sgv, mbg, cal, etc.)
     /// </summary>
     [Column("type")]

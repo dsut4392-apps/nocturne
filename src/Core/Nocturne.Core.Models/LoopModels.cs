@@ -208,6 +208,7 @@ public class LoopTargetRange
 
 /// <summary>
 /// Loop settings stored in profile (loopSettings field)
+/// Contains all Loop-specific configuration for Nightscout integration
 /// </summary>
 public class LoopProfileSettings
 {
@@ -252,4 +253,28 @@ public class LoopProfileSettings
     /// </summary>
     [JsonPropertyName("workoutTargetRange")]
     public LoopTargetRange? WorkoutTargetRange { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum bolus amount in units
+    /// </summary>
+    [JsonPropertyName("maximumBolus")]
+    public double? MaximumBolus { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum basal rate in units per hour
+    /// </summary>
+    [JsonPropertyName("maximumBasalRatePerHour")]
+    public double? MaximumBasalRatePerHour { get; set; }
+
+    /// <summary>
+    /// Gets or sets the dosing strategy (e.g., "automaticBolus", "tempBasalOnly")
+    /// </summary>
+    [JsonPropertyName("dosingStrategy")]
+    public string? DosingStrategy { get; set; }
+
+    /// <summary>
+    /// Gets or sets the currently active schedule override
+    /// </summary>
+    [JsonPropertyName("scheduleOverride")]
+    public LoopOverridePreset? ScheduleOverride { get; set; }
 }

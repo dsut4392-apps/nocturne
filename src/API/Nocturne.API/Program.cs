@@ -118,7 +118,12 @@ Console.WriteLine(
 // Add services
 
 // Add native API services for strangler pattern
-builder.Services.AddControllers();
+// Note: NightscoutJsonFilter is added globally to apply null-omission and
+// NocturneOnly field exclusion to v1-v3 API responses only
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<NightscoutJsonFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 
 // Note: Using NSwag instead of Microsoft.AspNetCore.OpenApi for better compatibility

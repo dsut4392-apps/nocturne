@@ -356,6 +356,102 @@ public class LoopStatus
     /// </summary>
     [JsonPropertyName("failureReason")]
     public string? FailureReason { get; set; }
+
+    /// <summary>
+    /// Gets or sets the list of RileyLink statuses
+    /// </summary>
+    [JsonPropertyName("rileylinks")]
+    public List<RileyLinkStatus>? RileyLinks { get; set; }
+
+    /// <summary>
+    /// Gets or sets the automatic dose recommendation
+    /// </summary>
+    [JsonPropertyName("automaticDoseRecommendation")]
+    public LoopAutomaticDoseRecommendation? AutomaticDoseRecommendation { get; set; }
+
+    /// <summary>
+    /// Gets or sets the current correction range
+    /// </summary>
+    [JsonPropertyName("currentCorrectionRange")]
+    public CorrectionRange? CurrentCorrectionRange { get; set; }
+
+    /// <summary>
+    /// Gets or sets the forecast error (prediction error info)
+    /// </summary>
+    [JsonPropertyName("forecastError")]
+    public object? ForecastError { get; set; }
+}
+
+/// <summary>
+/// Represents RileyLink status information
+/// </summary>
+public class RileyLinkStatus
+{
+    /// <summary>
+    /// Gets or sets the name
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the signal strength
+    /// </summary>
+    [JsonPropertyName("signal")]
+    public double? Signal { get; set; }
+
+    /// <summary>
+    /// Gets or sets the timestamp
+    /// </summary>
+    [JsonPropertyName("timestamp")]
+    public string? Timestamp { get; set; }
+
+    /// <summary>
+    /// Gets or sets the radio firmware version
+    /// </summary>
+    [JsonPropertyName("radioFirmware")]
+    public string? RadioFirmware { get; set; }
+
+    /// <summary>
+    /// Gets or sets the BLE firmware version
+    /// </summary>
+    [JsonPropertyName("bleFirmware")]
+    public string? BleFirmware { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether connected
+    /// </summary>
+    [JsonPropertyName("connected")]
+    public bool? Connected { get; set; }
+}
+
+/// <summary>
+/// Represents Loop automatic dose recommendation
+/// </summary>
+public class LoopAutomaticDoseRecommendation
+{
+    /// <summary>
+    /// Gets or sets the recommended bolus
+    /// </summary>
+    [JsonPropertyName("bolus")]
+    public double? Bolus { get; set; }
+
+    /// <summary>
+    /// Gets or sets the recommended temp basal
+    /// </summary>
+    [JsonPropertyName("tempBasal")]
+    public LoopRecommendedTempBasal? TempBasal { get; set; }
+
+    /// <summary>
+    /// Gets or sets the timestamp
+    /// </summary>
+    [JsonPropertyName("timestamp")]
+    public string? Timestamp { get; set; }
+
+    /// <summary>
+    /// Gets or sets the recommendation notice/reason
+    /// </summary>
+    [JsonPropertyName("notice")]
+    public string? Notice { get; set; }
 }
 
 /// <summary>

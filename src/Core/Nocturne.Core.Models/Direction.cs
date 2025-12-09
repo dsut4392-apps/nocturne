@@ -78,3 +78,59 @@ public enum Direction
     [JsonPropertyName("CGM ERROR")]
     CgmError,
 }
+
+/// <summary>
+/// Extension methods for Direction enum
+/// </summary>
+public static class DirectionExtensions
+{
+    /// <summary>
+    /// Converts a Direction enum value to the Nightscout/Dexcom trend number (0-9)
+    /// Used by pebble endpoint and other legacy integrations
+    /// </summary>
+    public static int ToTrendNumber(this Direction direction)
+    {
+        return direction switch
+        {
+            Direction.NONE => 0,
+            Direction.DoubleUp => 1,
+            Direction.SingleUp => 2,
+            Direction.FortyFiveUp => 3,
+            Direction.Flat => 4,
+            Direction.FortyFiveDown => 5,
+            Direction.SingleDown => 6,
+            Direction.DoubleDown => 7,
+            Direction.TripleUp => 1,      // Map to DoubleUp (closest)
+            Direction.TripleDown => 7,    // Map to DoubleDown (closest)
+            Direction.NotComputable => 8,
+            Direction.RateOutOfRange => 9,
+            Direction.CgmError => 8,      // Map to NotComputable
+            _ => 8
+        };
+    }
+
+    /// <summary>
+    /// Parses a direction string to the corresponding trend number
+    /// Handles both enum names and legacy string formats
+    /// </summary>
+    public static int ParseToTrendNumber(string? direction)
+    {
+        if (string.IsNullOrEmpty(direction))
+            return 8; // NOT COMPUTABLE
+
+        // Try to parse as enum first
+        if (Enum.TryParse<Direction>(direction, ignoreCase: true, out var parsed))
+        {
+            return parsed.ToTrendNumber();
+        }
+
+        // Handle legacy string formats
+        return direction.ToUpperInvariant() switch
+        {
+            "NOT COMPUTABLE" => 8,
+            "RATE OUT OF RANGE" => 9,
+            "CGM ERROR" => 8,
+            _ => 8
+        };
+    }
+}

@@ -3,12 +3,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Nocturne.API.Controllers.V1;
+using Nocturne.API.Controllers.V4;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Xunit;
 
-namespace Nocturne.API.Tests.Controllers.V1;
+namespace Nocturne.API.Tests.Controllers.V4;
 
 /// <summary>
 /// Unit tests for ProcessingController

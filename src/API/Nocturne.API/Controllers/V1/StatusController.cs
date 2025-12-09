@@ -6,7 +6,9 @@ using Nocturne.Core.Models;
 namespace Nocturne.API.Controllers.V1;
 
 /// <summary>
-/// Status controller that provides 1:1 compatibility with Nightscout status endpoint
+/// Status controller that provides 1:1 compatibility with Nightscout status endpoint.
+/// Returns HTML "STATUS OK" by default (matching Nightscout), or JSON when requested via Accept header.
+/// For detailed JSON status, use the V4 status endpoint at /api/v4/status
 /// </summary>
 [ApiController]
 [Route("api/v1/[controller]")]
@@ -22,13 +24,14 @@ public class StatusController : ControllerBase
     }
 
     /// <summary>
-    /// Get the current system status
+    /// Get the current system status.
+    /// Returns HTML by default for Nightscout compatibility, or JSON if Accept header requests it.
     /// </summary>
-    /// <returns>System status information</returns>
+    /// <returns>Status response in HTML or JSON format</returns>
     [HttpGet]
     [NightscoutEndpoint("/api/v1/status")]
-    [ProducesResponseType(typeof(StatusResponse), 200)]
-    public async Task<ActionResult<StatusResponse>> GetStatus()
+    [Produces("text/html", "application/json")]
+    public async Task<IActionResult> GetStatus()
     {
         _logger.LogDebug(
             "Status endpoint requested from {RemoteIpAddress}",
@@ -37,26 +40,41 @@ public class StatusController : ControllerBase
 
         try
         {
-            var status = await _statusService.GetSystemStatusAsync();
+            // Check Accept header to determine response format
+            var acceptHeader = Request.Headers.Accept.ToString().ToLowerInvariant();
+            var wantsJson = acceptHeader.Contains("application/json");
 
-            _logger.LogDebug("Successfully generated status response");
+            if (wantsJson)
+            {
+                // Return full JSON status for clients that request it
+                var status = await _statusService.GetSystemStatusAsync();
+                return Ok(status);
+            }
 
-            return Ok(status);
+            // Default: Return simple HTML "STATUS OK" for Nightscout compatibility
+            // This matches the legacy Nightscout behavior exactly
+            return Content("<h1>STATUS OK</h1>", "text/html");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating status response");
 
-            // Return minimal status response even on error to maintain compatibility
-            return Ok(
-                new StatusResponse
-                {
-                    Status = "error",
-                    Name = "Nocturne",
-                    Version = "unknown",
-                    ServerTime = DateTime.UtcNow,
-                }
-            );
+            // Return error status
+            var acceptHeader = Request.Headers.Accept.ToString().ToLowerInvariant();
+            if (acceptHeader.Contains("application/json"))
+            {
+                return Ok(
+                    new StatusResponse
+                    {
+                        Status = "error",
+                        Name = "Nocturne",
+                        Version = "unknown",
+                        ServerTime = DateTime.UtcNow,
+                    }
+                );
+            }
+
+            return Content("<h1>STATUS ERROR</h1>", "text/html");
         }
     }
 }

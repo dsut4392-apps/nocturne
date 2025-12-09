@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Nocturne.Infrastructure.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nocturne.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(NocturneDbContext))]
-    partial class NocturneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251209011618_AddLoopProfileFields")]
+    partial class AddLoopProfileFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1037,10 +1040,6 @@ namespace Nocturne.Infrastructure.Data.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("intercept");
 
-                    b.Property<bool>("IsCalibration")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_calibration");
-
                     b.Property<string>("MetaJson")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("jsonb")
@@ -1112,14 +1111,6 @@ namespace Nocturne.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("sys_updated_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<int?>("Trend")
-                        .HasColumnType("integer")
-                        .HasColumnName("trend");
-
-                    b.Property<double?>("TrendRate")
-                        .HasColumnType("double precision")
-                        .HasColumnName("trend_rate");
 
                     b.Property<string>("Type")
                         .IsRequired()

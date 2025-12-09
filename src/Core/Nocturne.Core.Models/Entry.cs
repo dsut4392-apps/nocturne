@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Nocturne.Core.Models.Attributes;
 
 namespace Nocturne.Core.Models;
 
@@ -142,6 +143,26 @@ public class Entry : ProcessableDocumentBase
     public string? Direction { get; set; }
 
     /// <summary>
+    /// Gets or sets the numeric trend indicator (1-9) used by Dexcom and Loop
+    /// 1=DoubleUp, 2=SingleUp, 3=FortyFiveUp, 4=Flat, 5=FortyFiveDown, 6=SingleDown, 7=DoubleDown, 8=NotComputable, 9=RateOutOfRange
+    /// </summary>
+    [JsonPropertyName("trend")]
+    public int? Trend { get; set; }
+
+    /// <summary>
+    /// Gets or sets the rate of glucose change in mg/dL per minute
+    /// Positive values indicate rising glucose, negative values indicate falling
+    /// </summary>
+    [JsonPropertyName("trendRate")]
+    public double? TrendRate { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this entry is a calibration reading
+    /// </summary>
+    [JsonPropertyName("isCalibration")]
+    public bool IsCalibration { get; set; }
+
+    /// <summary>
     /// Gets the direction as a strongly-typed enum value
     /// </summary>
     [JsonIgnore]
@@ -280,11 +301,13 @@ public class Entry : ProcessableDocumentBase
     /// Common values: "demo-service", "dexcom-connector", "manual", "mongodb-import"
     /// </example>
     [JsonPropertyName("data_source")]
+    [NocturneOnly]
     public string? DataSource { get; set; }
 
     /// <summary>
     /// Gets or sets additional metadata for the entry
     /// </summary>
     [JsonPropertyName("meta")]
+    [NocturneOnly]
     public Dictionary<string, object>? Meta { get; set; }
 }

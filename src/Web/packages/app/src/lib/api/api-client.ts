@@ -21,7 +21,6 @@ import {
   AlexaClient,
   CountClient,
   DeviceAgeClient,
-  EchoClient,
   TimeQueryClient,
   NotificationsClient,
   IobClient,
@@ -67,7 +66,6 @@ export class ApiClient {
   public readonly alexa: AlexaClient;
   public readonly count: CountClient;
   public readonly deviceAge: DeviceAgeClient;
-  public readonly echo: EchoClient;
   public readonly v1Notifications: NotificationsClient;
   public readonly timeQuery: TimeQueryClient;
   public readonly iob: IobClient;
@@ -119,7 +117,6 @@ export class ApiClient {
     this.alexa = new AlexaClient(apiBaseUrl, http);
     this.count = new CountClient(apiBaseUrl, http);
     this.deviceAge = new DeviceAgeClient(apiBaseUrl, http);
-    this.echo = new EchoClient(apiBaseUrl, http);
     this.v1Notifications = new NotificationsClient(apiBaseUrl, http);
     this.timeQuery = new TimeQueryClient(apiBaseUrl, http);
     this.iob = new IobClient(apiBaseUrl, http);

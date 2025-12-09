@@ -54,6 +54,21 @@ public class Profile
     public Dictionary<string, ProfileData> Store { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets who entered this profile (e.g., "Loop")
+    /// Required for Nightscout compatibility
+    /// </summary>
+    [JsonPropertyName("enteredBy")]
+    public string? EnteredBy { get; set; }
+
+    /// <summary>
+    /// Gets or sets Loop-specific settings for this profile.
+    /// This is critical for Loop compatibility - contains device tokens, dosing settings,
+    /// override presets, and schedule overrides.
+    /// </summary>
+    [JsonPropertyName("loopSettings")]
+    public LoopProfileSettings? LoopSettings { get; set; }
+
+    /// <summary>
     /// Gets or sets whether this profile was converted on the fly from legacy format
     /// </summary>
     [JsonIgnore]
@@ -202,9 +217,23 @@ public class TimeValue
     public double Value { get; set; }
 
     /// <summary>
-    /// Gets or sets the time converted to seconds since midnight for faster calculations
-    /// This property is calculated at load time and not persisted
+    /// Gets or sets the time converted to seconds since midnight for faster calculations.
+    /// This property is included in JSON output for Nightscout compatibility.
+    /// If not set, it will be calculated from Time property during serialization.
     /// </summary>
-    [JsonIgnore]
+    [JsonPropertyName("timeAsSeconds")]
     public int? TimeAsSeconds { get; set; }
+
+    /// <summary>
+    /// Calculates TimeAsSeconds from the Time property if not already set
+    /// </summary>
+    public void EnsureTimeAsSeconds()
+    {
+        if (TimeAsSeconds.HasValue) return;
+
+        if (TimeSpan.TryParse(Time, out var timeSpan))
+        {
+            TimeAsSeconds = (int)timeSpan.TotalSeconds;
+        }
+    }
 }

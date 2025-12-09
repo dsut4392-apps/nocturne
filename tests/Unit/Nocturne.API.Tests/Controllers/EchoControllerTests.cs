@@ -4,31 +4,31 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Nocturne.API.Controllers.V1;
+using Nocturne.API.Controllers.V4;
 using Nocturne.API.Services;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Infrastructure.Data.Abstractions;
 using Xunit;
 
-namespace Nocturne.API.Tests.Controllers;
+namespace Nocturne.API.Tests.Controllers.V4;
 
 /// <summary>
-/// Unit tests for EchoController
+/// Unit tests for DebugController (formerly EchoController)
 /// Tests the echo and debug endpoint functionality
 /// </summary>
 [Trait("Category", "Unit")]
-public class EchoControllerTests
+public class DebugControllerTests
 {
     private readonly Mock<IPostgreSqlService> _mockPostgreSqlService;
-    private readonly Mock<ILogger<EchoController>> _mockLogger;
-    private readonly EchoController _controller;
+    private readonly Mock<ILogger<DebugController>> _mockLogger;
+    private readonly DebugController _controller;
 
-    public EchoControllerTests()
+    public DebugControllerTests()
     {
         _mockPostgreSqlService = new Mock<IPostgreSqlService>();
-        _mockLogger = new Mock<ILogger<EchoController>>();
-        _controller = new EchoController(_mockPostgreSqlService.Object, _mockLogger.Object);
+        _mockLogger = new Mock<ILogger<DebugController>>();
+        _controller = new DebugController(_mockPostgreSqlService.Object, _mockLogger.Object);
 
         // Set up HttpContext for the controller
         var httpContext = new DefaultHttpContext();

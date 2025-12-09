@@ -395,26 +395,47 @@ public class EntriesController : ControllerBase
                 entryType
             );
 
+            // Determine format from format parameter or Accept header (content negotiation)
+            var effectiveFormat = format;
+            if (string.IsNullOrEmpty(effectiveFormat) || effectiveFormat.Equals("json", StringComparison.OrdinalIgnoreCase))
+            {
+                // Check Accept header for content negotiation (Nightscout compatibility)
+                var acceptHeader = Request.Headers.Accept.ToString().ToLowerInvariant();
+                if (acceptHeader.Contains("text/tab-separated-values"))
+                {
+                    effectiveFormat = "tsv";
+                }
+                else if (acceptHeader.Contains("text/csv"))
+                {
+                    effectiveFormat = "csv";
+                }
+                else if (acceptHeader.Contains("text/plain") && !acceptHeader.Contains("application/json"))
+                {
+                    // text/plain returns TSV for Nightscout compatibility
+                    effectiveFormat = "tsv";
+                }
+            }
+
             // Handle different output formats
             if (
-                !string.IsNullOrEmpty(format)
-                && !format.Equals("json", StringComparison.OrdinalIgnoreCase)
+                !string.IsNullOrEmpty(effectiveFormat)
+                && !effectiveFormat.Equals("json", StringComparison.OrdinalIgnoreCase)
             )
             {
                 try
                 {
-                    var formattedData = _dataFormatService.FormatEntries(entriesArray, format);
-                    var contentType = _dataFormatService.GetContentType(format);
+                    var formattedData = _dataFormatService.FormatEntries(entriesArray, effectiveFormat);
+                    var contentType = _dataFormatService.GetContentType(effectiveFormat);
                     return Content(formattedData, contentType);
                 }
                 catch (ArgumentException ex)
                 {
-                    _logger.LogWarning(ex, "Unsupported format requested: {Format}", format);
+                    _logger.LogWarning(ex, "Unsupported format requested: {Format}", effectiveFormat);
                     return BadRequest(
                         new
                         {
                             status = 400,
-                            message = $"Unsupported format: {format}. Supported formats: json, csv, tsv, txt",
+                            message = $"Unsupported format: {effectiveFormat}. Supported formats: json, csv, tsv, txt",
                             type = "client",
                         }
                     );

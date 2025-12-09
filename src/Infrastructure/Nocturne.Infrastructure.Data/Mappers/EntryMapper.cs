@@ -25,6 +25,9 @@ public static class EntryMapper
             Mmol = entry.Mmol,
             Sgv = entry.Sgv,
             Direction = entry.Direction,
+            Trend = entry.Trend,
+            TrendRate = entry.TrendRate,
+            IsCalibration = entry.IsCalibration,
             Type = entry.Type,
             Device = entry.Device,
             Notes = entry.Notes,
@@ -59,6 +62,9 @@ public static class EntryMapper
             Mmol = entity.Mmol,
             Sgv = entity.Sgv,
             Direction = entity.Direction,
+            Trend = entity.Trend,
+            TrendRate = entity.TrendRate,
+            IsCalibration = entity.IsCalibration,
             Type = entity.Type,
             Device = entity.Device,
             Notes = entity.Notes,
@@ -91,6 +97,9 @@ public static class EntryMapper
         entity.Mmol = entry.Mmol;
         entity.Sgv = entry.Sgv;
         entity.Direction = entry.Direction;
+        entity.Trend = entry.Trend;
+        entity.TrendRate = entry.TrendRate;
+        entity.IsCalibration = entry.IsCalibration;
         entity.Type = entry.Type;
         entity.Device = entry.Device;
         entity.Notes = entry.Notes;

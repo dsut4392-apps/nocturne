@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Nocturne.Core.Models.Attributes;
 using Nocturne.Core.Models.Serializers;
 
 namespace Nocturne.Core.Models;
@@ -312,6 +313,7 @@ public class Treatment : ProcessableDocumentBase
     /// </summary>
     [JsonPropertyName("profileJson")]
     [Sanitizable]
+    [NocturneOnly]
     public string? ProfileJson { get; set; }
 
     /// <summary>
@@ -450,6 +452,69 @@ public class Treatment : ProcessableDocumentBase
     public string? Otp { get; set; }
 
     /// <summary>
+    /// Gets or sets the sync identifier used by Loop for deduplication.
+    /// This is a unique identifier that Loop uses to prevent duplicate treatments.
+    /// </summary>
+    [JsonPropertyName("syncIdentifier")]
+    public string? SyncIdentifier { get; set; }
+
+    /// <summary>
+    /// Gets or sets the insulin type (e.g., "Humalog", "Novolog", "Fiasp").
+    /// Used by Loop and other AID systems.
+    /// </summary>
+    [JsonPropertyName("insulinType")]
+    [Sanitizable]
+    public string? InsulinType { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this treatment was automatically administered by an AID system.
+    /// True for automatic dosing decisions, false for user-initiated actions.
+    /// </summary>
+    [JsonPropertyName("automatic")]
+    public bool? Automatic { get; set; }
+
+    /// <summary>
+    /// Gets or sets the temp basal type ("absolute" or "percentage").
+    /// Used by Loop for temp basal treatments.
+    /// </summary>
+    [JsonPropertyName("temp")]
+    public string? Temp { get; set; }
+
+    /// <summary>
+    /// Gets or sets the insulin amount delivered in units.
+    /// Used by Loop for bolus treatments.
+    /// </summary>
+    [JsonPropertyName("amount")]
+    public double? Amount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the originally programmed insulin dose in units.
+    /// May differ from amount if delivery was interrupted.
+    /// </summary>
+    [JsonPropertyName("programmed")]
+    public double? Programmed { get; set; }
+
+    /// <summary>
+    /// Gets or sets unabsorbed insulin from previous boluses.
+    /// </summary>
+    [JsonPropertyName("unabsorbed")]
+    public double? Unabsorbed { get; set; }
+
+    /// <summary>
+    /// Gets or sets the bolus type (e.g., "normal", "square", "dual").
+    /// Maps to the standard Nightscout "type" field.
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string? BolusType { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Loop-specific bolus type.
+    /// Maps to the "bolusType" field sent by Loop.
+    /// </summary>
+    [JsonPropertyName("bolusType")]
+    public string? LoopBolusType { get; set; }
+
+    /// <summary>
     /// Gets or sets the data source identifier indicating where this treatment originated from.
     /// Use constants from <see cref="Core.Constants.DataSources"/> for consistent values.
     /// </summary>
@@ -457,11 +522,13 @@ public class Treatment : ProcessableDocumentBase
     /// Common values: "demo-service", "dexcom-connector", "manual", "mongodb-import"
     /// </example>
     [JsonPropertyName("data_source")]
+    [NocturneOnly]
     public string? DataSource { get; set; }
 
     /// <summary>
     /// Gets or sets additional properties for the treatment
     /// </summary>
     [JsonPropertyName("additional_properties")]
+    [NocturneOnly]
     public Dictionary<string, object>? AdditionalProperties { get; set; }
 }

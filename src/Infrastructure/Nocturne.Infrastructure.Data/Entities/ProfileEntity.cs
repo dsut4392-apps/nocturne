@@ -76,6 +76,20 @@ public class ProfileEntity
     public DateTime UpdatedAtPg { get; set; } = DateTime.UtcNow;
 
     /// <summary>
+    /// Who entered this profile (e.g., "Loop")
+    /// </summary>
+    [Column("entered_by")]
+    [MaxLength(100)]
+    public string? EnteredBy { get; set; }
+
+    /// <summary>
+    /// Loop-specific settings stored as JSON
+    /// Contains device tokens, dosing settings, override presets, etc.
+    /// </summary>
+    [Column("loop_settings_json", TypeName = "jsonb")]
+    public string? LoopSettingsJson { get; set; }
+
+    /// <summary>
     /// Additional properties from import (stored as JSON)
     /// </summary>
     [Column("additional_properties", TypeName = "jsonb")]

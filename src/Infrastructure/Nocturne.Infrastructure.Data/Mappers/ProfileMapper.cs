@@ -27,6 +27,10 @@ public static class ProfileMapper
             CreatedAt = profile.CreatedAt,
             Units = profile.Units,
             StoreJson = profile.Store != null ? JsonSerializer.Serialize(profile.Store) : "{}",
+            EnteredBy = profile.EnteredBy,
+            LoopSettingsJson = profile.LoopSettings != null
+                ? JsonSerializer.Serialize(profile.LoopSettings)
+                : null,
             UpdatedAtPg = DateTime.UtcNow,
         };
     }
@@ -42,6 +46,22 @@ public static class ProfileMapper
                 : JsonSerializer.Deserialize<Dictionary<string, ProfileData>>(entity.StoreJson)
                     ?? new Dictionary<string, ProfileData>();
 
+        // Ensure timeAsSeconds is calculated for all schedule entries
+        foreach (var profileData in store.Values)
+        {
+            CalculateTimeAsSeconds(profileData.Basal);
+            CalculateTimeAsSeconds(profileData.CarbRatio);
+            CalculateTimeAsSeconds(profileData.Sens);
+            CalculateTimeAsSeconds(profileData.TargetLow);
+            CalculateTimeAsSeconds(profileData.TargetHigh);
+        }
+
+        LoopProfileSettings? loopSettings = null;
+        if (!string.IsNullOrEmpty(entity.LoopSettingsJson))
+        {
+            loopSettings = JsonSerializer.Deserialize<LoopProfileSettings>(entity.LoopSettingsJson);
+        }
+
         return new Profile
         {
             Id = entity.OriginalId ?? entity.Id.ToString(),
@@ -51,7 +71,22 @@ public static class ProfileMapper
             CreatedAt = entity.CreatedAt,
             Units = entity.Units,
             Store = store,
+            EnteredBy = entity.EnteredBy,
+            LoopSettings = loopSettings,
         };
+    }
+
+    /// <summary>
+    /// Calculate timeAsSeconds for a list of TimeValue entries
+    /// </summary>
+    private static void CalculateTimeAsSeconds(List<TimeValue>? timeValues)
+    {
+        if (timeValues == null) return;
+
+        foreach (var tv in timeValues)
+        {
+            tv.EnsureTimeAsSeconds();
+        }
     }
 
     /// <summary>
@@ -65,6 +100,10 @@ public static class ProfileMapper
         entity.CreatedAt = profile.CreatedAt;
         entity.Units = profile.Units;
         entity.StoreJson = profile.Store != null ? JsonSerializer.Serialize(profile.Store) : "{}";
+        entity.EnteredBy = profile.EnteredBy;
+        entity.LoopSettingsJson = profile.LoopSettings != null
+            ? JsonSerializer.Serialize(profile.LoopSettings)
+            : null;
         entity.UpdatedAtPg = DateTime.UtcNow;
     }
 

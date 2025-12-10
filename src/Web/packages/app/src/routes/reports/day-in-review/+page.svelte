@@ -47,16 +47,21 @@
     X,
   } from "lucide-svelte";
   import { getDayInReviewData } from "./data.remote";
-  import { glucoseUnitsState } from "$lib/stores/glucose-units-store.svelte";
+  import {
+    glucoseUnitsState,
+    timeFormat,
+  } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     getUnitLabel,
+    convertToDisplayUnits,
   } from "$lib/utils/glucose-formatting";
   import RetrospectiveStats from "$lib/components/reports/RetrospectiveStats.svelte";
   import { TreatmentEditDialog } from "$lib/components/treatments";
   import { getRetrospectiveAt } from "$lib/data/retrospective.remote";
   import { getEventTypeStyle } from "$lib/constants/treatment-categories";
   import BasalRateChart from "$lib/components/reports/BasalRateChart.svelte";
+  import InsulinDonutChart from "$lib/components/reports/InsulinDonutChart.svelte";
 
   // Get date from URL search params
   const dateParam = $derived(
@@ -236,21 +241,29 @@
     basal: "#66ccff", // Lighter Blue
   };
 
-  // Thresholds
-  const lowThreshold = DEFAULT_THRESHOLDS.low ?? 70;
-  const highThreshold = DEFAULT_THRESHOLDS.high ?? 180;
-  const targetBottom = DEFAULT_THRESHOLDS.targetBottom ?? 70;
-  const targetTop = DEFAULT_THRESHOLDS.targetTop ?? 180;
+  // Thresholds (convert to display units for chart annotation)
+  const lowThreshold = $derived(
+    convertToDisplayUnits(DEFAULT_THRESHOLDS.low ?? 70, units)
+  );
+  const highThreshold = $derived(
+    convertToDisplayUnits(DEFAULT_THRESHOLDS.high ?? 180, units)
+  );
+  const targetBottom = $derived(
+    convertToDisplayUnits(DEFAULT_THRESHOLDS.targetBottom ?? 70, units)
+  );
+  const targetTop = $derived(
+    convertToDisplayUnits(DEFAULT_THRESHOLDS.targetTop ?? 180, units)
+  );
 
-  // Process entries for the chart
+  // Process entries for the chart (convert to display units)
   const chartData = $derived.by(() => {
-    const entries = dayData.entries as Entry[];
+    const entries = (dayData?.entries ?? []) as Entry[];
 
     return entries
       .filter((e) => (e.sgv || e.mgdl) && e.mills)
       .map((e) => ({
         time: new Date(e.mills!),
-        glucose: e.sgv ?? e.mgdl ?? 0,
+        glucose: convertToDisplayUnits(e.sgv ?? e.mgdl ?? 0, units),
         direction: e.direction,
       }))
       .sort((a, b) => a.time.getTime() - b.time.getTime());
@@ -258,7 +271,7 @@
 
   // Process treatments for markers (with original treatment reference for editing)
   const treatmentMarkers = $derived.by(() => {
-    const treatments = dayData.treatments as Treatment[];
+    const treatments = (dayData?.treatments ?? []) as Treatment[];
 
     return treatments
       .filter((t) => t.mills || t.createdAt || t.created_at)
@@ -348,21 +361,28 @@
     ),
   ]);
 
-  // Y-axis domain based on data
+  // Y-axis domain based on data (unit-aware)
+  const isMMOL = $derived(units === "mmol");
+  const is24Hour = $derived(timeFormat.current === "24");
+
   const yDomain: [number, number] = $derived.by(() => {
-    if (chartData.length === 0) return [40, 300];
+    if (chartData.length === 0) return isMMOL ? [2.2, 16.7] : [40, 300];
 
     const values = chartData.map((d) => d.glucose);
     const minY = Math.min(...values, lowThreshold);
     const maxY = Math.max(...values, highThreshold);
 
-    return [Math.max(20, minY - 20), maxY + 40];
+    const padding = isMMOL ? 1 : 20;
+    return [
+      Math.max(isMMOL ? 1 : 20, minY - padding),
+      maxY + (isMMOL ? 2 : 40),
+    ];
   });
 
   // Basal rate timeline for chart - use simple step function from treatments
   const basalTimeline = $derived.by(() => {
     // Generate simple basal timeline from temp basal treatments
-    const treatments = dayData.treatments as Treatment[];
+    const treatments = (dayData?.treatments ?? []) as Treatment[];
     const result: Array<{ time: Date; rate: number; isTemp: boolean }> = [];
     const intervalMs = 5 * 60 * 1000; // 5-minute intervals
 
@@ -400,7 +420,7 @@
 
   // Use backend-calculated glucose statistics from analysis
   const glucoseStats = $derived.by(() => {
-    const analysis = dayData.analysis;
+    const analysis = dayData?.analysis;
     const basicStats = analysis?.basicStats;
     const tir = analysis?.timeInRange?.percentages;
 
@@ -447,8 +467,8 @@
   // Treatment statistics - uses backend-calculated values only
   // The backend TreatmentSummary is the source of truth
   const treatmentStats = $derived.by(() => {
-    const summary = dayData.treatmentSummary as TreatmentSummary | null;
-    const treatments = dayData.treatments as Treatment[];
+    const summary = dayData?.treatmentSummary as TreatmentSummary | null;
+    const treatments = (dayData?.treatments ?? []) as Treatment[];
     const treatmentCount = summary?.treatmentCount ?? treatments.length;
 
     // All totals come from backend calculation
@@ -488,9 +508,12 @@
     ].filter((d) => d.value > 0)
   );
 
-  // Format time for axis labels
+  // Format time for axis labels (respects 24h preference)
   function formatTime(date: Date): string {
     const hours = date.getHours();
+    if (is24Hour) {
+      return `${hours.toString().padStart(2, "0")}:00`;
+    }
     return hours === 0
       ? "12a"
       : hours === 12
@@ -620,16 +643,14 @@
       </Card.Content>
     </Card.Root>
 
-    <!-- Total Daily Insulin -->
+    <!-- Total Daily Insulin Donut Chart -->
     <Card.Root>
-      <Card.Content class="p-4 text-center">
-        <div
-          class="text-3xl font-bold"
-          style="color: {TREATMENT_COLORS.insulin}"
-        >
-          {treatmentStats.totalDailyInsulin.toFixed(1)}U
-        </div>
-        <div class="text-sm text-muted-foreground">Total Daily Insulin</div>
+      <Card.Content class="p-4 flex justify-center">
+        <InsulinDonutChart
+          treatments={dayData?.treatments ?? []}
+          basal={treatmentStats.totalBasal}
+          href="/reports/insulin-delivery"
+        />
       </Card.Content>
     </Card.Root>
   </div>

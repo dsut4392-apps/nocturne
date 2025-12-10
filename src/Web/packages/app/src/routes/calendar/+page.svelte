@@ -10,7 +10,7 @@
   import type { DayStats } from "$lib/data/month-to-month.remote";
   import { getReportsData } from "$lib/data/reports.remote";
   import { cn } from "$lib/utils";
-  import { glucoseUnitsState } from "$lib/stores/glucose-units-store.svelte";
+  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     getUnitLabel,

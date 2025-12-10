@@ -104,7 +104,7 @@
   import { page } from "$app/state";
   import { getReportsData } from "$lib/data/reports.remote";
   import { getDateRangeInputFromUrl } from "$lib/utils/date-range";
-  import { glucoseUnitsState } from "$lib/stores/glucose-units-store.svelte";
+  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     formatGlucoseRange,

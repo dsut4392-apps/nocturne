@@ -4,7 +4,7 @@
   import { Badge } from "$lib/components/ui/badge";
   import { formatTime } from "$lib/utils";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
-  import { glucoseUnitsState } from "$lib/stores/glucose-units-store.svelte";
+  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     formatGlucoseDelta,

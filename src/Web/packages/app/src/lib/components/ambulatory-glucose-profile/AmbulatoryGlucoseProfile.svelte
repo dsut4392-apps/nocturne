@@ -7,6 +7,11 @@
   import { onMount } from "svelte";
   import { Skeleton } from "$lib/components/ui/skeleton";
   import { BarChart3 } from "lucide-svelte";
+  import {
+    glucoseUnitsState,
+    timeFormat,
+  } from "$lib/stores/appearance-store.svelte";
+  import { convertToDisplayUnits } from "$lib/utils/glucose-formatting";
 
   let {
     entries,
@@ -16,14 +21,59 @@
     averagedStats?: AveragedStats[];
   } = $props();
 
-  let data = $state<AveragedStats[]>(averagedStats || []);
+  let rawData = $state<AveragedStats[]>(averagedStats || []);
   let loading = $state(true);
   let error = $state<string | null>(null);
+
+  // Reactive unit-aware data transformation
+  const units = $derived(glucoseUnitsState.units);
+  const isMMOL = $derived(units === "mmol");
+
+  // Convert data to display units
+  const data = $derived(
+    rawData.map((d) => ({
+      ...d,
+      median: convertToDisplayUnits(d.median, units),
+      percentiles: d.percentiles
+        ? {
+            p10: convertToDisplayUnits(d.percentiles.p10 ?? 0, units),
+            p25: convertToDisplayUnits(d.percentiles.p25 ?? 0, units),
+            p75: convertToDisplayUnits(d.percentiles.p75 ?? 0, units),
+            p90: convertToDisplayUnits(d.percentiles.p90 ?? 0, units),
+          }
+        : undefined,
+    }))
+  );
+
+  // Dynamic Y-axis domain based on units
+  const yDomain = $derived<[number, number]>(isMMOL ? [0, 22.2] : [0, 400]);
+
+  // Convert threshold values to display units
+  const lowThreshold = $derived(
+    convertToDisplayUnits(DEFAULT_THRESHOLDS.low ?? 70, units)
+  );
+  const highThreshold = $derived(
+    convertToDisplayUnits(DEFAULT_THRESHOLDS.high ?? 180, units)
+  );
+
+  // Time format for X-axis labels
+  const is24Hour = $derived(timeFormat.current === "24");
+
+  // Format hour for X-axis tick label
+  function formatHour(hour: number): string {
+    if (is24Hour) {
+      return `${hour.toString().padStart(2, "0")}:00`;
+    }
+    if (hour === 0) return "12am";
+    if (hour === 12) return "12pm";
+    if (hour < 12) return `${hour}am`;
+    return `${hour - 12}pm`;
+  }
 
   onMount(async () => {
     // If we already have averaged stats, use them
     if (averagedStats?.length) {
-      data = averagedStats;
+      rawData = averagedStats;
       loading = false;
       return;
     }
@@ -32,7 +82,7 @@
     if (entries?.length) {
       try {
         const stats = await calculateAveragedStats({ entries });
-        data = stats;
+        rawData = stats;
         loading = false;
       } catch (err) {
         console.error("Failed to calculate averaged stats:", err);
@@ -47,7 +97,7 @@
 
   $effect(() => {
     if (averagedStats?.length) {
-      data = averagedStats;
+      rawData = averagedStats;
       loading = false;
     }
   });
@@ -111,14 +161,14 @@
       },
     ]}
     xDomain={[0, 23]}
-    yDomain={[0, 400]}
+    {yDomain}
     seriesLayout="overlap"
     tooltip={{ mode: "bisect-x" }}
     annotations={[
       {
         type: "line",
         x: 0,
-        y: DEFAULT_THRESHOLDS.low,
+        y: lowThreshold,
         label: "Low",
         labelXOffset: 4,
         labelYOffset: 4,
@@ -127,7 +177,7 @@
             class: "text-xs text-muted-foreground",
           },
           line: {
-            stroke: "var(--low-bg)",
+            stroke: "var(--glucose-low)",
             strokeWidth: 1,
             "stroke-dasharray": "4 2",
           },
@@ -136,7 +186,7 @@
       {
         type: "line",
         x: 0,
-        y: DEFAULT_THRESHOLDS.high,
+        y: highThreshold,
         label: "High",
         labelXOffset: 4,
         labelYOffset: -12,
@@ -145,7 +195,7 @@
             class: "text-xs text-muted-foreground",
           },
           line: {
-            stroke: "var(--high-bg)",
+            stroke: "var(--glucose-high)",
             strokeWidth: 1,
             "stroke-dasharray": "4 2",
           },
@@ -158,6 +208,7 @@
       xAxis: {
         motion: { type: "tween", duration: 200 },
         tickMultiline: true,
+        format: formatHour,
       },
     }}
     padding={{ top: 20, right: 20, bottom: 40, left: 20 }}

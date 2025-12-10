@@ -16,6 +16,14 @@
   import PointDetailDialog from "$lib/components/reports/PointDetailDialog.svelte";
   import { getReportsData } from "$lib/data/reports.remote";
   import { getDateRangeInputFromUrl } from "$lib/utils/date-range";
+  import {
+    glucoseUnitsState,
+    timeFormat,
+  } from "$lib/stores/appearance-store.svelte";
+  import {
+    convertToDisplayUnits,
+    getUnitLabel,
+  } from "$lib/utils/glucose-formatting";
 
   // Build date range input from URL parameters
   const dateRangeInput = $derived(getDateRangeInputFromUrl(page.url));
@@ -108,7 +116,7 @@
     const { start, end } = currentWeekRange;
 
     // Filter entries to current week
-    const weekEntries = data.entries.filter((entry: Entry) => {
+    const weekEntries = (data?.entries ?? []).filter((entry: Entry) => {
       const entryTime =
         entry.mills ?? new Date(entry.dateString ?? "").getTime();
       return entryTime >= start.getTime() && entryTime <= end.getTime();
@@ -179,7 +187,10 @@
         name: DAY_COLORS[dayOfWeek].name,
         data: sortedEntries.map((e) => ({
           x: e.normalized,
-          y: e.original.sgv ?? e.original.mgdl ?? 0,
+          y: convertToDisplayUnits(
+            e.original.sgv ?? e.original.mgdl ?? 0,
+            units
+          ),
           originalTimestamp: e.originalTimestamp,
         })),
       });
@@ -195,23 +206,30 @@
     new Date(2000, 0, 1, 23, 59, 59),
   ]);
 
-  // Y-axis domain based on data
+  // Y-axis domain based on data (now unit-aware)
+  const units = $derived(glucoseUnitsState.units);
+  const isMMOL = $derived(units === "mmol");
+  const unitLabel = $derived(getUnitLabel(units));
+  const is24Hour = $derived(timeFormat.current === "24");
+
   const yDomain: [number, number] = $derived.by(() => {
     // Find min and max across all data
     const lowThreshold = DEFAULT_THRESHOLDS.low ?? 70;
     const highThreshold = DEFAULT_THRESHOLDS.high ?? 180;
-    let minY: number = lowThreshold;
-    let maxY: number = highThreshold;
+    let minY: number = convertToDisplayUnits(lowThreshold, units);
+    let maxY: number = convertToDisplayUnits(highThreshold, units);
 
     for (const series of chartDataSeries) {
       for (const point of series.data) {
+        // point.y is already converted to display units in chartDataSeries
         if (point.y < minY) minY = point.y;
         if (point.y > maxY) maxY = point.y;
       }
     }
 
     // Add some padding
-    return [Math.max(0, minY - 20), maxY + 20];
+    const padding = isMMOL ? 1 : 20;
+    return [Math.max(0, minY - padding), maxY + padding];
   });
 
   // Update URL when week changes
@@ -263,9 +281,12 @@
     }
   }
 
-  // Format time for axis labels
+  // Format time for axis labels (respects 24h preference)
   function formatTime(date: Date): string {
     const hours = date.getHours();
+    if (is24Hour) {
+      return `${hours.toString().padStart(2, "0")}:00`;
+    }
     return hours === 0
       ? "12a"
       : hours === 12
@@ -383,7 +404,7 @@
           >
             <Svg>
               <!-- Axes -->
-              <Axis placement="left" rule label="mg/dL" />
+              <Axis placement="left" rule label={unitLabel} />
               <Axis
                 placement="bottom"
                 rule

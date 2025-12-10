@@ -1,0 +1,74 @@
+/* Nocturne Theme - Diabetes-specific color variables */
+
+:root {
+  /* Glucose Levels */
+  --glucose-in-range: oklch(0.6 0.118 184.704);
+  --glucose-low: oklch(0.646 0.222 41.116);
+  --glucose-very-low: oklch(0.577 0.245 27.325);
+  --glucose-high: #7928ca;
+  --glucose-very-high: #ff0080;
+
+  /* Insulin Types */
+  --insulin: rgb(30, 150, 252);
+  --insulin-bolus: rgba(30, 150, 252, 1.0);
+  --insulin-basal: rgba(30, 150, 252, 0.5);
+  --insulin-temp-basal: rgba(162, 214, 249, 0.5);
+  --insulin-manual-temp-basal: rgba(30, 150, 252, 1.0);
+
+  /* Carbohydrates */
+  --carbs: oklch(0.769 0.188 70.08);
+  --carbs-on-board: oklch(0.769 0.188 70.08);
+
+  /* Status Colors */
+  --status-warning: oklch(0.646 0.222 41.116);
+  --status-critical: oklch(0.577 0.245 27.325);
+  --status-normal: oklch(0.6 0.118 184.704);
+
+  /* IOB (Insulin on Board) - for charts */
+  --iob-basal: oklch(0.646 0.222 41.116);
+  --iob-bolus: oklch(0.769 0.188 70.08);
+  --iob-temporary: oklch(0.6 0.118 184.704);
+}
+
+.dark {
+  /* Insulin Types - Dark Mode */
+  --insulin-temp-basal: rgba(30, 150, 252, 1.0);
+}
+
+/* Tailwind theme integration */
+@theme inline {
+  /* Glucose Levels */
+  --color-glucose-in-range: var(--glucose-in-range);
+  --color-glucose-low: var(--glucose-low);
+  --color-glucose-very-low: var(--glucose-very-low);
+  --color-glucose-high: var(--glucose-high);
+  --color-glucose-very-high: var(--glucose-very-high);
+
+  /* Insulin Types */
+  --color-insulin: var(--insulin);
+  --color-insulin-bolus: var(--insulin-bolus);
+  --color-insulin-basal: var(--insulin-basal);
+  --color-insulin-temp-basal: var(--insulin-temp-basal);
+  --color-insulin-manual-temp-basal: var(--insulin-manual-temp-basal);
+
+  /* Carbohydrates */
+  --color-carbs: var(--carbs);
+  --color-carbs-on-board: var(--carbs-on-board);
+
+  /* Status Colors */
+  --color-status-warning: var(--status-warning);
+  --color-status-critical: var(--status-critical);
+  --color-status-normal: var(--status-normal);
+
+  /* IOB */
+  --color-iob-basal: var(--iob-basal);
+  --color-iob-bolus: var(--iob-bolus);
+  --color-iob-temporary: var(--iob-temporary);
+
+  /* Legacy compatibility - map to old variable names */
+  --color-glucose-very-low: var(--glucose-very-low);
+  --color-glucose-low: var(--glucose-low);
+  --color-glucose-in-range: var(--glucose-in-range);
+  --color-glucose-high: var(--glucose-high);
+  --color-glucose-very-high: var(--glucose-very-high);
+}

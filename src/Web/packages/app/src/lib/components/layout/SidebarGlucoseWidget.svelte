@@ -1,9 +1,10 @@
 <script lang="ts">
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
-  import { glucoseUnitsState } from "$lib/stores/glucose-units-store.svelte";
+  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     formatGlucoseDelta,
+    convertToDisplayUnits,
   } from "$lib/utils/glucose-formatting";
   import { GlucoseValueIndicator } from "$lib/components/shared";
   import { Badge } from "$lib/components/ui/badge";
@@ -53,24 +54,29 @@
   const displayBG = $derived(formatGlucoseValue(rawCurrentBG, units));
   const displayDelta = $derived(formatGlucoseDelta(rawBgDelta, units));
 
-  // Get last 3 hours of entries for mini chart
+  // Get last 3 hours of entries for mini chart (convert to display units)
   const chartEntries = $derived.by(() => {
     const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
     return realtimeStore.entries
       .filter((e) => (e.mills ?? 0) > threeHoursAgo)
       .map((e) => ({
         date: new Date(e.mills ?? 0),
-        value: e.sgv ?? e.mgdl ?? 0,
+        value: convertToDisplayUnits(e.sgv ?? e.mgdl ?? 0, units),
       }))
       .sort((a, b) => a.date.getTime() - b.date.getTime());
   });
 
-  // Y domain for chart
+  // Y domain for chart (unit-aware)
+  const isMMOL = $derived(units === "mmol");
   const yMax = $derived.by(() => {
-    if (chartEntries.length === 0) return 300;
+    if (chartEntries.length === 0) return isMMOL ? 16.7 : 300;
     const values = chartEntries.map((e) => e.value);
-    return Math.min(400, Math.max(...values) + 30);
+    const maxPadding = isMMOL ? 1.5 : 30;
+    return isMMOL
+      ? Math.min(22.2, Math.max(...values) + maxPadding)
+      : Math.min(400, Math.max(...values) + maxPadding);
   });
+  const yMin = $derived(isMMOL ? 2.2 : 40);
 
   // Get direction icon
   const getDirectionIcon = (dir: string) => {
@@ -145,13 +151,19 @@
         data={chartEntries}
         x="date"
         y="value"
-        yDomain={[40, yMax]}
+        yDomain={[yMin, yMax]}
         padding={{ top: 2, bottom: 2, left: 2, right: 2 }}
       >
         <Svg>
-          <!-- Target range lines -->
-          <Rule y={70} class="stroke-yellow-500/40" />
-          <Rule y={180} class="stroke-orange-500/40" />
+          <!-- Target range lines (75 mg/dl = 4.2 mmol, 180 mg/dl = 10 mmol) -->
+          <Rule
+            y={convertToDisplayUnits(70, units)}
+            class="stroke-yellow-500/40"
+          />
+          <Rule
+            y={convertToDisplayUnits(180, units)}
+            class="stroke-orange-500/40"
+          />
 
           <!-- Glucose line -->
           <Spline class="stroke-primary stroke-2 fill-none" />

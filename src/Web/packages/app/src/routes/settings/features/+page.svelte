@@ -1,6 +1,5 @@
 <script lang="ts">
   import { getSettingsStore } from "$lib/stores/settings-store.svelte";
-  import TitleFaviconSettings from "$lib/components/settings/TitleFaviconSettings.svelte";
   import {
     Card,
     CardContent,
@@ -11,7 +10,6 @@
   import { Button } from "$lib/components/ui/button";
   import { Switch } from "$lib/components/ui/switch";
   import { Label } from "$lib/components/ui/label";
-  import { Separator } from "$lib/components/ui/separator";
   import {
     Select,
     SelectContent,
@@ -21,14 +19,11 @@
   import {
     Sparkles,
     Eye,
-    Palette,
     Layout,
     BarChart3,
     Syringe,
     Activity,
     Clock,
-    Moon,
-    Sun,
     Pill,
     Droplets,
     Battery,
@@ -84,107 +79,17 @@
       </CardContent>
     </Card>
   {:else if store.features}
-    <!-- Display Settings -->
+    <!-- Chart Options -->
     <Card>
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
           <Eye class="h-5 w-5" />
-          Display Settings
+          Chart Options
         </CardTitle>
-        <CardDescription>
-          Customize how information is displayed
-        </CardDescription>
+        <CardDescription>Configure chart display preferences</CardDescription>
       </CardHeader>
       <CardContent class="space-y-6">
         <div class="grid gap-4 sm:grid-cols-2">
-          <div class="space-y-2">
-            <Label>Theme</Label>
-            <Select
-              type="single"
-              value={store.features.display?.theme ?? "system"}
-              onValueChange={(value) => {
-                if (store.features?.display) {
-                  store.features.display.theme = value;
-                  store.markChanged();
-                }
-              }}
-            >
-              <SelectTrigger>
-                <span class="flex items-center gap-2">
-                  {#if store.features.display?.theme === "light"}
-                    <Sun class="h-4 w-4" />
-                    Light
-                  {:else if store.features.display?.theme === "dark"}
-                    <Moon class="h-4 w-4" />
-                    Dark
-                  {:else}
-                    <Palette class="h-4 w-4" />
-                    System
-                  {/if}
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="system">System</SelectItem>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div class="space-y-2">
-            <Label>Time format</Label>
-            <Select
-              type="single"
-              value={store.features.display?.timeFormat ?? "12"}
-              onValueChange={(value) => {
-                if (store.features?.display) {
-                  store.features.display.timeFormat = value;
-                  store.markChanged();
-                }
-              }}
-            >
-              <SelectTrigger>
-                <span>
-                  {store.features.display?.timeFormat === "12"
-                    ? "12-hour (AM/PM)"
-                    : "24-hour"}
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="12">12-hour (AM/PM)</SelectItem>
-                <SelectItem value="24">24-hour</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div class="space-y-2">
-            <Label>Blood glucose units</Label>
-            <Select
-              type="single"
-              value={store.features.display?.units ?? "mg/dl"}
-              onValueChange={(value) => {
-                if (store.features?.display) {
-                  store.features.display.units = value;
-                  store.markChanged();
-                }
-              }}
-            >
-              <SelectTrigger>
-                <span>
-                  {store.features.display?.units === "mg/dl"
-                    ? "mg/dL"
-                    : "mmol/L"}
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mg/dl">mg/dL</SelectItem>
-                <SelectItem value="mmol">mmol/L</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <div class="space-y-2">
             <Label>Default chart range</Label>
             <Select
@@ -212,26 +117,6 @@
           </div>
         </div>
 
-        <Separator />
-
-        <div class="flex items-center justify-between">
-          <div class="space-y-0.5">
-            <Label>Night mode schedule</Label>
-            <p class="text-sm text-muted-foreground">
-              Automatically switch to dark theme at night
-            </p>
-          </div>
-          <Switch
-            checked={store.features.display?.nightMode ?? false}
-            onCheckedChange={(checked) => {
-              if (store.features?.display) {
-                store.features.display.nightMode = checked;
-                store.markChanged();
-              }
-            }}
-          />
-        </div>
-
         <div class="flex items-center justify-between">
           <div class="space-y-0.5">
             <Label>Show raw sensor values</Label>
@@ -251,9 +136,6 @@
         </div>
       </CardContent>
     </Card>
-
-    <!-- Browser Tab Settings -->
-    <TitleFaviconSettings />
 
     <!-- Dashboard Widgets -->
     <Card>

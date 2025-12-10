@@ -4,6 +4,11 @@
 @source '../node_modules/layerchart/dist';
 /* @import "@layerstack/tailwind/utils.css"; */
 
+/* Theme Imports - Both themes are loaded for runtime switching */
+/* Nocturne theme is default, Trio theme activates when .trio-theme class is on document */
+@import "./styles/nocturne-theme.css";
+@import "./styles/trio-theme.css";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -39,18 +44,6 @@
   --sidebar-accent-foreground: oklch(0.21 0.034 264.665);
   --sidebar-border: oklch(0.928 0.006 264.531);
   --sidebar-ring: oklch(0.707 0.022 261.325);
-  --severe-low-bg: oklch(0.577 0.245 27.325);
-  --low-bg: oklch(0.646 0.222 41.116);
-  --target-bg: oklch(0.6 0.118 184.704);
-  --high-bg: #7928ca;
-  --severe-high-bg: #ff0080;
-
-  --iob-basal: oklch(0.646 0.222 41.116);
-  --iob-bolus: oklch(0.769 0.188 70.08);
-  --iob-temporary: oklch(0.6 0.118 184.704);
-
-  --carbs: oklch(0.769 0.188 70.08);
-  --insulin: oklch(0.928 0.006 264.531);
 }
 
 .dark {
@@ -85,12 +78,6 @@
   --sidebar-accent-foreground: oklch(0.985 0.002 247.839);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
-
-  --severe-low-bg: oklch(0.577 0.245 27.325);
-  --low-bg: oklch(0.646 0.222 41.116);
-  --target-bg: oklch(0.6 0.118 184.704);
-  --high-bg: #7928ca;
-  --severe-high-bg: #ff0080;
 }
 
 @theme inline {
@@ -129,24 +116,6 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  /* Layerchart specific */
-  --color-surface-content: var(--card-foreground);
-  --color-surface-100: var(--card-background);
-  --color-surface-200: var(--card-muted);
-  --color-surface-300: var(--card-muted);
-  /* Nightscout specific */
-  --color-severe-low-bg: var(--severe-low-bg);
-  --color-low-bg: var(--low-bg);
-  --color-target-bg: var(--target-bg);
-  --color-high-bg: var(--high-bg);
-  --color-severe-high-bg: var(--severe-high-bg);
-
-  --color-carbs: var(--carbs);
-  --color-insulin: var(--insulin);
-
-  --color-iob-basal: var(--iob-basal);
-  --color-iob-bolus: var(--iob-bolus);
-  --color-iob-temporary: var(--iob-temporary);
 }
 
 @layer base {

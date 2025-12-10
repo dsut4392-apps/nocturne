@@ -9,17 +9,18 @@ import { browser } from "$app/environment";
 import type { TitleFaviconSettings, ClientThresholds } from "$lib/stores/serverSettings";
 import { directions } from "$lib/stores/serverSettings";
 import type { AlarmVisualSettings } from "$lib/types/alarm-profile";
+import { bg as formatBg, bgDelta as formatBgDelta } from "$lib/utils/glucose-formatting";
 
 /** Status levels for glucose values */
-export type GlucoseStatus = "urgent-high" | "high" | "in-range" | "low" | "urgent-low";
+export type GlucoseStatus = "very-high" | "high" | "in-range" | "low" | "very-low";
 
 /** Color palette for different glucose statuses */
 const STATUS_COLORS: Record<GlucoseStatus, string> = {
-  "urgent-high": "#ef4444", // red-500
+  "very-high": "#ef4444", // red-500
   "high": "#f97316",        // orange-500
   "in-range": "#22c55e",    // green-500
   "low": "#eab308",         // yellow-500
-  "urgent-low": "#ef4444",  // red-500
+  "very-low": "#ef4444",  // red-500
 };
 
 /** Grey color for disconnected/stale states */
@@ -27,11 +28,11 @@ const DISCONNECTED_COLOR = "#6b7280"; // gray-500
 
 /** Status labels for alarm display */
 const STATUS_LABELS: Record<GlucoseStatus, string> = {
-  "urgent-high": "⚠️ HIGH",
+  "very-high": "⚠️ HIGH",
   "high": "HIGH",
   "in-range": "",
   "low": "LOW",
-  "urgent-low": "⚠️ LOW",
+  "very-low": "⚠️ VERY LOW",
 };
 
 /**
@@ -193,7 +194,7 @@ export class TitleFaviconService {
       // Flash ON - show warning state
       const statusLabel = STATUS_LABELS[this.currentStatus];
       if (statusLabel) {
-        document.title = `${statusLabel} - ${this.currentBg}`;
+        document.title = `${statusLabel} - ${formatBg(this.currentBg)}`;
       }
 
       // Update favicon with alarm color
@@ -225,8 +226,8 @@ export class TitleFaviconService {
    * Determine glucose status based on value and thresholds
    */
   getGlucoseStatus(value: number, thresholds: ClientThresholds): GlucoseStatus {
-    if (value >= thresholds.high) return "urgent-high";
-    if (value <= thresholds.low) return "urgent-low";
+    if (value >= thresholds.high) return "very-high";
+    if (value <= thresholds.low) return "very-low";
     if (value > thresholds.targetTop) return "high";
     if (value < thresholds.targetBottom) return "low";
     return "in-range";
@@ -260,7 +261,7 @@ export class TitleFaviconService {
     const bgParts: string[] = [];
 
     if (settings.showBgValue) {
-      bgParts.push(bg.toString());
+      bgParts.push(formatBg(bg));
     }
 
     if (settings.showDirection && !isDisconnected) {
@@ -271,8 +272,7 @@ export class TitleFaviconService {
     }
 
     if (settings.showDelta && delta !== undefined && !isDisconnected) {
-      const deltaStr = delta >= 0 ? `+${delta}` : delta.toString();
-      bgParts.push(deltaStr);
+      bgParts.push(formatBgDelta(delta));
     }
 
     if (bgParts.length > 0) {
@@ -312,11 +312,13 @@ export class TitleFaviconService {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
+      // Format BG with user's unit preference
+      const bgStr = formatBg(bg);
+
       // Adjust font size based on value length
-      const bgStr = bg.toString();
       if (bgStr.length <= 2) {
         ctx.font = "bold 18px system-ui, sans-serif";
-      } else if (bgStr.length === 3) {
+      } else if (bgStr.length <= 3) {
         ctx.font = "bold 14px system-ui, sans-serif";
       } else {
         ctx.font = "bold 11px system-ui, sans-serif";

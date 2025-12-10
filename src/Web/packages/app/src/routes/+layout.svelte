@@ -12,6 +12,7 @@
   import type { AlarmVisualSettings } from "$lib/types/alarm-profile";
   import type { TitleFaviconSettings } from "$lib/stores/serverSettings";
   import { browser } from "$app/environment";
+  import { ModeWatcher } from "mode-watcher";
 
   // LocalStorage key for title/favicon settings
   const SETTINGS_STORAGE_KEY = "nocturne-title-favicon-settings";
@@ -175,6 +176,7 @@
 </script>
 
 <Sidebar.Provider>
+  <ModeWatcher />
   <AppSidebar user={data.user} />
   <MobileHeader />
   <Sidebar.Inset>

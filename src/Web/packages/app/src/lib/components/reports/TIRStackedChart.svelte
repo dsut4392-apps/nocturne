@@ -21,27 +21,27 @@
     severeLow: {
       key: "severeLow",
       label: "Severe Low",
-      color: "var(--severe-low-bg)",
+      color: "var(--glucose-very-low)",
     },
     low: {
       key: "low",
       label: "Low",
-      color: "var(--low-bg)",
+      color: "var(--glucose-low)",
     },
     target: {
       key: "target",
       label: "Target",
-      color: "var(--target-bg)",
+      color: "var(--glucose-in-range)",
     },
     high: {
       key: "high",
       label: "High",
-      color: "var(--high-bg)",
+      color: "var(--glucose-high)",
     },
     severeHigh: {
       key: "severeHigh",
       label: "Severe High",
-      color: "var(--severe-high-bg)",
+      color: "var(--glucose-very-high)",
     },
   };
 </script>

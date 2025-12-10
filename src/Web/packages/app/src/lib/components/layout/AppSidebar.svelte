@@ -30,6 +30,7 @@
     CheckCircle,
     Terminal,
     TestTube,
+    Palette,
   } from "lucide-svelte";
   import type { AuthUser } from "$lib/stores/auth.svelte";
 
@@ -140,6 +141,7 @@
       icon: Settings,
       children: [
         { title: "Overview", href: "/settings", icon: Settings },
+        { title: "Appearance", href: "/settings/appearance", icon: Palette },
         { title: "Devices", href: "/settings/devices", icon: Smartphone },
         { title: "Therapy", href: "/profile", icon: Syringe }, // Redirects to Profile page
         { title: "Algorithm", href: "/settings/algorithm", icon: Brain },

@@ -18,6 +18,7 @@
     ChevronRight,
     Settings,
     User,
+    Palette,
   } from "lucide-svelte";
 
   type SettingsSection = {
@@ -36,6 +37,13 @@
       description: "View your profile, roles, and session information",
       icon: User,
       href: "/settings/account",
+    },
+    {
+      id: "appearance",
+      title: "Appearance",
+      description: "Customize themes, colors, units, and display preferences",
+      icon: Palette,
+      href: "/settings/appearance",
     },
     {
       id: "devices",
@@ -62,7 +70,7 @@
     {
       id: "features",
       title: "Features",
-      description: "Enable or disable plugins and display options",
+      description: "Enable or disable plugins and dashboard widgets",
       icon: Sparkles,
       href: "/settings/features",
     },

@@ -29,6 +29,8 @@
     getPredictions,
     type PredictionData,
   } from "$lib/data/predictions.remote";
+  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
+  import { convertToDisplayUnits } from "$lib/utils/glucose-formatting";
 
   interface ComponentProps {
     entries?: Entry[];
@@ -229,65 +231,76 @@
     return t.mills ?? (t.created_at ? new Date(t.created_at).getTime() : 0);
   }
 
-  // Thresholds
-  const lowThreshold = chartConfig.low.threshold ?? 55;
-  const highThreshold = chartConfig.high.threshold ?? 180;
-
-  // Y domain for glucose (dynamic based on data)
-  const glucoseYMin = 40;
-  const glucoseYMax = $derived(
-    Math.min(400, Math.max(280, ...filteredEntries.map((e) => e.sgv ?? 0)) + 20)
+  // Thresholds (convert to display units)
+  const units = $derived(glucoseUnitsState.units);
+  const isMMOL = $derived(units === "mmol");
+  const lowThreshold = $derived(
+    convertToDisplayUnits(chartConfig.low.threshold ?? 55, units)
+  );
+  const highThreshold = $derived(
+    convertToDisplayUnits(chartConfig.high.threshold ?? 180, units)
   );
 
-  // Glucose data for chart
+  // Y domain for glucose (dynamic based on data, unit-aware)
+  const glucoseYMin = $derived(isMMOL ? 2.2 : 40);
+  const glucoseYMax = $derived.by(() => {
+    const maxSgv = Math.max(...filteredEntries.map((e) => e.sgv ?? 0));
+    const maxDisplayValue = convertToDisplayUnits(
+      Math.min(400, Math.max(280, maxSgv) + 20),
+      units
+    );
+    return maxDisplayValue;
+  });
+
+  // Glucose data for chart (convert to display units)
   const glucoseData = $derived(
     filteredEntries
       .filter((e) => e.sgv !== null && e.sgv !== undefined)
       .map((e) => ({
         time: new Date(e.mills ?? 0),
-        sgv: e.sgv ?? 0,
+        sgv: convertToDisplayUnits(e.sgv ?? 0, units),
         color: getGlucoseColor(e.sgv ?? 0),
       }))
       .sort((a, b) => a.time.getTime() - b.time.getTime())
   );
 
-  // Prediction curve data for chart
+  // Prediction curve data for chart (convert to display units)
   const predictionCurveData = $derived(
     predictionData?.curves.main.map((p) => ({
       time: new Date(p.timestamp),
-      sgv: p.value,
+      sgv: convertToDisplayUnits(p.value, units),
     })) ?? []
   );
 
   const iobPredictionData = $derived(
     predictionData?.curves.iobOnly.map((p) => ({
       time: new Date(p.timestamp),
-      sgv: p.value,
+      sgv: convertToDisplayUnits(p.value, units),
     })) ?? []
   );
 
   const uamPredictionData = $derived(
     predictionData?.curves.uam.map((p) => ({
       time: new Date(p.timestamp),
-      sgv: p.value,
+      sgv: convertToDisplayUnits(p.value, units),
     })) ?? []
   );
 
   const cobPredictionData = $derived(
     predictionData?.curves.cob.map((p) => ({
       time: new Date(p.timestamp),
-      sgv: p.value,
+      sgv: convertToDisplayUnits(p.value, units),
     })) ?? []
   );
 
   const zeroTempPredictionData = $derived(
     predictionData?.curves.zeroTemp.map((p) => ({
       time: new Date(p.timestamp),
-      sgv: p.value,
+      sgv: convertToDisplayUnits(p.value, units),
     })) ?? []
   );
 
-  // Prediction cone data - shows min/max range of all prediction curves
+  // Prediction cone data - shows min/max range of all prediction curves (convert to display units)
   const predictionConeData = $derived.by(() => {
     if (!predictionData) return [];
 
@@ -307,9 +320,12 @@
       const valuesAtTime = curves.map((c) => c[i]?.value ?? point.value);
       return {
         time: new Date(point.timestamp),
-        min: Math.min(...valuesAtTime),
-        max: Math.max(...valuesAtTime),
-        mid: (Math.min(...valuesAtTime) + Math.max(...valuesAtTime)) / 2,
+        min: convertToDisplayUnits(Math.min(...valuesAtTime), units),
+        max: convertToDisplayUnits(Math.max(...valuesAtTime), units),
+        mid: convertToDisplayUnits(
+          (Math.min(...valuesAtTime) + Math.max(...valuesAtTime)) / 2,
+          units
+        ),
       };
     });
   });

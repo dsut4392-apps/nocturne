@@ -175,7 +175,7 @@
       props: {
         label: { class: "text-xs" },
         line: {
-          class: "[stroke-dasharray:2,2] stroke-high-bg",
+          class: "[stroke-dasharray:2,2] stroke-glucose-high",
           color: chartConfig.high.color,
         },
       },
@@ -186,7 +186,7 @@
       label: `Low (${thresholds.low})`,
       props: {
         label: { class: "text-xs" },
-        line: { class: "[stroke-dasharray:2,2] stroke-low-bg" },
+        line: { class: "[stroke-dasharray:2,2] stroke-glucose-low" },
       },
     },
   ]}

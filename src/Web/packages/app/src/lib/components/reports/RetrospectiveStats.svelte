@@ -11,7 +11,7 @@
     Activity,
   } from "lucide-svelte";
   import type { RetrospectiveDataResponse } from "$lib/api";
-  import { glucoseUnitsState } from "$lib/stores/glucose-units-store.svelte";
+  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     getUnitLabel,

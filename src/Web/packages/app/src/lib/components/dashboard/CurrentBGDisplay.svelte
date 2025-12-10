@@ -5,7 +5,7 @@
   import { StatusPillBar } from "$lib/components/status-pills";
   import { GlucoseValueIndicator } from "$lib/components/shared";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
-  import { glucoseUnitsState } from "$lib/stores/glucose-units-store.svelte";
+  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     formatGlucoseDelta,

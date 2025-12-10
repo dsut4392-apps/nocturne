@@ -12,11 +12,11 @@
 
 // CSS Custom Properties (for components that can use CSS variables)
 export const TIR_COLORS_CSS = {
-  severeLow: "var(--severe-low-bg)",
-  low: "var(--low-bg)",
-  target: "var(--target-bg)",
-  high: "var(--high-bg)",
-  severeHigh: "var(--severe-high-bg)",
+  severeLow: "var(--glucose-very-low)",
+  low: "var(--glucose-low)",
+  target: "var(--glucose-in-range)",
+  high: "var(--glucose-high)",
+  severeHigh: "var(--glucose-very-high)",
 } as const;
 
 // Tailwind CSS Classes (for server-side rendering and utility classes)

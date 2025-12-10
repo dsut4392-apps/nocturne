@@ -9,10 +9,10 @@
  * functions for most use cases.
  */
 
-import { glucoseUnitsState } from "$lib/stores/glucose-units-store.svelte";
+import { glucoseUnitsState, type GlucoseUnits } from "$lib/stores/appearance-store.svelte";
 
-/** Supported glucose unit types */
-export type GlucoseUnits = "mg/dl" | "mmol";
+// Re-export for backward compatibility
+export type { GlucoseUnits };
 
 /** Conversion factor from mg/dL to mmol/L */
 const MGDL_TO_MMOL = 18.01559;

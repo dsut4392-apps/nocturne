@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Nocturne.Core.Models.Serializers;
 
 namespace Nocturne.Core.Models;
 
@@ -179,6 +180,7 @@ public class LoopOverridePreset
     /// Gets or sets the target glucose range
     /// </summary>
     [JsonPropertyName("targetRange")]
+    [JsonConverter(typeof(LoopTargetRangeConverter))]
     public LoopTargetRange? TargetRange { get; set; }
 
     /// <summary>
@@ -246,12 +248,14 @@ public class LoopProfileSettings
     /// Gets or sets the pre-meal target range
     /// </summary>
     [JsonPropertyName("preMealTargetRange")]
+    [JsonConverter(typeof(LoopTargetRangeConverter))]
     public LoopTargetRange? PreMealTargetRange { get; set; }
 
     /// <summary>
     /// Gets or sets the workout target range
     /// </summary>
     [JsonPropertyName("workoutTargetRange")]
+    [JsonConverter(typeof(LoopTargetRangeConverter))]
     public LoopTargetRange? WorkoutTargetRange { get; set; }
 
     /// <summary>

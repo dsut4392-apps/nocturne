@@ -734,6 +734,9 @@ public class StatisticsService : IStatisticsService
         var gvi = CalculateGVI(valuesList, entriesList);
         var pgs = CalculatePGS(valuesList, gvi, mean);
 
+        // Calculate Mean Total Daily Change and Time in Fluctuation
+        var (meanTotalDailyChange, timeInFluctuation) = CalculateFluctuationMetrics(entriesList);
+
         return new GlycemicVariability
         {
             CoefficientOfVariation = Math.Round(coefficientOfVariation * 10) / 10,
@@ -748,7 +751,66 @@ public class StatisticsService : IStatisticsService
             GlycemicVariabilityIndex = Math.Round(gvi * 100) / 100,
             PatientGlycemicStatus = Math.Round(pgs * 10) / 10,
             EstimatedA1c = CalculateEstimatedA1C(mean),
+            MeanTotalDailyChange = Math.Round(meanTotalDailyChange),
+            TimeInFluctuation = Math.Round(timeInFluctuation * 10) / 10,
         };
+    }
+
+    /// <summary>
+    /// Calculate Mean Total Daily Change and Time in Fluctuation metrics
+    /// </summary>
+    private (double MeanTotalDailyChange, double TimeInFluctuation) CalculateFluctuationMetrics(
+        IReadOnlyList<Entry> entries
+    )
+    {
+        if (entries.Count < 2)
+        {
+            return (0, 0);
+        }
+
+        // Sort entries by time
+        var sortedEntries = entries
+            .Where(e => (e.Sgv.HasValue || e.Mgdl > 0) && e.Mills > 0)
+            .OrderBy(e => e.Mills)
+            .ToList();
+
+        if (sortedEntries.Count < 2)
+        {
+            return (0, 0);
+        }
+
+        double totalChange = 0;
+        int fluctuationCount = 0;
+        int totalReadings = sortedEntries.Count;
+
+        for (int i = 1; i < sortedEntries.Count; i++)
+        {
+            var prev = sortedEntries[i - 1];
+            var curr = sortedEntries[i];
+
+            var prevGlucose = prev.Sgv ?? prev.Mgdl;
+            var currGlucose = curr.Sgv ?? curr.Mgdl;
+            var glucoseDiff = Math.Abs(currGlucose - prevGlucose);
+
+            totalChange += glucoseDiff;
+
+            // Check for fluctuation (>15 mg/dL within 5-6 minutes)
+            var timeDiff = curr.Mills - prev.Mills;
+            if (timeDiff <= 6 * 60 * 1000 && glucoseDiff > 15)
+            {
+                fluctuationCount++;
+            }
+        }
+
+        // Calculate number of days in dataset
+        var firstTime = sortedEntries.First().Mills;
+        var lastTime = sortedEntries.Last().Mills;
+        var numDays = Math.Max(1, (lastTime - firstTime) / (24.0 * 60 * 60 * 1000));
+
+        var meanTotalDailyChange = totalChange / numDays;
+        var timeInFluctuation = (fluctuationCount / (double)totalReadings) * 100;
+
+        return (meanTotalDailyChange, timeInFluctuation);
     }
 
     /// <summary>
@@ -1073,6 +1135,7 @@ public class StatisticsService : IStatisticsService
                 Percentages = new TimeInRangePercentages(),
                 Durations = new TimeInRangeDurations(),
                 Episodes = new TimeInRangeEpisodes(),
+                RangeStats = new TimeInRangeDetailedStats(),
             };
         }
 
@@ -1086,6 +1149,7 @@ public class StatisticsService : IStatisticsService
                 Percentages = new TimeInRangePercentages(),
                 Durations = new TimeInRangeDurations(),
                 Episodes = new TimeInRangeEpisodes(),
+                RangeStats = new TimeInRangeDetailedStats(),
             };
         }
 
@@ -1129,11 +1193,55 @@ public class StatisticsService : IStatisticsService
         // Calculate episodes (simplified - consecutive readings in same range)
         var episodes = CalculateEpisodes(glucoseValues, thresholds);
 
+        // Calculate per-range detailed statistics
+        var lowValues = glucoseValues.Where(v => v < thresholds.Low).ToList();
+        var targetValues = glucoseValues.Where(v => v >= thresholds.TargetBottom && v <= thresholds.TargetTop).ToList();
+        var highValues = glucoseValues.Where(v => v > thresholds.TargetTop).ToList();
+
+        var rangeStats = new TimeInRangeDetailedStats
+        {
+            Low = CalculateRangeMetrics("Low", lowValues, totalReadings),
+            Target = CalculateRangeMetrics("In Range", targetValues, totalReadings),
+            High = CalculateRangeMetrics("High", highValues, totalReadings),
+        };
+
         return new TimeInRangeMetrics
         {
             Percentages = percentages,
             Durations = durations,
             Episodes = episodes,
+            RangeStats = rangeStats,
+        };
+    }
+
+    /// <summary>
+    /// Calculate PeriodMetrics for a specific glucose range
+    /// </summary>
+    private PeriodMetrics CalculateRangeMetrics(string rangeName, List<double> values, int totalReadings)
+    {
+        if (values.Count == 0)
+        {
+            return new PeriodMetrics { PeriodName = rangeName };
+        }
+
+        var mean = values.Average();
+        var sortedValues = values.OrderBy(v => v).ToList();
+        var median = sortedValues.Count % 2 == 0
+            ? (sortedValues[sortedValues.Count / 2 - 1] + sortedValues[sortedValues.Count / 2]) / 2
+            : sortedValues[sortedValues.Count / 2];
+        var variance = values.Sum(v => Math.Pow(v - mean, 2)) / values.Count;
+        var stdDev = Math.Sqrt(variance);
+
+        return new PeriodMetrics
+        {
+            PeriodName = rangeName,
+            ReadingCount = values.Count,
+            Mean = Math.Round(mean, 1),
+            Median = Math.Round(median, 1),
+            StandardDeviation = Math.Round(stdDev, 1),
+            TimeInRange = Math.Round((double)values.Count / totalReadings * 100, 1),
+            Min = values.Min(),
+            Max = values.Max(),
         };
     }
 
@@ -1316,8 +1424,11 @@ public class StatisticsService : IStatisticsService
             var hourEntries = hourlyGroups[hourIndex];
 
             // Extract glucose values and calculate basic stats
-            var glucoseValues = ExtractGlucoseValues(hourEntries);
+            var glucoseValues = ExtractGlucoseValues(hourEntries).ToList();
             var basicStats = CalculateBasicStats(glucoseValues);
+
+            // Calculate extended 7-range time in range percentages for this hour
+            var extendedTir = CalculateExtendedTimeInRange(glucoseValues);
 
             var hourlyStats = new AveragedStats
             {
@@ -1329,12 +1440,49 @@ public class StatisticsService : IStatisticsService
                 Max = basicStats.Max,
                 StandardDeviation = basicStats.StandardDeviation,
                 Percentiles = basicStats.Percentiles,
+                TimeInRange = extendedTir,
             };
 
             averagedStats.Add(hourlyStats);
         }
 
         return averagedStats;
+    }
+
+    /// <summary>
+    /// Calculate extended 7-range time in range percentages
+    /// Ranges: <54, 54-63, 63-140, 140-180, 180-200, 200-220, >220
+    /// </summary>
+    /// <param name="glucoseValues">Collection of glucose values in mg/dL</param>
+    /// <returns>Extended time in range percentages</returns>
+    private ExtendedTimeInRangePercentages CalculateExtendedTimeInRange(IList<double> glucoseValues)
+    {
+        if (glucoseValues.Count == 0)
+        {
+            return new ExtendedTimeInRangePercentages();
+        }
+
+        var total = glucoseValues.Count;
+
+        // Count readings in each of the 7 ranges
+        var veryLowCount = glucoseValues.Count(v => v < 54);
+        var lowCount = glucoseValues.Count(v => v >= 54 && v < 63);
+        var normalCount = glucoseValues.Count(v => v >= 63 && v < 140);
+        var aboveTargetCount = glucoseValues.Count(v => v >= 140 && v < 180);
+        var highCount = glucoseValues.Count(v => v >= 180 && v < 200);
+        var veryHighCount = glucoseValues.Count(v => v >= 200 && v < 220);
+        var severeHighCount = glucoseValues.Count(v => v >= 220);
+
+        return new ExtendedTimeInRangePercentages
+        {
+            VeryLow = Math.Round((double)veryLowCount / total * 100, 1),
+            Low = Math.Round((double)lowCount / total * 100, 1),
+            Normal = Math.Round((double)normalCount / total * 100, 1),
+            AboveTarget = Math.Round((double)aboveTargetCount / total * 100, 1),
+            High = Math.Round((double)highCount / total * 100, 1),
+            VeryHigh = Math.Round((double)veryHighCount / total * 100, 1),
+            SevereHigh = Math.Round((double)severeHighCount / total * 100, 1),
+        };
     }
 
     #endregion

@@ -10,7 +10,7 @@
     formatGlucoseValue,
     formatGlucoseDelta,
     getUnitLabel,
-  } from "$lib/utils/glucose-formatting";
+  } from "$lib/utils/formatting";
   import { Clock } from "lucide-svelte";
 
   interface ComponentProps {

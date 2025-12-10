@@ -11,7 +11,7 @@
     glucoseUnitsState,
     timeFormat,
   } from "$lib/stores/appearance-store.svelte";
-  import { convertToDisplayUnits } from "$lib/utils/glucose-formatting";
+  import { convertToDisplayUnits } from "$lib/utils/formatting";
 
   let {
     entries,

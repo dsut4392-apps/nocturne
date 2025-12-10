@@ -3,8 +3,7 @@
   import {
     formatInsulinDisplay,
     formatCarbDisplay,
-    getTotalInsulin,
-  } from "$lib/utils/calculate/treatment-stats";
+  } from "$lib/utils/formatting";
   import type { DayToDayDailyData } from "./types";
   import type { TreatmentSummary as TreatmentSummaryType } from "$lib/api";
 
@@ -15,6 +14,10 @@
   let { dailyDataPoints }: Props = $props();
 
   // Helper functions to access nested TreatmentSummary properties
+  function getTotalInsulin(summary: TreatmentSummaryType | undefined): number {
+    return (summary?.totals?.insulin?.bolus ?? 0) + (summary?.totals?.insulin?.basal ?? 0);
+  }
+
   function getTotalCarbs(summary: TreatmentSummaryType | undefined): number {
     return summary?.totals?.food?.carbs ?? 0;
   }

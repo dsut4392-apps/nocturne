@@ -9,7 +9,7 @@ import { browser } from "$app/environment";
 import type { TitleFaviconSettings, ClientThresholds } from "$lib/stores/serverSettings";
 import { directions } from "$lib/stores/serverSettings";
 import type { AlarmVisualSettings } from "$lib/types/alarm-profile";
-import { bg as formatBg, bgDelta as formatBgDelta } from "$lib/utils/glucose-formatting";
+import { bg as formatBg, bgDelta as formatBgDelta } from "$lib/utils/formatting";
 
 /** Status levels for glucose values */
 export type GlucoseStatus = "very-high" | "high" | "in-range" | "low" | "very-low";

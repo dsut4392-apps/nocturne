@@ -5,7 +5,7 @@
     formatGlucoseValue,
     formatGlucoseDelta,
     convertToDisplayUnits,
-  } from "$lib/utils/glucose-formatting";
+  } from "$lib/utils/formatting";
   import { GlucoseValueIndicator } from "$lib/components/shared";
   import { Badge } from "$lib/components/ui/badge";
   import { Chart, Svg, Spline, Rule } from "layerchart";

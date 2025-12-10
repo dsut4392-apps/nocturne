@@ -3,7 +3,7 @@
   import * as AlertDialog from "$lib/components/ui/alert-dialog";
   import { Button } from "$lib/components/ui/button";
   import { Trash2 } from "lucide-svelte";
-  import { formatDateDetailed } from "$lib/utils/date-formatting";
+  import { formatDateDetailed } from "$lib/utils/formatting";
 
   interface Props {
     open: boolean;

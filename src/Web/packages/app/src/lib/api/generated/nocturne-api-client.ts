@@ -13151,6 +13151,8 @@ export interface GlycemicVariability {
     glycemicVariabilityIndex?: number;
     patientGlycemicStatus?: number;
     estimatedA1c?: number;
+    meanTotalDailyChange?: number;
+    timeInFluctuation?: number;
 }
 
 /** Request model for glycemic variability calculation */
@@ -13208,6 +13210,7 @@ export interface TimeInRangeMetrics {
     percentages?: TimeInRangePercentages;
     durations?: TimeInRangeDurations;
     episodes?: TimeInRangeEpisodes;
+    rangeStats?: TimeInRangeDetailedStats;
 }
 
 export interface TimeInRangePercentages {
@@ -13233,6 +13236,32 @@ export interface TimeInRangeEpisodes {
     low?: number;
     high?: number;
     severeHigh?: number;
+}
+
+export interface TimeInRangeDetailedStats {
+    low?: PeriodMetrics;
+    target?: PeriodMetrics;
+    high?: PeriodMetrics;
+}
+
+export interface PeriodMetrics {
+    periodName?: string;
+    startHour?: number;
+    endHour?: number;
+    readingCount?: number;
+    mean?: number;
+    median?: number;
+    standardDeviation?: number;
+    coefficientOfVariation?: number;
+    timeInRange?: number;
+    timeBelowRange?: number;
+    timeVeryLow?: number;
+    timeAboveRange?: number;
+    timeVeryHigh?: number;
+    hypoglycemiaEvents?: number;
+    hyperglycemiaEvents?: number;
+    min?: number;
+    max?: number;
 }
 
 /** Request model for time in range calculation */
@@ -13276,10 +13305,21 @@ export interface DistributionBin {
 
 export interface AveragedStats extends BasicGlucoseStats {
     hour?: number;
+    timeInRange?: ExtendedTimeInRangePercentages;
 }
 
 export function isAveragedStats(object: any): object is AveragedStats {
     return object && object[''] === 'AveragedStats';
+}
+
+export interface ExtendedTimeInRangePercentages {
+    veryLow?: number;
+    low?: number;
+    normal?: number;
+    aboveTarget?: number;
+    high?: number;
+    veryHigh?: number;
+    severeHigh?: number;
 }
 
 export interface TreatmentSummary {
@@ -13496,26 +13536,6 @@ export interface TimeOfDayAnalysis {
     highestVariabilityPeriod?: string;
     lowestTIRPeriod?: string;
     mostHypoglycemiaPeriod?: string;
-}
-
-export interface PeriodMetrics {
-    periodName?: string;
-    startHour?: number;
-    endHour?: number;
-    readingCount?: number;
-    mean?: number;
-    median?: number;
-    standardDeviation?: number;
-    coefficientOfVariation?: number;
-    timeInRange?: number;
-    timeBelowRange?: number;
-    timeVeryLow?: number;
-    timeAboveRange?: number;
-    timeVeryHigh?: number;
-    hypoglycemiaEvents?: number;
-    hyperglycemiaEvents?: number;
-    min?: number;
-    max?: number;
 }
 
 export interface DayOfWeekAnalysis {

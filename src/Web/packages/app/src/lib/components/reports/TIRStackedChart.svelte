@@ -4,18 +4,39 @@
     type ExtendedAnalysisConfig,
   } from "$lib/utils/glucose-analytics.ts";
   import { BarChart, Tooltip } from "layerchart";
-  import { calculateTimeInRange } from "$lib/utils/calculate/time-in-range.ts";
+  import { calculateTimeInRange as calculateTimeInRangeRemote } from "$lib/data/statistics.remote.ts";
   import type { Entry } from "$lib/api";
   let {
     entries,
     config,
   }: { entries: Entry[]; config?: ExtendedAnalysisConfig } = $props();
-  const timeInRange = $derived(
-    calculateTimeInRange(entries, {
-      ...DEFAULT_CONFIG,
-      ...config,
+
+  const mergedConfig = {
+    ...DEFAULT_CONFIG,
+    ...config,
+  };
+
+  const timeInRangePromise = $derived(
+    calculateTimeInRangeRemote({
+      entries,
+      config: mergedConfig,
     })
   );
+
+  const timeInRange = $derived.by(() => {
+    // Extract percentages from the backend response
+    if (!timeInRangePromise) return { percentages: {} };
+
+    return {
+      percentages: {
+        severeLow: timeInRangePromise.rangeStats?.severeLow?.percentage ?? 0,
+        low: timeInRangePromise.rangeStats?.low?.percentage ?? 0,
+        target: timeInRangePromise.rangeStats?.target?.percentage ?? 0,
+        high: timeInRangePromise.rangeStats?.high?.percentage ?? 0,
+        severeHigh: timeInRangePromise.rangeStats?.severeHigh?.percentage ?? 0,
+      },
+    };
+  });
 
   const chartConfig = {
     severeLow: {

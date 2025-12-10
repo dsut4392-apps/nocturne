@@ -6,7 +6,7 @@
   import { Textarea } from "$lib/components/ui/textarea";
   import * as Card from "$lib/components/ui/card";
   import type { Treatment } from "$lib/api";
-  import { formatDateForInput } from "$lib/utils/date-formatting";
+  import { formatDateForInput } from "$lib/utils/formatting";
 
   // Helper to get API secret from cookie or local storage
   function getAPISecret(): string | null {

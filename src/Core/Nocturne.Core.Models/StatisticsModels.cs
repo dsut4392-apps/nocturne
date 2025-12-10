@@ -148,6 +148,16 @@ public class GlycemicVariability
     /// Estimated A1C from average glucose
     /// </summary>
     public double EstimatedA1c { get; set; }
+
+    /// <summary>
+    /// Mean total daily glucose change in mg/dL - sum of absolute glucose changes divided by number of days
+    /// </summary>
+    public double MeanTotalDailyChange { get; set; }
+
+    /// <summary>
+    /// Percentage of readings where glucose changed more than 15 mg/dL within 5-6 minutes
+    /// </summary>
+    public double TimeInFluctuation { get; set; }
 }
 
 /// <summary>
@@ -215,6 +225,32 @@ public class TimeInRangeMetrics
     /// Number of episodes in each range
     /// </summary>
     public TimeInRangeEpisodes Episodes { get; set; } = new();
+
+    /// <summary>
+    /// Per-range detailed statistics (count, average, median, stdDev)
+    /// </summary>
+    public TimeInRangeDetailedStats RangeStats { get; set; } = new();
+}
+
+/// <summary>
+/// Detailed statistics for each glucose range
+/// </summary>
+public class TimeInRangeDetailedStats
+{
+    /// <summary>
+    /// Statistics for low range (below 70 mg/dL)
+    /// </summary>
+    public PeriodMetrics Low { get; set; } = new() { PeriodName = "Low" };
+
+    /// <summary>
+    /// Statistics for target/in-range (70-180 mg/dL)
+    /// </summary>
+    public PeriodMetrics Target { get; set; } = new() { PeriodName = "In Range" };
+
+    /// <summary>
+    /// Statistics for high range (above 180 mg/dL)
+    /// </summary>
+    public PeriodMetrics High { get; set; } = new() { PeriodName = "High" };
 }
 
 /// <summary>
@@ -249,6 +285,47 @@ public class TimeInRangePercentages
 
     /// <summary>
     /// Percentage of time in severe high range (greater than 250 mg/dL)
+    /// </summary>
+    public double SevereHigh { get; set; }
+}
+
+/// <summary>
+/// Extended time in range percentages with 7 glucose ranges for hourly distribution
+/// </summary>
+public class ExtendedTimeInRangePercentages
+{
+    /// <summary>
+    /// Percentage of time in very low range (less than 54 mg/dL)
+    /// </summary>
+    public double VeryLow { get; set; }
+
+    /// <summary>
+    /// Percentage of time in low range (54-63 mg/dL)
+    /// </summary>
+    public double Low { get; set; }
+
+    /// <summary>
+    /// Percentage of time in normoglycemic range (63-140 mg/dL)
+    /// </summary>
+    public double Normal { get; set; }
+
+    /// <summary>
+    /// Percentage of time above target but not high (140-180 mg/dL)
+    /// </summary>
+    public double AboveTarget { get; set; }
+
+    /// <summary>
+    /// Percentage of time in high range (180-200 mg/dL)
+    /// </summary>
+    public double High { get; set; }
+
+    /// <summary>
+    /// Percentage of time in very high range (200-220 mg/dL)
+    /// </summary>
+    public double VeryHigh { get; set; }
+
+    /// <summary>
+    /// Percentage of time in severe high range (greater than 220 mg/dL)
     /// </summary>
     public double SevereHigh { get; set; }
 }
@@ -776,6 +853,11 @@ public class AveragedStats : BasicGlucoseStats
     /// Hour of the day (0-23)
     /// </summary>
     public int Hour { get; set; }
+
+    /// <summary>
+    /// Extended time in range percentages with 7 glucose ranges for this hour
+    /// </summary>
+    public ExtendedTimeInRangePercentages TimeInRange { get; set; } = new();
 }
 
 /// <summary>

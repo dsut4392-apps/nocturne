@@ -20,10 +20,7 @@
     glucoseUnitsState,
     timeFormat,
   } from "$lib/stores/appearance-store.svelte";
-  import {
-    convertToDisplayUnits,
-    getUnitLabel,
-  } from "$lib/utils/glucose-formatting";
+  import { convertToDisplayUnits, getUnitLabel } from "$lib/utils/formatting";
 
   // Build date range input from URL parameters
   const dateRangeInput = $derived(getDateRangeInputFromUrl(page.url));

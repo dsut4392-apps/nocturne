@@ -1,7 +1,5 @@
 <script lang="ts">
   import { Chart, Svg, Arc, Text, Group } from "layerchart";
-  import type { Entry } from "$lib/api";
-  import { DEFAULT_THRESHOLDS } from "$lib/constants";
   import * as Card from "$lib/components/ui/card";
   import * as Table from "$lib/components/ui/table";
   import { page } from "$app/state";
@@ -9,6 +7,7 @@
   import { getDateRangeInputFromUrl } from "$lib/utils/date-range";
   import { AlertTriangle } from "lucide-svelte";
   import { Button } from "$lib/components/ui/button";
+  import HourlyGlucoseDistributionChart from "$lib/components/reports/HourlyGlucoseDistributionChart.svelte";
 
   // Build date range input from URL parameters
   const dateRangeInput = $derived(getDateRangeInputFromUrl(page.url));
@@ -17,86 +16,67 @@
   const reportsQuery = $derived(getReportsData(dateRangeInput));
   const data = $derived(await reportsQuery);
 
-  // Glucose distribution ranges (matching Nightscout)
+  // Glucose distribution ranges (matching Nightscout) - colors only
   const RANGES = [
     {
       name: "Low",
-      min: 0,
-      max: DEFAULT_THRESHOLDS.low ?? 70,
       color: "#c30909",
     }, // Red
     {
       name: "In Range",
-      min: DEFAULT_THRESHOLDS.low ?? 70,
-      max: DEFAULT_THRESHOLDS.high ?? 180,
       color: "#5ab85a", // Green
     },
     {
       name: "High",
-      min: DEFAULT_THRESHOLDS.high ?? 180,
-      max: Infinity,
       color: "#e9e91a", // Yellow
     },
   ] as const;
 
-  // Calculate statistics for each range
   const rangeStats = $derived.by(() => {
-    // Get all valid glucose readings
-    const readings = data.entries
-      .filter((e: Entry) => e.sgv || e.mgdl)
-      .map((e: Entry) => e.sgv ?? e.mgdl ?? 0);
+    const analysis = data.analysis;
+    const rangeStatsBE = analysis?.timeInRange?.rangeStats;
 
-    if (readings.length === 0) {
+    if (!rangeStatsBE) {
       return RANGES.map((range) => ({
         name: range.name,
         color: range.color,
-        count: 0,
         percentage: 0,
+        count: 0,
         average: 0,
         median: 0,
         stdDev: 0,
       }));
     }
 
-    return RANGES.map((range) => {
-      const inRange = readings.filter((r) => r >= range.min && r < range.max);
-      const count = inRange.length;
-      const percentage = (count / readings.length) * 100;
-
-      // Calculate stats
-      const average =
-        count > 0 ? inRange.reduce((a, b) => a + b, 0) / count : 0;
-
-      // Median
-      const sorted = [...inRange].sort((a, b) => a - b);
-      const median =
-        count > 0
-          ? count % 2 === 0
-            ? (sorted[count / 2 - 1] + sorted[count / 2]) / 2
-            : sorted[Math.floor(count / 2)]
-          : 0;
-
-      // Standard deviation
-      const stdDev =
-        count > 0
-          ? Math.sqrt(
-              inRange.reduce(
-                (sum, val) => sum + Math.pow(val - average, 2),
-                0
-              ) / count
-            )
-          : 0;
-
-      return {
-        name: range.name,
-        color: range.color,
-        count,
-        percentage,
-        average,
-        median,
-        stdDev,
-      };
-    });
+    return [
+      {
+        name: "Low",
+        color: RANGES[0].color,
+        percentage: rangeStatsBE.low?.timeInRange ?? 0,
+        count: rangeStatsBE.low?.readingCount ?? 0,
+        average: rangeStatsBE.low?.mean ?? 0,
+        median: rangeStatsBE.low?.median ?? 0,
+        stdDev: rangeStatsBE.low?.standardDeviation ?? 0,
+      },
+      {
+        name: "In Range",
+        color: RANGES[1].color,
+        percentage: rangeStatsBE.target?.timeInRange ?? 0,
+        count: rangeStatsBE.target?.readingCount ?? 0,
+        average: rangeStatsBE.target?.mean ?? 0,
+        median: rangeStatsBE.target?.median ?? 0,
+        stdDev: rangeStatsBE.target?.standardDeviation ?? 0,
+      },
+      {
+        name: "High",
+        color: RANGES[2].color,
+        percentage: rangeStatsBE.high?.timeInRange ?? 0,
+        count: rangeStatsBE.high?.readingCount ?? 0,
+        average: rangeStatsBE.high?.mean ?? 0,
+        median: rangeStatsBE.high?.median ?? 0,
+        stdDev: rangeStatsBE.high?.standardDeviation ?? 0,
+      },
+    ];
   });
 
   // Pie chart data
@@ -108,13 +88,14 @@
     }))
   );
 
-  // Overall statistics
+  // Overall statistics from backend
   const overallStats = $derived.by(() => {
-    const readings = data.entries
-      .filter((e: Entry) => e.sgv || e.mgdl)
-      .map((e: Entry) => e.sgv ?? e.mgdl ?? 0);
+    const analysis = data.analysis;
+    const basicStats = analysis?.basicStats;
+    const glycemicVariability = analysis?.glycemicVariability;
+    const gmi = analysis?.gmi;
 
-    if (readings.length === 0) {
+    if (!basicStats || basicStats.count === 0) {
       return {
         totalReadings: 0,
         mean: 0,
@@ -129,112 +110,22 @@
       };
     }
 
-    const totalReadings = readings.length;
-    const mean = readings.reduce((a, b) => a + b, 0) / totalReadings;
-
-    const sorted = [...readings].sort((a, b) => a - b);
-    const median =
-      totalReadings % 2 === 0
-        ? (sorted[totalReadings / 2 - 1] + sorted[totalReadings / 2]) / 2
-        : sorted[Math.floor(totalReadings / 2)];
-
-    const stdDev = Math.sqrt(
-      readings.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
-        totalReadings
-    );
-
-    // A1c estimation (DCCT formula: A1c = (mean glucose + 46.7) / 28.7)
-    const a1cDCCT = (mean + 46.7) / 28.7;
-
-    // A1c (IFCC formula: A1c = 10.929 × (DCCT - 2.15)
+    // GMI value is the A1c estimate (DCCT format)
+    const a1cDCCT = gmi?.value ?? glycemicVariability?.estimatedA1c ?? 0;
+    // Convert DCCT to IFCC: IFCC = 10.929 × (DCCT - 2.15)
     const a1cIFCC = 10.929 * (a1cDCCT - 2.15);
 
-    // Calculate GVI (Glycemic Variability Index)
-    // GVI = (L / Lideal) where L is the total length of the glucose curve
-    // and Lideal is the length of a straight line between first and last points
-    let totalPathLength = 0;
-    const sortedByTime = data.entries
-      .filter((e: Entry) => (e.sgv || e.mgdl) && e.mills)
-      .sort((a: Entry, b: Entry) => (a.mills ?? 0) - (b.mills ?? 0));
-
-    for (let i = 1; i < sortedByTime.length; i++) {
-      const prev = sortedByTime[i - 1];
-      const curr = sortedByTime[i];
-      const dTime = ((curr.mills ?? 0) - (prev.mills ?? 0)) / (5 * 60 * 1000); // Normalize to 5-min intervals
-      const dGlucose =
-        (curr.sgv ?? curr.mgdl ?? 0) - (prev.sgv ?? prev.mgdl ?? 0);
-      totalPathLength += Math.sqrt(dTime * dTime + dGlucose * dGlucose);
-    }
-
-    const firstReading = sortedByTime[0];
-    const lastReading = sortedByTime[sortedByTime.length - 1];
-    const idealLength =
-      sortedByTime.length > 1
-        ? Math.sqrt(
-            Math.pow(
-              ((lastReading.mills ?? 0) - (firstReading.mills ?? 0)) /
-                (5 * 60 * 1000),
-              2
-            ) +
-              Math.pow(
-                (lastReading.sgv ?? lastReading.mgdl ?? 0) -
-                  (firstReading.sgv ?? firstReading.mgdl ?? 0),
-                2
-              )
-          )
-        : 1;
-
-    const gvi = idealLength > 0 ? totalPathLength / idealLength : 0;
-
-    // PGS (Patient Glycemic Status) = GVI × mean glucose × (1 - % time in range / 100)
-    const tir = rangeStats.find((s) => s.name === "In Range")?.percentage ?? 0;
-    const pgs = gvi * mean * (1 - tir / 100);
-
-    // Mean Total Daily Change
-    let totalChange = 0;
-    for (let i = 1; i < sortedByTime.length; i++) {
-      const prev = sortedByTime[i - 1];
-      const curr = sortedByTime[i];
-      totalChange += Math.abs(
-        (curr.sgv ?? curr.mgdl ?? 0) - (prev.sgv ?? prev.mgdl ?? 0)
-      );
-    }
-
-    // Calculate number of days in dataset
-    const firstTime = firstReading?.mills ?? Date.now();
-    const lastTime = lastReading?.mills ?? Date.now();
-    const numDays = Math.max(1, (lastTime - firstTime) / (24 * 60 * 60 * 1000));
-    const meanTotalDailyChange = totalChange / numDays;
-
-    // Time in fluctuation (readings where change from previous > 15 mg/dL in 5 min)
-    let fluctuationCount = 0;
-    for (let i = 1; i < sortedByTime.length; i++) {
-      const prev = sortedByTime[i - 1];
-      const curr = sortedByTime[i];
-      const timeDiff = (curr.mills ?? 0) - (prev.mills ?? 0);
-      if (timeDiff <= 6 * 60 * 1000) {
-        // Within ~5-6 minutes
-        const glucoseDiff = Math.abs(
-          (curr.sgv ?? curr.mgdl ?? 0) - (prev.sgv ?? prev.mgdl ?? 0)
-        );
-        if (glucoseDiff > 15) {
-          fluctuationCount++;
-        }
-      }
-    }
-    const timeInFluctuation = (fluctuationCount / totalReadings) * 100;
-
     return {
-      totalReadings,
-      mean,
-      median,
-      stdDev,
+      totalReadings: basicStats.count ?? 0,
+      mean: basicStats.mean ?? 0,
+      median: basicStats.median ?? 0,
+      stdDev: basicStats.standardDeviation ?? 0,
       a1cDCCT,
       a1cIFCC,
-      gvi,
-      pgs,
-      meanTotalDailyChange,
-      timeInFluctuation,
+      gvi: glycemicVariability?.glycemicVariabilityIndex ?? 0,
+      pgs: glycemicVariability?.patientGlycemicStatus ?? 0,
+      meanTotalDailyChange: glycemicVariability?.meanTotalDailyChange ?? 0,
+      timeInFluctuation: glycemicVariability?.timeInFluctuation ?? 0,
     };
   });
 
@@ -459,6 +350,19 @@
         </Card.Content>
       </Card.Root>
     </div>
+
+    <!-- Hourly Distribution Chart -->
+    <Card.Root>
+      <Card.Header>
+        <Card.Title class="text-lg">Hourly Distribution</Card.Title>
+        <Card.Description>
+          Percentage of time in each glucose range by hour of day
+        </Card.Description>
+      </Card.Header>
+      <Card.Content>
+        <HourlyGlucoseDistributionChart entries={data.entries} />
+      </Card.Content>
+    </Card.Root>
 
     <!-- Additional Statistics -->
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

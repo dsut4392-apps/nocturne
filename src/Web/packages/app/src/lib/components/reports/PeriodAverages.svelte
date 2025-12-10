@@ -4,7 +4,7 @@
     formatInsulinDisplay,
     formatCarbDisplay,
     type OverallAverages,
-  } from "$lib/utils/calculate/treatment-stats";
+  } from "$lib/utils/formatting";
   import type { Thresholds } from "./types";
 
   interface Props {

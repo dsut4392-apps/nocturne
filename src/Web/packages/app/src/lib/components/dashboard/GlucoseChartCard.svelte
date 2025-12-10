@@ -30,7 +30,7 @@
     type PredictionData,
   } from "$lib/data/predictions.remote";
   import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
-  import { convertToDisplayUnits } from "$lib/utils/glucose-formatting";
+  import { convertToDisplayUnits } from "$lib/utils/formatting";
 
   interface ComponentProps {
     entries?: Entry[];

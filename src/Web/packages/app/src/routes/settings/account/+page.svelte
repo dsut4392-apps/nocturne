@@ -15,7 +15,7 @@
   } from "lucide-svelte";
   import type { PageData } from "./$types";
   import { formatSessionExpiry } from "$lib/stores/auth.svelte";
-  import { formatDate } from "$lib/utils/date-formatting";
+  import { formatDate } from "$lib/utils/formatting";
 
   const { data }: { data: PageData } = $props();
 

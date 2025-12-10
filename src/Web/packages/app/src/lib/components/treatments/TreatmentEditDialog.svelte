@@ -24,7 +24,7 @@
     TREATMENT_CATEGORIES,
   } from "$lib/constants/treatment-categories";
   import { cn } from "$lib/utils";
-  import { formatDateTime } from "$lib/utils/date-formatting";
+  import { formatDateTime } from "$lib/utils/formatting";
 
   interface Props {
     open: boolean;

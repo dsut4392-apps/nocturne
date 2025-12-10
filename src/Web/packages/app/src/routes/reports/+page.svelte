@@ -109,7 +109,7 @@
     formatGlucoseValue,
     formatGlucoseRange,
     getUnitLabel,
-  } from "$lib/utils/glucose-formatting";
+  } from "$lib/utils/formatting";
   import ReportsSkeleton from "$lib/components/reports/ReportsSkeleton.svelte";
 
   // Build date range input from URL parameters

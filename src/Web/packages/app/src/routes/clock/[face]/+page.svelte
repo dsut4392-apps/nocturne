@@ -8,7 +8,7 @@
     formatGlucoseValue,
     formatGlucoseDelta,
     getUnitLabel,
-  } from "$lib/utils/glucose-formatting";
+  } from "$lib/utils/formatting";
   import { parseClockFace, type ClockConfig } from "$lib/clock-parser";
   import { Badge } from "$lib/components/ui/badge";
   import { Button } from "$lib/components/ui/button";

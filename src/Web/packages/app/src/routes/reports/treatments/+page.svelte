@@ -31,8 +31,8 @@
   import {
     formatInsulinDisplay,
     formatCarbDisplay,
-  } from "$lib/utils/calculate/treatment-stats.js";
-  import { formatDate } from "$lib/utils/date-formatting";
+  } from "$lib/utils/formatting";
+  import { formatDate } from "$lib/utils/formatting";
   import { toast } from "svelte-sonner";
   import { getReportsData } from "$lib/data/reports.remote";
   import { getDateRangeInputFromUrl } from "$lib/utils/date-range";

@@ -10,8 +10,7 @@
   } from "$lib/components/ui/table";
   import {
     formatInsulinDisplay,
-    getTotalInsulin,
-  } from "$lib/utils/calculate/treatment-stats";
+  } from "$lib/utils/formatting";
   import type { DayToDayDailyData, Thresholds } from "./types";
   import { getGlucoseColor } from "$lib/utils/glucose-analytics.ts";
 
@@ -109,7 +108,7 @@
           </TableCell>
           <TableCell class="text-right">
             <span class="font-medium">
-              {formatInsulinDisplay(getTotalInsulin(entry.treatmentSummary))}U
+              {formatInsulinDisplay((entry.treatmentSummary?.totals?.insulin?.bolus ?? 0) + (entry.treatmentSummary?.totals?.insulin?.basal ?? 0))}U
             </span>
             <div class="text-xs text-gray-500">
               B: {formatInsulinDisplay(

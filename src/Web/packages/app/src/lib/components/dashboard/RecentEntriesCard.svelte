@@ -9,7 +9,7 @@
     formatGlucoseValue,
     formatGlucoseDelta,
     getUnitLabel,
-  } from "$lib/utils/glucose-formatting";
+  } from "$lib/utils/formatting";
 
   interface ComponentProps {
     entries?: Entry[];

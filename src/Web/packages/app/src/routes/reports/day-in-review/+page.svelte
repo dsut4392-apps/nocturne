@@ -55,7 +55,7 @@
     formatGlucoseValue,
     getUnitLabel,
     convertToDisplayUnits,
-  } from "$lib/utils/glucose-formatting";
+  } from "$lib/utils/formatting";
   import RetrospectiveStats from "$lib/components/reports/RetrospectiveStats.svelte";
   import { TreatmentEditDialog } from "$lib/components/treatments";
   import { getRetrospectiveAt } from "$lib/data/retrospective.remote";

@@ -48,7 +48,7 @@
     Check,
   } from "lucide-svelte";
   import { cn } from "$lib/utils";
-  import { formatDateTimeCompact } from "$lib/utils/date-formatting";
+  import { formatDateTimeCompact } from "$lib/utils/formatting";
 
   interface Props {
     treatments: Treatment[];

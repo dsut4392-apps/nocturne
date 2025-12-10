@@ -11,10 +11,7 @@
   import { getReportsData } from "$lib/data/reports.remote";
   import { cn } from "$lib/utils";
   import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
-  import {
-    formatGlucoseValue,
-    getUnitLabel,
-  } from "$lib/utils/glucose-formatting";
+  import { formatGlucoseValue, getUnitLabel } from "$lib/utils/formatting";
   import CalendarSkeleton from "$lib/components/calendar/CalendarSkeleton.svelte";
 
   // Current viewing month/year

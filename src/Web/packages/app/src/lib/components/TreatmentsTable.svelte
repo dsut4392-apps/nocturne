@@ -10,11 +10,11 @@
   } from "$lib/components/ui/table";
   import { Button } from "$lib/components/ui/button";
   import { Edit, Trash2 } from "lucide-svelte";
-  import { formatNotes } from "$lib/utils/treatment-formatting";
+  import { formatNotes } from "$lib/utils/formatting";
   import { getEventType } from "$lib/constants/event-types";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import type { Treatment } from "$lib/api";
-  import { formatDateTime } from "$lib/utils/date-formatting";
+  import { formatDateTime } from "$lib/utils/formatting";
 
   interface Props {
     treatments: Treatment[];

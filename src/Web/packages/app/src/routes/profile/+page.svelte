@@ -60,7 +60,7 @@
     type Icon,
   } from "lucide-svelte";
   import type { Profile, TimeValue } from "$lib/api";
-  import { formatDateDetailed } from "$lib/utils/date-formatting";
+  import { formatDateDetailed } from "$lib/utils/formatting";
   import {
     getProfiles,
     createProfile,

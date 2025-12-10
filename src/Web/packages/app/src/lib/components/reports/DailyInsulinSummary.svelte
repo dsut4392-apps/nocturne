@@ -2,9 +2,8 @@
   import {
     formatInsulinDisplay,
     formatCarbDisplay,
-    getTotalInsulin,
     type TreatmentSummary,
-  } from "$lib/utils/calculate/treatment-stats";
+  } from "$lib/utils/formatting";
 
   interface Props {
     treatmentSummary: TreatmentSummary;
@@ -32,7 +31,7 @@
       <div class="flex justify-between border-t pt-2">
         <span class="text-gray-700 font-medium">Total daily insulin:</span>
         <span class="font-semibold">
-          {formatInsulinDisplay(getTotalInsulin(treatmentSummary))}U
+          {formatInsulinDisplay((treatmentSummary?.totals?.insulin?.bolus ?? 0) + (treatmentSummary?.totals?.insulin?.basal ?? 0))}U
         </span>
       </div>
     </div>

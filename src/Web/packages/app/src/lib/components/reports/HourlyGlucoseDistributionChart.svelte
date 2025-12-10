@@ -1,0 +1,111 @@
+<script lang="ts">
+  import { AreaChart } from "layerchart";
+  import type { Entry, AveragedStats } from "$lib/api";
+  import { timeFormat } from "$lib/stores/appearance-store.svelte";
+  import { bg } from "$lib/utils/formatting";
+  import { calculateAveragedStats } from "$lib/data/statistics.remote";
+  import { BarChart2 } from "lucide-svelte";
+
+  interface Props {
+    entries: Entry[];
+  }
+
+  interface HourlyRangeData {
+    hour: number;
+    veryLow: number;
+    low: number;
+    normal: number;
+    aboveTarget: number;
+    high: number;
+    veryHigh: number;
+    severeHigh: number;
+    count: number;
+  }
+
+  let { entries }: Props = $props();
+
+  // Fetch hourly statistics from backend
+  const hourlyStatsQuery = $derived(calculateAveragedStats({ entries }));
+  const hourlyStats = $derived(await hourlyStatsQuery);
+
+  // Transform backend data to chart format
+  function transformToChartData(stats: AveragedStats[]): HourlyRangeData[] {
+    return stats.map((s) => ({
+      hour: s.hour ?? 0,
+      veryLow: s.timeInRange?.veryLow ?? 0,
+      low: s.timeInRange?.low ?? 0,
+      normal: s.timeInRange?.normal ?? 0,
+      aboveTarget: s.timeInRange?.aboveTarget ?? 0,
+      high: s.timeInRange?.high ?? 0,
+      veryHigh: s.timeInRange?.veryHigh ?? 0,
+      severeHigh: s.timeInRange?.severeHigh ?? 0,
+      count: s.count ?? 0,
+    }));
+  }
+
+  const chartData = $derived(
+    hourlyStats && hourlyStats.length > 0
+      ? transformToChartData(hourlyStats)
+      : []
+  );
+
+  const hasData = $derived(chartData?.some((d) => d.count > 0));
+
+  // Format hour for display based on user's time format preference
+  function formatHour(hour: number): string {
+    if (timeFormat.current === "24") {
+      return hour.toString().padStart(2, "0");
+    }
+    if (hour === 0) return "12AM";
+    if (hour < 12) return `${hour}AM`;
+    if (hour === 12) return "12PM";
+    return `${hour - 12}PM`;
+  }
+
+  // Chart series configuration - labels respect mmol/mg/dL preference
+  // Using $derived to make labels reactive to unit changes
+  const chartSeries = $derived([
+    { key: "veryLow", label: `<${bg(54)}`, color: "#8b5cf6" }, // purple
+    { key: "low", label: `${bg(54)}-${bg(63)}`, color: "#ef4444" }, // red
+    { key: "normal", label: `${bg(63)}-${bg(140)}`, color: "#22c55e" }, // bright green
+    { key: "aboveTarget", label: `${bg(140)}-${bg(180)}`, color: "#16a34a" }, // darker green
+    { key: "high", label: `${bg(180)}-${bg(200)}`, color: "#facc15" }, // yellow
+    { key: "veryHigh", label: `${bg(200)}-${bg(220)}`, color: "#f97316" }, // orange
+    { key: "severeHigh", label: `>${bg(220)}`, color: "#ea580c" }, // dark orange
+  ]);
+</script>
+
+<div class="w-full">
+  {#if hasData}
+    <div class="h-[350px] w-full">
+      <AreaChart
+        data={chartData}
+        x="hour"
+        yDomain={[0, 100]}
+        series={chartSeries}
+        seriesLayout="stack"
+        legend
+        props={{
+          xAxis: {
+            format: formatHour,
+          },
+          yAxis: {
+            label: "Percentage",
+            format: (v: number) => `${v}%`,
+          },
+        }}
+        padding={{ top: 20, right: 20, bottom: 40, left: 50 }}
+      />
+    </div>
+  {:else}
+    <div
+      class="flex h-[350px] w-full items-center justify-center text-muted-foreground"
+    >
+      <div class="text-center">
+        <BarChart2 class="mx-auto h-10 w-10 opacity-30" />
+        <p class="mt-2 font-medium">No glucose data available</p>
+        <p class="text-sm">Hourly distribution requires glucose entries</p>
+      </div>
+    </div>
+  {/if}
+</div>

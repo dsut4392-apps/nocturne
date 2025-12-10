@@ -12,10 +12,7 @@
   } from "lucide-svelte";
   import type { RetrospectiveDataResponse } from "$lib/api";
   import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
-  import {
-    formatGlucoseValue,
-    getUnitLabel,
-  } from "$lib/utils/glucose-formatting";
+  import { formatGlucoseValue, getUnitLabel } from "$lib/utils/formatting";
 
   interface Props {
     /** Data from the retrospective API */

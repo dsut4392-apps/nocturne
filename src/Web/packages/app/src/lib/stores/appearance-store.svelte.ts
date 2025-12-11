@@ -171,27 +171,3 @@ export function setGlucoseUnits(units: GlucoseUnits): void {
   glucoseUnits.current = units;
 }
 
-// ==========================================
-// Legacy Compatibility Wrapper
-// ==========================================
-
-/**
- * Compatibility wrapper for existing code that uses glucoseUnitsState
- * Provides the same interface but backed by PersistedState
- */
-class GlucoseUnitsStateWrapper {
-  get units(): GlucoseUnits {
-    return glucoseUnits.current;
-  }
-
-  set units(value: GlucoseUnits) {
-    glucoseUnits.current = value;
-  }
-
-  refresh(): void {
-    // No-op - PersistedState automatically syncs
-  }
-}
-
-/** Singleton instance for backward compatibility */
-export const glucoseUnitsState = new GlucoseUnitsStateWrapper();

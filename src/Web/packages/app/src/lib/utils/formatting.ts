@@ -8,7 +8,7 @@
  * - Insulin/carb/percentage display formatting
  */
 
-import { glucoseUnitsState, type GlucoseUnits } from "$lib/stores/appearance-store.svelte";
+import { glucoseUnits, type GlucoseUnits } from "$lib/stores/appearance-store.svelte";
 import type { Treatment, TreatmentSummary as ApiTreatmentSummary, OverallAverages as ApiOverallAverages } from "$lib/api";
 
 // Re-export for backward compatibility
@@ -109,7 +109,7 @@ export function formatGlucoseRange(
  * @returns Formatted glucose string in user's preferred units
  */
 export function bg(mgdl: number): string {
-  return formatGlucoseValue(mgdl, glucoseUnitsState.units);
+  return formatGlucoseValue(mgdl, glucoseUnits.current);
 }
 
 /**
@@ -119,7 +119,7 @@ export function bg(mgdl: number): string {
  * @returns Formatted delta string in user's preferred units
  */
 export function bgDelta(deltaMgdl: number, includeSign: boolean = true): string {
-  return formatGlucoseDelta(deltaMgdl, glucoseUnitsState.units, includeSign);
+  return formatGlucoseDelta(deltaMgdl, glucoseUnits.current, includeSign);
 }
 
 /**
@@ -127,7 +127,7 @@ export function bgDelta(deltaMgdl: number, includeSign: boolean = true): string 
  * @returns "mg/dL" or "mmol/L" based on user preference
  */
 export function bgLabel(): string {
-  return getUnitLabel(glucoseUnitsState.units);
+  return getUnitLabel(glucoseUnits.current);
 }
 
 /**
@@ -137,7 +137,7 @@ export function bgLabel(): string {
  * @returns Formatted range string in user's preferred units
  */
 export function bgRange(lowMgdl: number, highMgdl: number): string {
-  return formatGlucoseRange(lowMgdl, highMgdl, glucoseUnitsState.units);
+  return formatGlucoseRange(lowMgdl, highMgdl, glucoseUnits.current);
 }
 
 /**
@@ -146,7 +146,7 @@ export function bgRange(lowMgdl: number, highMgdl: number): string {
  * @returns Numeric value in user's preferred units
  */
 export function bgValue(mgdl: number): number {
-  return convertToDisplayUnits(mgdl, glucoseUnitsState.units);
+  return convertToDisplayUnits(mgdl, glucoseUnits.current);
 }
 
 /**
@@ -161,7 +161,7 @@ export function bgThresholds(): {
   high: number;
   urgentHigh: number;
 } {
-  const units = glucoseUnitsState.units;
+  const units = glucoseUnits.current;
   return {
     urgentLow: convertToDisplayUnits(54, units),
     low: convertToDisplayUnits(70, units),

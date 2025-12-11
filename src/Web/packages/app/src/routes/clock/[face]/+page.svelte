@@ -3,7 +3,7 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
-  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
+  import { glucoseUnits } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     formatGlucoseDelta,
@@ -38,7 +38,7 @@
   const demoMode = $derived(realtimeStore.demoMode);
 
   // Format for display based on user's unit preference
-  const units = $derived(glucoseUnitsState.units);
+  const units = $derived(glucoseUnits.current);
   const displayBG = $derived(formatGlucoseValue(rawCurrentBG, units));
   const displayDelta = $derived(formatGlucoseDelta(rawBgDelta, units));
   const unitLabel = $derived(getUnitLabel(units));

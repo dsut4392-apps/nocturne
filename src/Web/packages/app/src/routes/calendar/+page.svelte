@@ -5,9 +5,12 @@
   import * as Tooltip from "$lib/components/ui/tooltip";
   import { Calendar, ChevronLeft, ChevronRight } from "lucide-svelte";
   import { Button } from "$lib/components/ui/button";
-  import { type DayStats, getPunchCardData } from "$lib/data/month-to-month.remote";
+  import {
+    type DayStats,
+    getPunchCardData,
+  } from "$lib/data/month-to-month.remote";
   import { cn } from "$lib/utils";
-  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
+  import { glucoseUnits } from "$lib/stores/appearance-store.svelte";
   import { formatGlucoseValue, getUnitLabel } from "$lib/utils/formatting";
   import CalendarSkeleton from "$lib/components/calendar/CalendarSkeleton.svelte";
 
@@ -52,7 +55,7 @@
   });
 
   // Get units preference
-  const units = $derived(glucoseUnitsState.units);
+  const units = $derived(glucoseUnits.current);
   const unitLabel = $derived(getUnitLabel(units));
 
   // Size mode options

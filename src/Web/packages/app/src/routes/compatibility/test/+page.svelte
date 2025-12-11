@@ -12,8 +12,8 @@
   import * as Select from "$lib/components/ui/select";
   import { ArrowLeft, Play, Loader2 } from "lucide-svelte";
 
-  // Form state
-  let nightscoutUrl = $state("");
+  // Form state - default URL matches CompatibilityProxy format
+  let nightscoutUrl = $state("https://your-nightscout.herokuapp.com");
   let apiSecret = $state("");
   let queryPath = $state("/api/v1/treatments?count=5");
   let method = $state("GET");
@@ -23,6 +23,19 @@
   let ignoreNocturneFields = $state(true);
   let hideNullValues = $state(true);
   let showSideBySide = $state(false);
+  let hashApiSecret = $state(true); // Hash API secret with SHA1 by default
+
+  /**
+   * Hash a string using SHA1 (compatible with Nightscout authentication) Uses
+   * SubtleCrypto API which is available in modern browsers
+   */
+  async function hashApiSecretSha1(secret: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(secret);
+    const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
 
   // Known Nocturne-specific fields to ignore
   const nocturneOnlyFields = [
@@ -344,9 +357,15 @@
     result = null;
 
     try {
+      // Hash the API secret if the option is enabled and a secret is provided
+      let secretToSend = apiSecret || undefined;
+      if (secretToSend && hashApiSecret) {
+        secretToSend = await hashApiSecretSha1(secretToSend);
+      }
+
       result = await runCompatibilityTest({
         nightscoutUrl,
-        apiSecret: apiSecret || undefined,
+        apiSecret: secretToSend,
         queryPath,
         method,
         requestBody: requestBody || undefined,
@@ -404,7 +423,7 @@
           <Label for="apiSecret">
             API Secret
             <span class="text-muted-foreground font-normal ml-1">
-              (SHA1 hash or plain)
+              {hashApiSecret ? "(will be hashed)" : "(SHA1 hash or plain)"}
             </span>
           </Label>
           <Input
@@ -413,6 +432,16 @@
             bind:value={apiSecret}
             placeholder="Enter API secret"
           />
+          <div class="flex items-center gap-2 pt-1">
+            <Checkbox
+              id="hashApiSecret"
+              checked={hashApiSecret}
+              onCheckedChange={(checked) => (hashApiSecret = checked === true)}
+            />
+            <Label for="hashApiSecret" class="font-normal text-sm">
+              Hash API secret (SHA1)
+            </Label>
+          </div>
         </div>
 
         <div class="md:col-span-2 space-y-2">

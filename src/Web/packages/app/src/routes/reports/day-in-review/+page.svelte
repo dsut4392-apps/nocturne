@@ -16,12 +16,7 @@
   import { scaleTime, scaleLinear } from "d3-scale";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import type {
-    Entry,
-    Treatment,
-    TreatmentSummary,
-    RetrospectiveDataResponse,
-  } from "$lib/api";
+  import type { Entry, Treatment, TreatmentSummary } from "$lib/api";
   import { DEFAULT_THRESHOLDS } from "$lib/constants";
   import * as Card from "$lib/components/ui/card";
   import * as Table from "$lib/components/ui/table";
@@ -47,7 +42,7 @@
   } from "lucide-svelte";
   import { getDayInReviewData } from "./data.remote";
   import {
-    glucoseUnitsState,
+    glucoseUnits,
     timeFormat,
   } from "$lib/stores/appearance-store.svelte";
   import {
@@ -57,7 +52,6 @@
   } from "$lib/utils/formatting";
   import RetrospectiveStats from "$lib/components/reports/RetrospectiveStats.svelte";
   import { TreatmentEditDialog } from "$lib/components/treatments";
-  import { getRetrospectiveAt } from "$lib/data/retrospective.remote";
   import { getEventTypeStyle } from "$lib/constants/treatment-categories";
   import BasalRateChart from "$lib/components/reports/BasalRateChart.svelte";
   import InsulinDonutChart from "$lib/components/reports/InsulinDonutChart.svelte";
@@ -89,30 +83,6 @@
     scrubTime = noon;
   });
 
-  // Fetch retrospective data when scrub time changes
-  $effect(() => {
-    // Explicitly capture the scrubTime value to ensure reactivity
-    const currentScrubTime = scrubTime;
-    const timeMs = currentScrubTime.getTime();
-
-    const fetchRetrospectiveData = async () => {
-      isLoadingRetrospective = true;
-      try {
-        const data = await getRetrospectiveAt({ time: timeMs });
-        retrospectiveData = data;
-      } catch (err) {
-        console.error("Error fetching retrospective data:", err);
-        retrospectiveData = null;
-      } finally {
-        isLoadingRetrospective = false;
-      }
-    };
-
-    // Debounce the fetch to avoid too many requests
-    const timeoutId = setTimeout(fetchRetrospectiveData, 150);
-    return () => clearTimeout(timeoutId);
-  });
-
   // Treatment editing state
   let selectedTreatment = $state<Treatment | null>(null);
   let editDialogOpen = $state(false);
@@ -121,10 +91,6 @@
   let filterEventType = $state<string | null>(null);
   let sortColumn = $state<"time" | "type" | "carbs" | "insulin">("time");
   let sortDirection = $state<"asc" | "desc">("asc");
-
-  // Retrospective data from backend
-  let retrospectiveData = $state<RetrospectiveDataResponse | null>(null);
-  let isLoadingRetrospective = $state(false);
 
   // Chart scrubbing state
   let chartContainer: HTMLDivElement | null = $state(null);
@@ -219,7 +185,7 @@
   });
 
   // Get units preference
-  const units = $derived(glucoseUnitsState.units);
+  const units = $derived(glucoseUnits.current);
   const unitLabel = $derived(getUnitLabel(units));
 
   // Colors for glucose chart (using CSS variables for theme support)
@@ -655,11 +621,7 @@
   </div>
 
   <!-- Retrospective Stats at Scrubbed Time -->
-  <RetrospectiveStats
-    currentTime={scrubTime}
-    data={retrospectiveData}
-    isLoading={isLoadingRetrospective}
-  />
+  <RetrospectiveStats time={scrubTime.getTime()} />
 
   <!-- Main Glucose Chart with Treatment Markers -->
   <Card.Root>

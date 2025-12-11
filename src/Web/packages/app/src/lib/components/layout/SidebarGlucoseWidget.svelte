@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
-  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
+  import { glucoseUnits } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     formatGlucoseDelta,
@@ -16,6 +16,10 @@
     ArrowDownRight,
     Minus,
   } from "lucide-svelte";
+  import {
+    getPredictions,
+    type PredictionData,
+  } from "$lib/data/predictions.remote";
 
   const realtimeStore = getRealtimeStore();
 
@@ -31,6 +35,9 @@
 
   // Stale threshold in milliseconds (10 minutes)
   const STALE_THRESHOLD_MS = 10 * 60 * 1000;
+
+  // Prediction horizon in minutes (30 minutes = 6 points at 5-min intervals)
+  const PREDICTION_HORIZON_MS = 30 * 60 * 1000;
 
   // Stale detection - data older than threshold (recalculates every second)
   let now = $state(Date.now());
@@ -50,9 +57,27 @@
   );
 
   // Format for display based on user's unit preference
-  const units = $derived(glucoseUnitsState.units);
+  const units = $derived(glucoseUnits.current);
   const displayBG = $derived(formatGlucoseValue(rawCurrentBG, units));
   const displayDelta = $derived(formatGlucoseDelta(rawBgDelta, units));
+
+  // Oref prediction data from backend
+  let orefPredictions = $state<PredictionData | null>(null);
+
+  // Fetch oref predictions
+  $effect(() => {
+    // Only fetch if we have valid glucose data
+    if (rawCurrentBG > 0 && !isStale && !isDisconnected) {
+      getPredictions({})
+        .then((data) => {
+          orefPredictions = data;
+        })
+        .catch((err) => {
+          console.error("Failed to fetch predictions for sidebar:", err);
+          orefPredictions = null;
+        });
+    }
+  });
 
   // Get last 3 hours of entries for mini chart (convert to display units)
   const chartEntries = $derived.by(() => {
@@ -66,17 +91,52 @@
       .sort((a, b) => a.date.getTime() - b.date.getTime());
   });
 
-  // Y domain for chart (unit-aware)
+  // Extract 30-minute prediction from oref data (using main curve)
+  const predictionData = $derived.by(() => {
+    if (
+      !orefPredictions?.curves?.main ||
+      orefPredictions.curves.main.length === 0
+    ) {
+      return [];
+    }
+
+    const baseTime = orefPredictions.timestamp.getTime();
+    const cutoffTime = baseTime + PREDICTION_HORIZON_MS;
+
+    // Filter to only include points within 30-minute horizon
+    return orefPredictions.curves.main
+      .filter((p) => p.timestamp <= cutoffTime)
+      .map((p) => ({
+        date: new Date(p.timestamp),
+        value: convertToDisplayUnits(p.value, units),
+      }));
+  });
+
+  // Y domain for chart (unit-aware, include prediction values)
   const isMMOL = $derived(units === "mmol");
   const yMax = $derived.by(() => {
-    if (chartEntries.length === 0) return isMMOL ? 16.7 : 300;
-    const values = chartEntries.map((e) => e.value);
+    const allValues = [
+      ...chartEntries.map((e) => e.value),
+      ...predictionData.map((p) => p.value),
+    ];
+    if (allValues.length === 0) return isMMOL ? 16.7 : 300;
     const maxPadding = isMMOL ? 1.5 : 30;
     return isMMOL
-      ? Math.min(22.2, Math.max(...values) + maxPadding)
-      : Math.min(400, Math.max(...values) + maxPadding);
+      ? Math.min(22.2, Math.max(...allValues) + maxPadding)
+      : Math.min(400, Math.max(...allValues) + maxPadding);
   });
   const yMin = $derived(isMMOL ? 2.2 : 40);
+
+  // X domain for chart (extend 30 minutes into future when prediction is available)
+  const xDomain = $derived.by(() => {
+    if (chartEntries.length === 0) return undefined;
+    const minTime = chartEntries[0].date;
+    const maxTime =
+      predictionData.length > 0
+        ? predictionData[predictionData.length - 1].date
+        : chartEntries[chartEntries.length - 1].date;
+    return [minTime, maxTime] as [Date, Date];
+  });
 
   // Get direction icon
   const getDirectionIcon = (dir: string) => {
@@ -151,6 +211,7 @@
         data={chartEntries}
         x="date"
         y="value"
+        {xDomain}
         yDomain={[yMin, yMax]}
         padding={{ top: 2, bottom: 2, left: 2, right: 2 }}
       >
@@ -167,6 +228,14 @@
 
           <!-- Glucose line -->
           <Spline class="stroke-primary stroke-2 fill-none" />
+
+          <!-- Prediction line (dashed) -->
+          {#if predictionData.length > 1}
+            <Spline
+              data={predictionData}
+              class="stroke-primary/50 stroke-2 fill-none [stroke-dasharray:4]"
+            />
+          {/if}
         </Svg>
       </Chart>
     {:else}

@@ -104,7 +104,7 @@
   import { page } from "$app/state";
   import { getReportsData } from "$lib/data/reports.remote";
   import { getDateRangeInputFromUrl } from "$lib/utils/date-range";
-  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
+  import { glucoseUnits } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     formatGlucoseRange,
@@ -133,7 +133,7 @@
   });
 
   // Get units preference
-  const units = $derived(glucoseUnitsState.units);
+  const units = $derived(glucoseUnits.current);
   const unitLabel = $derived(getUnitLabel(units));
   const targetRangeDisplay = $derived(formatGlucoseRange(70, 180, units));
   const lowThresholdDisplay = $derived(formatGlucoseValue(70, units));

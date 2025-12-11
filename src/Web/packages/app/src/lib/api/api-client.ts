@@ -35,6 +35,7 @@ import {
   RetrospectiveClient,
   ConnectorStatusClient,
   MetadataClient,
+  ChartDataClient,
 } from "./generated/nocturne-api-client";
 
 /**
@@ -81,6 +82,7 @@ export class ApiClient {
   public readonly retrospective: RetrospectiveClient;
   public readonly connectorStatus: ConnectorStatusClient;
   public readonly metadata: MetadataClient;
+  public readonly chartData: ChartDataClient;
 
   constructor(
     baseUrl: string,
@@ -133,6 +135,7 @@ export class ApiClient {
     this.retrospective = new RetrospectiveClient(apiBaseUrl, http);
     this.connectorStatus = new ConnectorStatusClient(apiBaseUrl, http);
     this.metadata = new MetadataClient(apiBaseUrl, http);
+    this.chartData = new ChartDataClient(apiBaseUrl, http);
   }
 
   /** Get the underlying main client for direct access if needed */

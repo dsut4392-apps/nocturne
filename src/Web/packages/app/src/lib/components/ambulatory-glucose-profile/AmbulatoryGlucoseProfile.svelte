@@ -8,7 +8,7 @@
   import { Skeleton } from "$lib/components/ui/skeleton";
   import { BarChart3 } from "lucide-svelte";
   import {
-    glucoseUnitsState,
+    glucoseUnits,
     timeFormat,
   } from "$lib/stores/appearance-store.svelte";
   import { convertToDisplayUnits } from "$lib/utils/formatting";
@@ -26,7 +26,7 @@
   let error = $state<string | null>(null);
 
   // Reactive unit-aware data transformation
-  const units = $derived(glucoseUnitsState.units);
+  const units = $derived(glucoseUnits.current);
   const isMMOL = $derived(units === "mmol");
 
   // Convert data to display units

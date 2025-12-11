@@ -4,7 +4,7 @@
   import { Badge } from "$lib/components/ui/badge";
   import { formatTime } from "$lib/utils";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
-  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
+  import { glucoseUnits } from "$lib/stores/appearance-store.svelte";
   import {
     formatGlucoseValue,
     formatGlucoseDelta,
@@ -25,7 +25,7 @@
   const recentEntries = $derived(displayEntries.slice(0, maxEntries));
 
   // Get units preference
-  const units = $derived(glucoseUnitsState.units);
+  const units = $derived(glucoseUnits.current);
   const unitLabel = $derived(getUnitLabel(units));
 </script>
 

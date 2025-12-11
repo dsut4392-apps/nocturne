@@ -17,7 +17,7 @@
   import { getReportsData } from "$lib/data/reports.remote";
   import { getDateRangeInputFromUrl } from "$lib/utils/date-range";
   import {
-    glucoseUnitsState,
+    glucoseUnits,
     timeFormat,
   } from "$lib/stores/appearance-store.svelte";
   import { convertToDisplayUnits, getUnitLabel } from "$lib/utils/formatting";
@@ -204,7 +204,7 @@
   ]);
 
   // Y-axis domain based on data (now unit-aware)
-  const units = $derived(glucoseUnitsState.units);
+  const units = $derived(glucoseUnits.current);
   const isMMOL = $derived(units === "mmol");
   const unitLabel = $derived(getUnitLabel(units));
   const is24Hour = $derived(timeFormat.current === "24");

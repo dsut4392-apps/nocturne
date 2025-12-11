@@ -3394,6 +3394,80 @@ export class BatteryClient {
     }
 }
 
+export class ChartDataClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get dashboard chart data with pre-calculated IOB, COB, and basal time series
+     * @param startTime (optional) Start time in Unix milliseconds
+     * @param endTime (optional) End time in Unix milliseconds
+     * @param intervalMinutes (optional) Interval for IOB/COB calculations (default: 5)
+     * @return Chart data with all calculated series
+     */
+    getDashboardChartData(startTime?: number | undefined, endTime?: number | undefined, intervalMinutes?: number | undefined, signal?: AbortSignal): Promise<DashboardChartData> {
+        let url_ = this.baseUrl + "/api/v4/ChartData/dashboard?";
+        if (startTime === null)
+            throw new globalThis.Error("The parameter 'startTime' cannot be null.");
+        else if (startTime !== undefined)
+            url_ += "startTime=" + encodeURIComponent("" + startTime) + "&";
+        if (endTime === null)
+            throw new globalThis.Error("The parameter 'endTime' cannot be null.");
+        else if (endTime !== undefined)
+            url_ += "endTime=" + encodeURIComponent("" + endTime) + "&";
+        if (intervalMinutes === null)
+            throw new globalThis.Error("The parameter 'intervalMinutes' cannot be null.");
+        else if (intervalMinutes !== undefined)
+            url_ += "intervalMinutes=" + encodeURIComponent("" + intervalMinutes) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetDashboardChartData(_response);
+        });
+    }
+
+    protected processGetDashboardChartData(response: Response): Promise<DashboardChartData> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DashboardChartData;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DashboardChartData>(null as any);
+    }
+}
+
 export class CompatibilityClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -14005,6 +14079,42 @@ export interface ChargeCycle {
     chargeDurationMinutes?: number | undefined;
     dischargeDurationMinutes?: number | undefined;
     isComplete?: boolean;
+}
+
+/** Dashboard chart data response with all calculated series */
+export interface DashboardChartData {
+    /** IOB (Insulin on Board) time series */
+    iobSeries?: TimeSeriesPoint[];
+    /** COB (Carbs on Board) time series */
+    cobSeries?: TimeSeriesPoint[];
+    /** Basal rate time series with temp basal indicators */
+    basalSeries?: BasalPoint[];
+    /** Default basal rate from profile (U/hr) */
+    defaultBasalRate?: number;
+    /** Maximum basal rate in the series (for Y-axis scaling) */
+    maxBasalRate?: number;
+    /** Maximum IOB in the series (for Y-axis scaling) */
+    maxIob?: number;
+    /** Maximum COB in the series (for Y-axis scaling) */
+    maxCob?: number;
+}
+
+/** Time series data point with timestamp and value */
+export interface TimeSeriesPoint {
+    /** Timestamp in Unix milliseconds */
+    timestamp?: number;
+    /** Value at this timestamp */
+    value?: number;
+}
+
+/** Basal rate data point */
+export interface BasalPoint {
+    /** Timestamp in Unix milliseconds */
+    timestamp?: number;
+    /** Basal rate in U/hr */
+    rate?: number;
+    /** Whether this is a temporary basal rate */
+    isTemp?: boolean;
 }
 
 /** Proxy configuration DTO */

@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as Card from "$lib/components/ui/card";
   import { Badge } from "$lib/components/ui/badge";
+  import Button from "$lib/components/ui/button/button.svelte";
   import {
     Droplet,
     Syringe,
@@ -9,25 +10,35 @@
     TrendingDown,
     Minus,
     Activity,
+    AlertTriangle,
+    RefreshCw,
   } from "lucide-svelte";
-  import type { RetrospectiveDataResponse } from "$lib/api";
-  import { glucoseUnitsState } from "$lib/stores/appearance-store.svelte";
+  import { glucoseUnits } from "$lib/stores/appearance-store.svelte";
   import { formatGlucoseValue, getUnitLabel } from "$lib/utils/formatting";
+  import { getRetrospectiveAt } from "$lib/data/retrospective.remote";
 
   interface Props {
-    /** Data from the retrospective API */
-    data: RetrospectiveDataResponse | null;
-    /** Whether data is loading */
-    isLoading?: boolean;
-    /** Current scrub time for display */
-    currentTime: Date;
+    /** Unix timestamp in milliseconds to fetch data for */
+    time: number;
   }
 
-  let { data, isLoading = false, currentTime }: Props = $props();
+  let { time }: Props = $props();
+
+  // Fetch retrospective data using remote function
+  const retrospectiveQuery = $derived(getRetrospectiveAt({ time }));
+  const data = $derived(await retrospectiveQuery);
 
   // Get units preference
-  const units = $derived(glucoseUnitsState.units);
+  const units = $derived(glucoseUnits.current);
   const unitLabel = $derived(getUnitLabel(units));
+
+  // Format time for display
+  const timeDisplay = $derived(
+    new Date(time).toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  );
 
   // Trend arrow component
   function getTrendIcon(direction: string | null | undefined) {
@@ -45,49 +56,77 @@
     if (dir.includes("down") || dir.includes("falling")) return "text-red-500";
     return "text-green-500";
   }
-
-  // Format time for display
-  const timeDisplay = $derived(
-    currentTime.toLocaleTimeString(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  );
 </script>
 
-<Card.Root class="border-2 border-primary/20 bg-primary/5">
-  <Card.Header class="pb-2">
-    <Card.Title class="flex items-center gap-2 text-base">
-      <Activity class="h-4 w-4" />
-      Status at {timeDisplay}
-    </Card.Title>
-  </Card.Header>
-  <Card.Content>
-    {#if isLoading}
-      <!-- Skeleton loading state - matches the layout below -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {#each [1, 2, 3, 4] as _}
-          <div
-            class="flex flex-col items-center gap-1 p-3 rounded-lg bg-background/50"
-          >
-            <div class="flex items-center gap-1">
+<svelte:boundary>
+  {#snippet pending()}
+    <Card.Root class="border-2 border-primary/20 bg-primary/5">
+      <Card.Header class="pb-2">
+        <Card.Title class="flex items-center gap-2 text-base">
+          <Activity class="h-4 w-4" />
+          Status at {timeDisplay}
+        </Card.Title>
+      </Card.Header>
+      <Card.Content>
+        <!-- Skeleton loading state - matches the layout below -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {#each [1, 2, 3, 4] as _}
+            <div
+              class="flex flex-col items-center gap-1 p-3 rounded-lg bg-background/50"
+            >
+              <div class="flex items-center gap-1">
+                <div
+                  class="h-4 w-4 rounded bg-muted-foreground/20 animate-pulse"
+                ></div>
+                <div
+                  class="h-3 w-12 rounded bg-muted-foreground/20 animate-pulse"
+                ></div>
+              </div>
               <div
-                class="h-4 w-4 rounded bg-muted-foreground/20 animate-pulse"
+                class="h-8 w-16 rounded bg-muted-foreground/20 animate-pulse mt-1"
               ></div>
               <div
-                class="h-3 w-12 rounded bg-muted-foreground/20 animate-pulse"
+                class="h-3 w-20 rounded bg-muted-foreground/20 animate-pulse mt-1"
               ></div>
             </div>
-            <div
-              class="h-8 w-16 rounded bg-muted-foreground/20 animate-pulse mt-1"
-            ></div>
-            <div
-              class="h-3 w-20 rounded bg-muted-foreground/20 animate-pulse mt-1"
-            ></div>
-          </div>
-        {/each}
-      </div>
-    {:else}
+          {/each}
+        </div>
+      </Card.Content>
+    </Card.Root>
+  {/snippet}
+
+  {#snippet failed(error, reset)}
+    <Card.Root class="border-2 border-destructive/20 bg-destructive/5">
+      <Card.Header class="pb-2">
+        <Card.Title class="flex items-center gap-2 text-base text-destructive">
+          <AlertTriangle class="h-4 w-4" />
+          Error Loading Status
+        </Card.Title>
+      </Card.Header>
+      <Card.Content>
+        <div class="text-center space-y-3">
+          <p class="text-sm text-muted-foreground">
+            {error instanceof Error
+              ? error.message
+              : "Failed to load retrospective data"}
+          </p>
+          <Button variant="outline" size="sm" onclick={reset}>
+            <RefreshCw class="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </Card.Content>
+    </Card.Root>
+  {/snippet}
+
+  <Card.Root class="border-2 border-primary/20 bg-primary/5">
+    <Card.Header class="pb-2">
+      <Card.Title class="flex items-center gap-2 text-base">
+        <Activity class="h-4 w-4" />
+        Status at {timeDisplay}
+      </Card.Title>
+    </Card.Header>
+    <Card.Content>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <!-- Glucose -->
         <div
@@ -207,6 +246,6 @@
           {/if}
         </div>
       </div>
-    {/if}
-  </Card.Content>
-</Card.Root>
+    </Card.Content>
+  </Card.Root>
+</svelte:boundary>

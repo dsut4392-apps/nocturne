@@ -177,12 +177,12 @@ public class ResponseDiscrepancy
     /// <summary>
     /// Type of discrepancy
     /// </summary>
-    public DiscrepancyType Type { get; set; }
+    public Nocturne.Core.Models.DiscrepancyType Type { get; set; }
 
     /// <summary>
     /// Severity level of the discrepancy
     /// </summary>
-    public DiscrepancySeverity Severity { get; set; }
+    public Nocturne.Core.Models.DiscrepancySeverity Severity { get; set; }
 
     /// <summary>
     /// Field or path where discrepancy was found
@@ -229,81 +229,4 @@ public class PerformanceComparison
     /// Which system responded faster
     /// </summary>
     public string FasterSystem { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Type of discrepancy found during comparison
-/// </summary>
-public enum DiscrepancyType
-{
-    /// <summary>
-    /// HTTP status code differs
-    /// </summary>
-    StatusCode,
-
-    /// <summary>
-    /// Response header differs
-    /// </summary>
-    Header,
-
-    /// <summary>
-    /// Content type differs
-    /// </summary>
-    ContentType,
-
-    /// <summary>
-    /// Response body differs
-    /// </summary>
-    Body,
-
-    /// <summary>
-    /// JSON structure differs
-    /// </summary>
-    JsonStructure,
-
-    /// <summary>
-    /// String value differs
-    /// </summary>
-    StringValue,
-
-    /// <summary>
-    /// Numeric value differs
-    /// </summary>
-    NumericValue,
-
-    /// <summary>
-    /// Timestamp differs
-    /// </summary>
-    Timestamp,
-
-    /// <summary>
-    /// Array length differs
-    /// </summary>
-    ArrayLength,
-
-    /// <summary>
-    /// Performance metrics differ significantly
-    /// </summary>
-    Performance,
-}
-
-/// <summary>
-/// Severity level of a discrepancy
-/// </summary>
-public enum DiscrepancySeverity
-{
-    /// <summary>
-    /// Minor difference that likely doesn't affect functionality
-    /// </summary>
-    Minor,
-
-    /// <summary>
-    /// Major difference that might affect functionality
-    /// </summary>
-    Major,
-
-    /// <summary>
-    /// Critical difference that likely affects functionality
-    /// </summary>
-    Critical,
 }

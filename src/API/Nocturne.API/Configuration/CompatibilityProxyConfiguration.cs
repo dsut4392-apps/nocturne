@@ -87,10 +87,14 @@ public class CompatibilityProxyConfiguration
     public long MaxResponseSizeForComparison { get; set; } = 10 * 1024 * 1024; // 10MB
 
     /// <summary>
-    /// Fields to exclude from sensitive data logging
+    /// Redaction settings for sensitive data handling
     /// </summary>
-    public List<string> SensitiveFields { get; set; } =
-        new() { "api_secret", "token", "password", "key" };
+    public RedactionSettings Redaction { get; set; } = new();
+
+    /// <summary>
+    /// Discrepancy forwarding configuration for remote monitoring
+    /// </summary>
+    public DiscrepancyForwardingSettings DiscrepancyForwarding { get; set; } = new();
 }
 
 /// <summary>
@@ -163,6 +167,140 @@ public class CircuitBreakerSettings
     /// Number of successful requests needed to close circuit
     /// </summary>
     public int SuccessThreshold { get; set; } = 3;
+}
+
+/// <summary>
+/// Configuration for forwarding discrepancies to a remote endpoint
+/// </summary>
+public class DiscrepancyForwardingSettings
+{
+    /// <summary>
+    /// Enable discrepancy forwarding to remote endpoint
+    /// </summary>
+    public bool Enabled { get; set; } = false;
+
+    /// <summary>
+    /// Save discrepancy data to JSON files for local logging.
+    /// Works even without a remote endpoint configured.
+    /// </summary>
+    public bool SaveRawData { get; set; } = false;
+
+    /// <summary>
+    /// Directory for saving raw discrepancy data files.
+    /// Defaults to "discrepancies" folder in the application root.
+    /// </summary>
+    public string DataDirectory { get; set; } = "discrepancies";
+
+    /// <summary>
+    /// Remote Nocturne endpoint URL (e.g., https://monitor.nocturne.example.com)
+    /// </summary>
+    public string EndpointUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// API key for authenticating with the remote endpoint
+    /// </summary>
+    public string ApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Source identifier for this Nocturne instance
+    /// </summary>
+    public string SourceId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Minimum severity level to forward (Minor, Major, Critical)
+    /// </summary>
+    public DiscrepancySeverityLevel MinimumSeverity { get; set; } = DiscrepancySeverityLevel.Minor;
+
+    /// <summary>
+    /// Timeout for forwarding requests in seconds
+    /// </summary>
+    public int TimeoutSeconds { get; set; } = 10;
+
+    /// <summary>
+    /// Maximum retry attempts for failed forwards
+    /// </summary>
+    public int RetryAttempts { get; set; } = 3;
+
+    /// <summary>
+    /// Delay between retry attempts in milliseconds
+    /// </summary>
+    public int RetryDelayMs { get; set; } = 1000;
+}
+
+/// <summary>
+/// Severity levels for discrepancy filtering
+/// </summary>
+public enum DiscrepancySeverityLevel
+{
+    /// <summary>
+    /// Forward all discrepancies including minor ones
+    /// </summary>
+    Minor = 0,
+
+    /// <summary>
+    /// Forward major and critical discrepancies only
+    /// </summary>
+    Major = 1,
+
+    /// <summary>
+    /// Forward only critical discrepancies
+    /// </summary>
+    Critical = 2,
+}
+
+/// <summary>
+/// Configuration for sensitive data redaction
+/// </summary>
+public class RedactionSettings
+{
+    /// <summary>
+    /// Mandatory fields that are ALWAYS redacted regardless of configuration.
+    /// These cannot be disabled for security reasons.
+    /// </summary>
+    private static readonly HashSet<string> MandatorySensitiveFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "api_secret",
+        "token",
+        "password",
+        "key",
+        "secret",
+        "authorization"
+    };
+
+    /// <summary>
+    /// Enable redaction of sensitive data in error messages and logs.
+    /// Note: Mandatory fields are always redacted even if this is disabled.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Additional fields to redact from error messages and logs (beyond mandatory fields)
+    /// </summary>
+    public List<string> SensitiveFields { get; set; } = new();
+
+    /// <summary>
+    /// Replacement text for redacted values
+    /// </summary>
+    public string ReplacementText { get; set; } = "[REDACTED]";
+
+    /// <summary>
+    /// Enable redaction of API keys in URLs
+    /// </summary>
+    public bool RedactUrlParameters { get; set; } = true;
+
+    /// <summary>
+    /// URL parameters to redact
+    /// </summary>
+    public List<string> UrlParametersToRedact { get; set; } =
+        new() { "token", "api_secret", "secret", "key" };
+
+    /// <summary>
+    /// Gets all sensitive fields including mandatory ones
+    /// </summary>
+    public IEnumerable<string> GetAllSensitiveFields()
+    {
+        return MandatorySensitiveFields.Union(SensitiveFields, StringComparer.OrdinalIgnoreCase);
+    }
 }
 
 /// <summary>

@@ -31,13 +31,34 @@ public class DiscrepancyAnalysisDto
 }
 
 /// <summary>
+/// DTO for discrepancies forwarded from remote Nocturne instances
+/// </summary>
+public class ForwardedDiscrepancyDto
+{
+    /// <summary>
+    /// Source identifier for the Nocturne instance that forwarded this discrepancy
+    /// </summary>
+    public string SourceId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Timestamp when the discrepancy was received by the remote instance
+    /// </summary>
+    public DateTimeOffset ReceivedAt { get; set; }
+
+    /// <summary>
+    /// The discrepancy analysis data
+    /// </summary>
+    public DiscrepancyAnalysisDto Analysis { get; set; } = new();
+}
+
+/// <summary>
 /// Data transfer object for detailed discrepancy information
 /// </summary>
 public class DiscrepancyDetailDto
 {
     public Guid Id { get; set; }
-    public int DiscrepancyType { get; set; }
-    public int Severity { get; set; }
+    public DiscrepancyType DiscrepancyType { get; set; }
+    public DiscrepancySeverity Severity { get; set; }
     public string Field { get; set; } = string.Empty;
     public string NightscoutValue { get; set; } = string.Empty;
     public string NocturneValue { get; set; } = string.Empty;

@@ -5163,6 +5163,61 @@ export class DiscrepancyClient {
         }
         return Promise.resolve<MigrationReadinessReport>(null as any);
     }
+
+    /**
+     * Receive forwarded discrepancies from remote Nocturne instances
+     * @param request The forwarded discrepancy data
+     * @return Acknowledgement of receipt
+     */
+    ingestDiscrepancy(request: ForwardedDiscrepancyDto, signal?: AbortSignal): Promise<any> {
+        let url_ = this.baseUrl + "/api/v4/Discrepancy/ingest";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processIngestDiscrepancy(_response);
+        });
+    }
+
+    protected processIngestDiscrepancy(response: Response): Promise<any> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as any;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as any;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            result401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as any;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<any>(null as any);
+    }
 }
 
 export class PredictionClient {
@@ -14216,13 +14271,32 @@ export interface AnalysisDetailDto {
 
 export interface DiscrepancyDetailDto {
     id?: string;
-    discrepancyType?: number;
-    severity?: number;
+    discrepancyType?: DiscrepancyType;
+    severity?: DiscrepancySeverity;
     field?: string;
     nightscoutValue?: string;
     nocturneValue?: string;
     description?: string;
     recordedAt?: Date;
+}
+
+export enum DiscrepancyType {
+    StatusCode = 0,
+    Header = 1,
+    ContentType = 2,
+    Body = 3,
+    JsonStructure = 4,
+    StringValue = 5,
+    NumericValue = 6,
+    Timestamp = 7,
+    ArrayLength = 8,
+    Performance = 9,
+}
+
+export enum DiscrepancySeverity {
+    Minor = 0,
+    Major = 1,
+    Critical = 2,
 }
 
 export interface MigrationReadinessReport {
@@ -14535,6 +14609,12 @@ export interface CompatibilityStatus {
     criticalIssues?: number;
     majorIssues?: number;
     minorIssues?: number;
+}
+
+export interface ForwardedDiscrepancyDto {
+    sourceId?: string;
+    receivedAt?: Date;
+    analysis?: DiscrepancyAnalysisDto;
 }
 
 /** Response containing glucose predictions. */
@@ -15642,6 +15722,11 @@ export interface Activity extends ProcessableDocumentBase {
     notes?: string | undefined;
     enteredBy?: string | undefined;
     dateString?: string | undefined;
+    distance?: number | undefined;
+    distanceUnits?: string | undefined;
+    energy?: number | undefined;
+    energyUnits?: string | undefined;
+    name?: string | undefined;
 
     [key: string]: any;
 }

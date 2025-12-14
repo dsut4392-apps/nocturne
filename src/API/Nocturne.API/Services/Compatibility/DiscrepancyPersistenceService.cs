@@ -53,19 +53,23 @@ public interface IDiscrepancyPersistenceService
 public class DiscrepancyPersistenceService : IDiscrepancyPersistenceService
 {
     private readonly DiscrepancyAnalysisRepository _repository;
+    private readonly IDiscrepancyForwardingService _forwardingService;
     private readonly ILogger<DiscrepancyPersistenceService> _logger;
 
     /// <summary>
     /// Initializes a new instance of the DiscrepancyPersistenceService class
     /// </summary>
     /// <param name="repository">Repository for discrepancy analysis operations</param>
+    /// <param name="forwardingService">Service for forwarding discrepancies to remote endpoints</param>
     /// <param name="logger">Logger instance for this service</param>
     public DiscrepancyPersistenceService(
         DiscrepancyAnalysisRepository repository,
+        IDiscrepancyForwardingService forwardingService,
         ILogger<DiscrepancyPersistenceService> logger
     )
     {
         _repository = repository;
+        _forwardingService = forwardingService;
         _logger = logger;
     }
 
@@ -89,8 +93,8 @@ public class DiscrepancyPersistenceService : IDiscrepancyPersistenceService
             var discrepancies = comparisonResult
                 .Discrepancies.Select(d => new DiscrepancyDetailData
                 {
-                    Type = (int)d.Type,
-                    Severity = (int)d.Severity,
+                    Type = d.Type,
+                    Severity = d.Severity,
                     Field = d.Field,
                     NightscoutValue = d.NightscoutValue,
                     NocturneValue = d.NocturneValue,
@@ -135,6 +139,28 @@ public class DiscrepancyPersistenceService : IDiscrepancyPersistenceService
                 analysisId,
                 comparisonResult.CorrelationId
             );
+
+            // Forward to remote endpoint if configured (fire-and-forget, don't block)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _forwardingService.ForwardDiscrepancyAsync(
+                        comparisonResult,
+                        requestMethod,
+                        requestPath,
+                        CancellationToken.None
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Error forwarding discrepancy {CorrelationId} to remote endpoint",
+                        comparisonResult.CorrelationId
+                    );
+                }
+            });
 
             return analysisId;
         }

@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 using Nocturne.API.Configuration;
 using Nocturne.API.Models.Compatibility;
+using Nocturne.Core.Models;
 
 namespace Nocturne.API.Services.Compatibility;
 

@@ -528,15 +528,17 @@ public class RequestForwardingService : IRequestForwardingService
 
     private string FilterSensitiveErrorMessage(string errorMessage)
     {
-        var sensitiveFields = _configuration.Value.SensitiveFields;
+        var redactionSettings = _configuration.Value.Redaction;
         var filteredMessage = errorMessage;
 
-        foreach (var sensitiveField in sensitiveFields)
+        // Always redact all sensitive fields (mandatory + configured)
+        // The GetAllSensitiveFields() method always includes mandatory fields
+        foreach (var sensitiveField in redactionSettings.GetAllSensitiveFields())
         {
             // Simple replacement to avoid exposing sensitive data in error messages
             filteredMessage = filteredMessage.Replace(
                 sensitiveField,
-                "[REDACTED]",
+                redactionSettings.ReplacementText,
                 StringComparison.OrdinalIgnoreCase
             );
         }

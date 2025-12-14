@@ -229,8 +229,8 @@ public class CompatibilityController : ControllerBase
                     .Discrepancies.Select(d => new DiscrepancyDetailDto
                     {
                         Id = d.Id,
-                        DiscrepancyType = (int)d.DiscrepancyType,
-                        Severity = (int)d.Severity,
+                        DiscrepancyType = d.DiscrepancyType,
+                        Severity = d.Severity,
                         Field = d.Field,
                         NightscoutValue = d.NightscoutValue,
                         NocturneValue = d.NocturneValue,

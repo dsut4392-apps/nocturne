@@ -64,9 +64,9 @@ public class DiscrepancyAnalysisRepository
             Summary = summary,
             SelectedResponseTarget = selectedResponseTarget,
             SelectionReason = selectionReason,
-            CriticalDiscrepancyCount = discrepancies.Count(d => d.Severity == 2), // Critical = 2
-            MajorDiscrepancyCount = discrepancies.Count(d => d.Severity == 1), // Major = 1
-            MinorDiscrepancyCount = discrepancies.Count(d => d.Severity == 0), // Minor = 0
+            CriticalDiscrepancyCount = discrepancies.Count(d => d.Severity == DiscrepancySeverity.Critical),
+            MajorDiscrepancyCount = discrepancies.Count(d => d.Severity == DiscrepancySeverity.Major),
+            MinorDiscrepancyCount = discrepancies.Count(d => d.Severity == DiscrepancySeverity.Minor),
             NightscoutMissing = nightscoutMissing,
             NocturneMissing = nocturneMissing,
             ErrorMessage = errorMessage,
@@ -81,8 +81,8 @@ public class DiscrepancyAnalysisRepository
             {
                 Id = Guid.CreateVersion7(),
                 AnalysisId = entity.Id,
-                DiscrepancyType = (DiscrepancyType)discrepancy.Type,
-                Severity = (DiscrepancySeverity)discrepancy.Severity,
+                DiscrepancyType = discrepancy.Type,
+                Severity = discrepancy.Severity,
                 Field = discrepancy.Field,
                 NightscoutValue = discrepancy.NightscoutValue,
                 NocturneValue = discrepancy.NocturneValue,
@@ -296,12 +296,12 @@ public class DiscrepancyDetailData
     /// <summary>
     /// Gets or sets the type of discrepancy
     /// </summary>
-    public int Type { get; set; }
+    public DiscrepancyType Type { get; set; }
 
     /// <summary>
     /// Gets or sets the severity level of the discrepancy
     /// </summary>
-    public int Severity { get; set; }
+    public DiscrepancySeverity Severity { get; set; }
 
     /// <summary>
     /// Gets or sets the field name where the discrepancy occurred

@@ -186,8 +186,8 @@ public class DiscrepancyController : ControllerBase
                     .Discrepancies.Select(d => new DiscrepancyDetailDto
                     {
                         Id = d.Id,
-                        DiscrepancyType = (int)d.DiscrepancyType,
-                        Severity = (int)d.Severity,
+                        DiscrepancyType = d.DiscrepancyType,
+                        Severity = d.Severity,
                         Field = d.Field,
                         NightscoutValue = d.NightscoutValue,
                         NocturneValue = d.NocturneValue,
@@ -260,8 +260,8 @@ public class DiscrepancyController : ControllerBase
                     .Discrepancies.Select(d => new DiscrepancyDetailDto
                     {
                         Id = d.Id,
-                        DiscrepancyType = (int)d.DiscrepancyType,
-                        Severity = (int)d.Severity,
+                        DiscrepancyType = d.DiscrepancyType,
+                        Severity = d.Severity,
                         Field = d.Field,
                         NightscoutValue = d.NightscoutValue,
                         NocturneValue = d.NocturneValue,
@@ -408,6 +408,99 @@ public class DiscrepancyController : ControllerBase
         {
             _logger.LogError(ex, "Error generating migration assessment");
             return StatusCode(500, "Error generating migration assessment");
+        }
+    }
+
+    /// <summary>
+    /// Receive forwarded discrepancies from remote Nocturne instances
+    /// </summary>
+    /// <param name="request">The forwarded discrepancy data</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Acknowledgement of receipt</returns>
+    [HttpPost("ingest")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 401)]
+    public async Task<ActionResult> IngestDiscrepancy(
+        [FromBody] ForwardedDiscrepancyDto request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            if (request == null || request.Analysis == null)
+            {
+                return BadRequest(new { status = 400, message = "Invalid request body" });
+            }
+
+            var sourceId = request.SourceId;
+            var correlationId = request.Analysis.CorrelationId;
+
+            _logger.LogInformation(
+                "Received forwarded discrepancy from {SourceId}: {CorrelationId}",
+                sourceId,
+                correlationId
+            );
+
+            // Store the forwarded discrepancy in the database
+            // Mark the source to distinguish from local discrepancies
+            var discrepancies = request.Analysis.Discrepancies
+                .Select(d => new Nocturne.Infrastructure.Data.Repositories.DiscrepancyDetailData
+                {
+                    Type = d.DiscrepancyType,
+                    Severity = d.Severity,
+                    Field = d.Field,
+                    NightscoutValue = d.NightscoutValue,
+                    NocturneValue = d.NocturneValue,
+                    Description = d.Description,
+                })
+                .ToList();
+
+            await _discrepancyRepository.StoreAnalysisAsync(
+                correlationId,
+                request.Analysis.AnalysisTimestamp,
+                request.Analysis.RequestMethod,
+                request.Analysis.RequestPath,
+                request.Analysis.OverallMatch,
+                request.Analysis.StatusCodeMatch,
+                request.Analysis.BodyMatch,
+                request.Analysis.NightscoutStatusCode,
+                request.Analysis.NocturneStatusCode,
+                request.Analysis.NightscoutResponseTimeMs,
+                request.Analysis.NocturneResponseTimeMs,
+                request.Analysis.TotalProcessingTimeMs,
+                $"[{sourceId}] {request.Analysis.Summary}",
+                request.Analysis.SelectedResponseTarget,
+                request.Analysis.SelectionReason,
+                discrepancies,
+                request.Analysis.NightscoutMissing,
+                request.Analysis.NocturneMissing,
+                request.Analysis.ErrorMessage,
+                cancellationToken
+            );
+
+            _logger.LogDebug(
+                "Stored forwarded discrepancy from {SourceId}: {CorrelationId}",
+                sourceId,
+                correlationId
+            );
+
+            return Ok(new
+            {
+                status = 200,
+                message = "Discrepancy received and stored",
+                correlationId,
+                sourceId,
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error ingesting forwarded discrepancy from {SourceId}",
+                request?.SourceId ?? "unknown"
+            );
+            return StatusCode(500, new { status = 500, message = "Error processing forwarded discrepancy" });
         }
     }
 }

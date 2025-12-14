@@ -43,6 +43,7 @@ public static class CompatibilityProxyServiceExtensions
         services.AddScoped<IResponseCacheService, ResponseCacheService>();
 
         services.AddScoped<DiscrepancyAnalysisRepository>();
+        services.AddScoped<IDiscrepancyForwardingService, DiscrepancyForwardingService>();
         services.AddScoped<IDiscrepancyPersistenceService, DiscrepancyPersistenceService>();
         services.AddScoped<ICompatibilityReportService, CompatibilityReportService>();
 
@@ -101,6 +102,26 @@ public static class CompatibilityProxyServiceExtensions
                     client.DefaultRequestHeaders.Add(
                         "User-Agent",
                         "Nocturne-CompatibilityProxy/1.0"
+                    );
+                }
+            )
+            .AddStandardResilienceHandler();
+
+        // Discrepancy Forwarding HTTP client
+        var forwardingConfig = interceptorConfig.DiscrepancyForwarding;
+        services
+            .AddHttpClient(
+                DiscrepancyForwardingService.HttpClientName,
+                client =>
+                {
+                    if (!string.IsNullOrEmpty(forwardingConfig.EndpointUrl))
+                    {
+                        client.BaseAddress = new Uri(forwardingConfig.EndpointUrl);
+                    }
+                    client.Timeout = TimeSpan.FromSeconds(forwardingConfig.TimeoutSeconds);
+                    client.DefaultRequestHeaders.Add(
+                        "User-Agent",
+                        "Nocturne-DiscrepancyForwarding/1.0"
                     );
                 }
             )
@@ -172,7 +193,6 @@ public class CompatibilityProxyHealthCheck : IHealthCheck
             // Note: Nocturne connectivity is not checked here as it auto-detects its own URL
             healthData["nocturne"] = "auto-detected";
 
-            // Add Phase 2 feature status
             healthData["responseComparison"] = config.Comparison.EnableDeepComparison
                 ? "enabled"
                 : "disabled";

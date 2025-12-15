@@ -48,7 +48,7 @@
       "configureClass": null,
       "configureMethod": null,
       "useNuGetCache": false,
-      "output": null,
+      "output": "../../Web/packages/app/src/lib/api/generated/openapi.json",
       "outputType": "OpenApi3"
     }
   },

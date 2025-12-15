@@ -13,10 +13,13 @@
     "test": "pnpm --recursive test",
     "clean": "pnpm --recursive clean && rm -rf node_modules",
     "transform-api-client": "node --experimental-transform-types utils/transformApiClient/index.ts",
-    "generate-api-client": "cd ../API/Nocturne.API && nswag run nswag.json"
+    "generate-api-client": "cd ../API/Nocturne.API && nswag run nswag.json",
+    "generate-zod-schemas": "node --experimental-transform-types utils/generateZodSchemas/index.ts",
+    "generate-api": "pnpm run generate-api-client && pnpm run generate-zod-schemas"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "json-schema-to-zod": "^2.4.1",
     "prettier": "^3.7.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"

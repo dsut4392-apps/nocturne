@@ -128,6 +128,53 @@ public class Program
             }
         );
 
+        // Configure health data endpoint
+        app.MapGet(
+            "/health/data",
+            (IServiceProvider serviceProvider) =>
+            {
+                var metricsTracker = serviceProvider.GetService<IConnectorMetricsTracker>();
+                var config = serviceProvider
+                    .GetRequiredService<IOptionsSnapshot<LibreLinkUpConnectorConfiguration>>()
+                    .Value;
+
+                if (metricsTracker == null)
+                {
+                    return Results.Ok(
+                        new
+                        {
+                            connectorName = "FreeStyle Connector",
+                            status = "running",
+                            message = "Metrics tracking not available",
+                        }
+                    );
+                }
+
+                var recentTimestamps = metricsTracker.GetRecentEntryTimestamps(10);
+
+                return Results.Ok(
+                    new
+                    {
+                        connectorName = "FreeStyle Connector",
+                        status = "running",
+                        metrics = new
+                        {
+                            totalEntries = metricsTracker.TotalEntries,
+                            lastEntryTime = metricsTracker.LastEntryTime,
+                            entriesLast24Hours = metricsTracker.EntriesLast24Hours,
+                            lastSyncTime = metricsTracker.LastSyncTime,
+                        },
+                        recentEntries = recentTimestamps.Select(t => new { timestamp = t }).ToArray(),
+                        configuration = new
+                        {
+                            syncIntervalMinutes = config.SyncIntervalMinutes,
+                            connectSource = config.ConnectSource,
+                        },
+                    }
+                );
+            }
+        );
+
         // Configure graceful shutdown
         var logger = app.Services.GetRequiredService<ILogger<Program>>();
         logger.LogInformation("Starting FreeStyle Connector Service...");

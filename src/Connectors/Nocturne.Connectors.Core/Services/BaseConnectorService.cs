@@ -131,6 +131,69 @@ namespace Nocturne.Connectors.Core.Services
         public abstract Task<IEnumerable<Entry>> FetchGlucoseDataAsync(DateTime? since = null);
 
         /// <summary>
+        /// Helper method to track metrics for any data type
+        /// </summary>
+        protected void TrackMetrics<T>(IEnumerable<T> items)
+        {
+            if (_metricsTracker == null) return;
+
+            // To avoid multiple enumerations if not a collection
+            var itemList = items as ICollection<T> ?? items.ToList();
+            var count = itemList.Count;
+
+            if (count == 0) return;
+
+            DateTime? latestTime = null;
+
+            // Try to find the latest timestamp
+            if (typeof(T) == typeof(Entry))
+            {
+                // Entries are typically sorted by date, check last
+                var last = itemList.LastOrDefault() as Entry;
+                latestTime = last?.Date;
+            }
+            else
+            {
+                // Generic timestamp lookup
+                var type = typeof(T);
+                var properties = type.GetProperties();
+
+                // Look for common timestamp properties
+                var timeProp = properties.FirstOrDefault(p =>
+                    p.Name.Equals("CreatedAt", StringComparison.OrdinalIgnoreCase) ||
+                    p.Name.Equals("EventTime", StringComparison.OrdinalIgnoreCase) ||
+                    p.Name.Equals("Timestamp", StringComparison.OrdinalIgnoreCase) ||
+                    p.Name.Equals("StartDate", StringComparison.OrdinalIgnoreCase) || // For Profile
+                    p.Name.Equals("Date", StringComparison.OrdinalIgnoreCase));
+
+                if (timeProp != null)
+                {
+                    // Scan for latest time
+                    foreach (var item in itemList)
+                    {
+                        var val = timeProp.GetValue(item);
+                        DateTime? dt = null;
+
+                        if (val is DateTime d)
+                            dt = d;
+                        else if (val is string s && DateTime.TryParse(s, out var parsed))
+                            dt = parsed.ToUniversalTime();
+                        else if (val is long l)
+                             dt = DateTimeOffset.FromUnixTimeMilliseconds(l).UtcDateTime;
+
+                        if (dt.HasValue)
+                        {
+                            if (!latestTime.HasValue || dt.Value > latestTime.Value)
+                                latestTime = dt;
+                        }
+                    }
+                }
+            }
+
+            _metricsTracker.TrackEntries(count, latestTime);
+        }
+
+        /// <summary>
         /// Submits glucose data directly to the API via HTTP
         /// </summary>
         protected virtual async Task<bool> PublishGlucoseDataAsync(
@@ -166,6 +229,7 @@ namespace Nocturne.Connectors.Core.Services
                         "Successfully submitted {Count} glucose entries",
                         entriesArray.Length
                     );
+                    TrackMetrics(entriesArray);
                 }
 
                 return success;
@@ -215,6 +279,7 @@ namespace Nocturne.Connectors.Core.Services
                         "Successfully submitted {Count} treatments",
                         treatmentsArray.Length
                     );
+                    TrackMetrics(treatmentsArray);
                 }
 
                 return success;
@@ -264,6 +329,7 @@ namespace Nocturne.Connectors.Core.Services
                         "Successfully submitted {Count} device statuses",
                         statusArray.Length
                     );
+                    TrackMetrics(statusArray);
                 }
 
                 return success;
@@ -311,6 +377,7 @@ namespace Nocturne.Connectors.Core.Services
                         "Successfully submitted {Count} profiles",
                         profilesArray.Length
                     );
+                    TrackMetrics(profilesArray);
                 }
 
                 return success;
@@ -358,6 +425,7 @@ namespace Nocturne.Connectors.Core.Services
                         "Successfully submitted {Count} food entries",
                         foodsArray.Length
                     );
+                    TrackMetrics(foodsArray);
                 }
 
                 return success;
@@ -407,6 +475,7 @@ namespace Nocturne.Connectors.Core.Services
                         "Successfully submitted {Count} activities",
                         activitiesArray.Length
                     );
+                    TrackMetrics(activitiesArray);
                 }
 
                 return success;
@@ -454,6 +523,7 @@ namespace Nocturne.Connectors.Core.Services
                             "Successfully submitted {Count} blood glucose readings from health data",
                             bloodGlucoseReadings.Length
                         );
+                        TrackMetrics(bloodGlucoseReadings);
                     }
 
                     return success;
@@ -750,25 +820,8 @@ namespace Nocturne.Connectors.Core.Services
                     results.AddRange(transformed);
 
                     // Track metrics if we have results
-                    if (results.Count > 0 && _metricsTracker != null)
-                    {
-                        // Try to find the latest timestamp from the results if possible
-                        // This assumes TResult might be Entry or has a timestamp, but TResult is generic.
-                        // We'll rely on the caller or just pass null for latestTimestamp for now,
-                        // or we can allow the transform to return the timestamp.
-                        // For now, let's just track the count.
-                        // Actually, we can check if TResult is Entry
-                        if (results.Count > 0)
-                        {
-                            DateTime? latestTime = null;
-                            if (results.LastOrDefault() is Entry lastEntry)
-                            {
-                                latestTime = lastEntry.Date;
-                            }
-
-                            _metricsTracker.TrackEntries(results.Count, latestTime);
-                        }
-                    }
+                    // NOTE: Metrics are now tracked in the Publish* methods to ensure we count
+                    // successfully uploaded data rather than just fetched data.
                 }
 
                 _logger?.LogInformation("Retrieved {Count} items from source", results.Count);
@@ -857,6 +910,11 @@ namespace Nocturne.Connectors.Core.Services
                     {
                         allSuccessful = false;
                     }
+                }
+
+                if (allSuccessful)
+                {
+                    TrackMetrics(entries);
                 }
 
                 return allSuccessful;

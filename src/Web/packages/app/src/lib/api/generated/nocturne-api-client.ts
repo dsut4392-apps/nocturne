@@ -6044,7 +6044,7 @@ export class ServicesClient {
     /**
      * Trigger a manual sync of all enabled connectors.
     This will sync data for the configured lookback period for all enabled connectors.
-    Only available if ManualSyncLookbackDays is configured in appsettings.
+    Only available if BackfillDays is configured in appsettings.
      * @return Result of the manual sync operation
      */
     triggerManualSync(signal?: AbortSignal): Promise<ManualSyncResult> {

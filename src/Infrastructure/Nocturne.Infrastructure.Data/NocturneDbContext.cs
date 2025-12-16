@@ -134,6 +134,12 @@ public class NocturneDbContext : DbContext
     public DbSet<PasswordResetRequestEntity> PasswordResetRequests { get; set; }
 
     /// <summary>
+    /// Gets or sets the DataSourceMetadata table for user preferences about data sources
+    /// </summary>
+    public DbSet<DataSourceMetadataEntity> DataSourceMetadata { get; set; }
+
+
+    /// <summary>
     /// Configure the database model and relationships
     /// </summary>
     /// <param name="modelBuilder">The model builder to configure</param>
@@ -613,6 +619,24 @@ public class NocturneDbContext : DbContext
             .HasIndex(a => new { a.SubjectId, a.CreatedAt })
             .HasDatabaseName("ix_auth_audit_log_subject_created")
             .IsDescending(false, true);
+
+        // DataSourceMetadata indexes - optimized for device lookups
+        modelBuilder
+            .Entity<DataSourceMetadataEntity>()
+            .HasIndex(d => d.DeviceId)
+            .HasDatabaseName("ix_data_source_metadata_device_id")
+            .IsUnique();
+
+        modelBuilder
+            .Entity<DataSourceMetadataEntity>()
+            .HasIndex(d => d.IsArchived)
+            .HasDatabaseName("ix_data_source_metadata_is_archived");
+
+        modelBuilder
+            .Entity<DataSourceMetadataEntity>()
+            .HasIndex(d => d.CreatedAt)
+            .HasDatabaseName("ix_data_source_metadata_created_at");
+
     }
 
     private static void ConfigureEntities(ModelBuilder modelBuilder)

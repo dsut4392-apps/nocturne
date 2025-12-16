@@ -23,11 +23,28 @@ namespace Nocturne.Connectors.Core.Interfaces
         int EntriesLast24Hours { get; }
 
         /// <summary>
+        /// Timestamp of the last sync operation (UTC)
+        /// </summary>
+        DateTime? LastSyncTime { get; }
+
+        /// <summary>
         /// Records newly processed entries
         /// </summary>
         /// <param name="count">Number of entries processed</param>
         /// <param name="latestTimestamp">Timestamp of the latest entry if available</param>
         void TrackEntries(int count, DateTime? latestTimestamp = null);
+
+        /// <summary>
+        /// Gets the most recent entry timestamps for health reporting
+        /// </summary>
+        /// <param name="count">Number of recent timestamps to retrieve</param>
+        /// <returns>Array of recent entry timestamps in descending order (newest first)</returns>
+        DateTime[] GetRecentEntryTimestamps(int count);
+
+        /// <summary>
+        /// Records a sync operation
+        /// </summary>
+        void TrackSync();
 
         /// <summary>
         /// Resets all metrics

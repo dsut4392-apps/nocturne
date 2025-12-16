@@ -23,13 +23,13 @@ namespace Nocturne.Connectors.Core.Health
             var data = new Dictionary<string, object>
             {
                 { "connector_source", _connectorSource },
-                { "total_entries", _metricsTracker.TotalEntries },
-                { "entries_24h", _metricsTracker.EntriesLast24Hours }
+                { "TotalEntries", _metricsTracker.TotalEntries },
+                { "EntriesLast24Hours", _metricsTracker.EntriesLast24Hours }
             };
 
             if (_metricsTracker.LastEntryTime.HasValue)
             {
-                data.Add("last_entry_time", _metricsTracker.LastEntryTime.Value.ToString("O"));
+                data.Add("LastEntryTime", _metricsTracker.LastEntryTime.Value.ToString("O"));
 
                 // Calculate time since last entry for cleaner consumption if needed
                 var timeSince = DateTime.UtcNow - _metricsTracker.LastEntryTime.Value;
@@ -37,7 +37,7 @@ namespace Nocturne.Connectors.Core.Health
             }
             else
             {
-                data.Add("last_entry_time", "null");
+                data.Add("LastEntryTime", null);
             }
 
             // You might want to degrade health if no data received for a long time,

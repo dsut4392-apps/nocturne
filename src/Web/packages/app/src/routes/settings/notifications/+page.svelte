@@ -67,7 +67,11 @@
   let capabilities = $state<BrowserAlarmCapabilities | null>(null);
   // On component mount, check browser capabilities
   onMount(async () => {
-    capabilities = await getBrowserCapabilities();
+    try {
+      capabilities = await getBrowserCapabilities();
+    } catch (err) {
+      console.error("[Notifications] Error in onMount:", err);
+    }
   });
 
   function openNewAlarmDialog() {
@@ -200,7 +204,7 @@
 
   // Compute sorted profiles by threshold (grouped by type direction)
   const sortedProfiles = $derived(
-    [...store.alarmConfiguration.profiles].sort((a, b) => {
+    [...(store.alarmConfiguration.profiles || [])].sort((a, b) => {
       // Group urgents and highs together (descending threshold), lows together (ascending threshold)
       const isHighA = ["UrgentHigh", "High", "RisingFast"].includes(
         a.alarmType

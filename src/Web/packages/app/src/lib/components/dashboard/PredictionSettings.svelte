@@ -53,20 +53,6 @@
     };
     predictionMode = modelToMode[predictionModel] ?? "cone";
   });
-
-  // Fetch predictions - this triggers the svelte:boundary states
-  const predictionsQuery = $derived(
-    showPredictions && predictionEnabled.current ? getPredictions({}) : null
-  );
-  // Await to trigger boundary states - the result itself isn't used here,
-  // just validates that predictions are available
-  const _predictionStatus = $derived(
-    predictionsQuery ? await predictionsQuery : null
-  );
-  // Reference in effect to suppress unused warning and ensure reactivity
-  $effect(() => {
-    void _predictionStatus;
-  });
 </script>
 
 <svelte:boundary>

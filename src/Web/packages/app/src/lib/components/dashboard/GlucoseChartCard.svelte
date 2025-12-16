@@ -181,6 +181,8 @@
     const startTime = displayDateRange.from.getTime();
     const endTime = displayDateRange.to.getTime();
 
+    if (isNaN(startTime) || isNaN(endTime)) return;
+
     getChartData({ startTime, endTime, intervalMinutes: 5 })
       .then((data) => {
         serverChartData = data;

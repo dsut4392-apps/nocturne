@@ -15,7 +15,11 @@
     maxLifeHours?: number;
   }
 
-  let { data, maxLifeHours = 240 }: SAGEPillProps = $props();
+  let {
+    data,
+    maxLifeHours = 240,
+    onAddTreatment,
+  }: SAGEPillProps & { onAddTreatment?: () => void } = $props();
 
   /** Format time remaining */
   function formatTimeRemaining(hours: number): string {
@@ -115,4 +119,12 @@
   const isStale = $derived(data?.isStale ?? !data?.treatmentDate);
 </script>
 
-<StatusPill value={display} label="SAGE" {info} {level} {isStale} />
+<StatusPill
+  value={display}
+  label="SAGE"
+  {info}
+  {level}
+  {isStale}
+  actionLabel="Add Sensor Change"
+  onAction={onAddTreatment}
+/>

@@ -35,6 +35,10 @@
     units?: string;
     /** Additional CSS classes */
     class?: string;
+    /** Callback for adding a treatment from a pill */
+    onAddTreatment?: (
+      type: "Site Change" | "Sensor Change" | "Sensor Start"
+    ) => void;
   }
 
   let {
@@ -47,6 +51,7 @@
     config = {},
     units = "mmol/L",
     class: className,
+    onAddTreatment,
   }: StatusPillBarProps = $props();
 
   // Merge with defaults
@@ -97,11 +102,19 @@
     {/if}
 
     {#if showCage && cage}
-      <CAGEPill data={cage} maxLifeHours={mergedConfig.cage.urgentThreshold} />
+      <CAGEPill
+        data={cage}
+        maxLifeHours={mergedConfig.cage.urgentThreshold}
+        onAddTreatment={() => onAddTreatment?.("Site Change")}
+      />
     {/if}
 
     {#if showSage && sage}
-      <SAGEPill data={sage} maxLifeHours={mergedConfig.sage.urgentThreshold} />
+      <SAGEPill
+        data={sage}
+        maxLifeHours={mergedConfig.sage.urgentThreshold}
+        onAddTreatment={() => onAddTreatment?.("Sensor Change")}
+      />
     {/if}
 
     {#if showBasal && basal}

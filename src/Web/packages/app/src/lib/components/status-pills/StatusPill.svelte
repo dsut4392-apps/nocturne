@@ -2,6 +2,7 @@
   import * as Popover from "$lib/components/ui/popover";
   import type { AlertLevel, PillInfoItem } from "$lib/types/status-pills";
   import { cn } from "$lib/utils";
+  import { PlusCircle } from "lucide-svelte";
 
   interface StatusPillProps {
     /** Display value shown in the pill */
@@ -18,6 +19,10 @@
     class?: string;
     /** Whether to show the popover on click */
     showPopover?: boolean;
+    /** Label for the action button in popover */
+    actionLabel?: string;
+    /** Callback for the action button */
+    onAction?: () => void;
   }
 
   let {
@@ -28,6 +33,8 @@
     isStale = false,
     class: className,
     showPopover = true,
+    actionLabel,
+    onAction,
   }: StatusPillProps = $props();
 
   /** Get pill styling based on alert level */
@@ -53,10 +60,11 @@
     const baseClasses = "text-xs font-normal opacity-75";
     return cn(baseClasses);
   });
+  let popoverOpen = $state(false);
 </script>
 
 {#if showPopover && info.length > 0}
-  <Popover.Root>
+  <Popover.Root bind:open={popoverOpen}>
     <Popover.Trigger class={pillClasses}>
       <span class={labelClasses}>{label}</span>
       <span>{value}</span>
@@ -83,6 +91,20 @@
           {/if}
         {/each}
       </div>
+      {#if actionLabel && onAction}
+        <div class="p-2 border-t border-border">
+          <button
+            class="flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground cursor-pointer"
+            onclick={() => {
+              onAction();
+              popoverOpen = false;
+            }}
+          >
+            <PlusCircle class="mr-2 h-4 w-4 flex items-center justify-center" />
+            {actionLabel}
+          </button>
+        </div>
+      {/if}
     </Popover.Content>
   </Popover.Root>
 {:else}

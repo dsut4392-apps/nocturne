@@ -12,6 +12,9 @@
     getUnitLabel,
   } from "$lib/utils/formatting";
   import { Clock } from "lucide-svelte";
+  import TreatmentEditDialog from "$lib/components/treatments/TreatmentEditDialog.svelte";
+  import { createTreatment } from "../../../routes/reports/treatments/data.remote";
+  import type { Treatment } from "$lib/api";
 
   interface ComponentProps {
     entries?: Entry[];
@@ -135,6 +138,31 @@
       return null;
     }
   });
+
+  // Treatment Dialog State
+  let showTreatmentDialog = $state(false);
+  let treatmentEventType = $state("");
+  let isSavingTreatment = $state(false);
+
+  function handleAddTreatment(
+    type: "Site Change" | "Sensor Change" | "Sensor Start"
+  ) {
+    treatmentEventType = type;
+    showTreatmentDialog = true;
+  }
+
+  async function handleSaveTreatment(treatment: Treatment) {
+    isSavingTreatment = true;
+    try {
+      await createTreatment({ treatmentData: treatment });
+      showTreatmentDialog = false;
+    } catch (e) {
+      console.error("Failed to create treatment", e);
+      // TODO: Toast error
+    } finally {
+      isSavingTreatment = false;
+    }
+  }
 </script>
 
 <div class="flex items-center justify-between">
@@ -200,6 +228,16 @@
       basal={realtimeStore.pillsData.basal}
       loop={realtimeStore.pillsData.loop}
       units={unitLabel}
+      onAddTreatment={handleAddTreatment}
     />
   </div>
 {/if}
+
+<TreatmentEditDialog
+  bind:open={showTreatmentDialog}
+  treatment={null}
+  availableEventTypes={[treatmentEventType]}
+  isLoading={isSavingTreatment}
+  onClose={() => (showTreatmentDialog = false)}
+  onSave={handleSaveTreatment}
+/>

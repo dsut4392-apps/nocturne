@@ -24,7 +24,7 @@
     TREATMENT_CATEGORIES,
   } from "$lib/constants/treatment-categories";
   import { cn } from "$lib/utils";
-  import { formatDateTime } from "$lib/utils/formatting";
+  import { formatDateTime, formatDateForInput } from "$lib/utils/formatting";
 
   interface Props {
     open: boolean;
@@ -50,6 +50,7 @@
 
   // Editable form state
   let formState = $state<{
+    created_at: string;
     eventType: string;
     insulin: number | undefined;
     carbs: number | undefined;
@@ -59,6 +60,7 @@
     profile: string;
     additionalPropertiesJson: string;
   }>({
+    created_at: new Date().toISOString(),
     eventType: "",
     insulin: undefined,
     carbs: undefined,
@@ -90,6 +92,7 @@
   $effect(() => {
     if (treatment) {
       formState = {
+        created_at: treatment.created_at || new Date().toISOString(),
         eventType: treatment.eventType || "",
         insulin: treatment.insulin ?? undefined,
         carbs: treatment.carbs ?? undefined,
@@ -100,6 +103,20 @@
         additionalPropertiesJson: treatment.additional_properties
           ? JSON.stringify(treatment.additional_properties, null, 2)
           : "",
+      };
+    } else {
+      // Reset to defaults for creation
+      formState = {
+        created_at: new Date().toISOString(),
+        eventType:
+          availableEventTypes.length === 1 ? availableEventTypes[0] : "",
+        insulin: undefined,
+        carbs: undefined,
+        glucose: undefined,
+        duration: undefined,
+        notes: "",
+        profile: "",
+        additionalPropertiesJson: "",
       };
     }
   });
@@ -116,7 +133,6 @@
   });
 
   function handleSubmit() {
-    if (!treatment) return;
     if (additionalPropertiesError) return;
 
     let additionalProps: Record<string, unknown> | undefined = undefined;
@@ -130,6 +146,7 @@
 
     const updated: Treatment = {
       ...treatment,
+      created_at: formState.created_at,
       eventType: formState.eventType || undefined,
       insulin: formState.insulin || undefined,
       carbs: formState.carbs || undefined,
@@ -159,7 +176,7 @@
   <Dialog.Content class="max-w-lg">
     <Dialog.Header>
       <Dialog.Title class="flex items-center gap-2">
-        Edit Treatment
+        {treatment?._id ? "Edit Treatment" : "New Treatment"}
         {#if formState.eventType}
           <Badge variant="outline" class={style.colorClass}>
             {formState.eventType}
@@ -167,12 +184,14 @@
         {/if}
       </Dialog.Title>
       <Dialog.Description>
-        Edit the details of this treatment entry. Changes will be saved to the
-        database.
+        {treatment?._id
+          ? "Edit the details of this treatment entry."
+          : "Enter details for the new treatment."}
+        Changes will be saved to the database.
       </Dialog.Description>
     </Dialog.Header>
 
-    {#if treatment}
+    {#if true}
       <form
         onsubmit={(e) => {
           e.preventDefault();
@@ -181,26 +200,28 @@
         class="space-y-4"
       >
         <!-- Read-only metadata -->
-        <div
-          class="flex flex-wrap gap-4 text-sm text-muted-foreground bg-muted/30 rounded-lg p-3"
-        >
-          <div class="flex items-center gap-1.5">
-            <Clock class="h-3.5 w-3.5" />
-            <span>{formatDateTime(treatment.created_at)}</span>
+        {#if treatment?._id}
+          <div
+            class="flex flex-wrap gap-4 text-sm text-muted-foreground bg-muted/30 rounded-lg p-3"
+          >
+            <div class="flex items-center gap-1.5">
+              <Clock class="h-3.5 w-3.5" />
+              <span>{formatDateTime(treatment.created_at)}</span>
+            </div>
+            {#if treatment.enteredBy}
+              <div class="flex items-center gap-1.5">
+                <User class="h-3.5 w-3.5" />
+                <span>{treatment.enteredBy}</span>
+              </div>
+            {/if}
+            {#if treatment.data_source}
+              <div class="flex items-center gap-1.5">
+                <Database class="h-3.5 w-3.5" />
+                <span>{treatment.data_source}</span>
+              </div>
+            {/if}
           </div>
-          {#if treatment.enteredBy}
-            <div class="flex items-center gap-1.5">
-              <User class="h-3.5 w-3.5" />
-              <span>{treatment.enteredBy}</span>
-            </div>
-          {/if}
-          {#if treatment.data_source}
-            <div class="flex items-center gap-1.5">
-              <Database class="h-3.5 w-3.5" />
-              <span>{treatment.data_source}</span>
-            </div>
-          {/if}
-        </div>
+        {/if}
 
         <!-- Event Type Combobox -->
         <div class="space-y-2">
@@ -270,6 +291,20 @@
               </Command.Root>
             </Popover.Content>
           </Popover.Root>
+        </div>
+
+        <!-- Date and Time -->
+        <div>
+          <Label for="datetime">Date & Time</Label>
+          <Input
+            id="datetime"
+            type="datetime-local"
+            value={formatDateForInput(formState.created_at)}
+            onchange={(e) => {
+              const val = e.currentTarget.value;
+              if (val) formState.created_at = new Date(val).toISOString();
+            }}
+          />
         </div>
 
         <!-- Insulin & Carbs Row -->

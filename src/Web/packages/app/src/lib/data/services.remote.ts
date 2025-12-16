@@ -82,6 +82,30 @@ export const deleteDataSourceData = command(z.string(), async (dataSourceId) => 
 });
 
 /**
+ * Delete connector data
+ */
+export const deleteConnectorData = command(z.string(), async (connectorId) => {
+	const { locals } = getRequestEvent();
+	const { apiClient } = locals;
+
+	try {
+		const result = await apiClient.services.deleteConnectorData(connectorId);
+		return {
+			success: result.success ?? false,
+			entriesDeleted: result.entriesDeleted,
+			error: result.error ?? undefined,
+		};
+	} catch (err) {
+		console.error('Error deleting connector data:', err);
+		return {
+			success: false,
+			error: err instanceof Error ? err.message : 'Failed to delete connector data',
+		};
+	}
+});
+
+
+/**
  * Get connector health status and metrics
  */
 export const getConnectorStatuses = query(async () => {

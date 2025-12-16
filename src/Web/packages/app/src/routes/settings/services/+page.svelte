@@ -5,6 +5,7 @@
     getUploaderSetup,
     deleteDemoData as deleteDemoDataRemote,
     deleteDataSourceData as deleteDataSourceDataRemote,
+    deleteConnectorData as deleteConnectorDataRemote,
     getConnectorStatuses,
   } from "$lib/data/services.remote";
   import type {
@@ -12,7 +13,6 @@
     UploaderApp,
     UploaderSetupResponse,
     DataSourceInfo,
-    AvailableConnector,
     ManualSyncResult,
     ConnectorStatusDto,
   } from "$lib/api/generated/nocturne-api-client";
@@ -98,6 +98,15 @@
   let selectedConnector = $state<ConnectorStatusDto | null>(null);
   let showConnectorDialog = $state(false);
 
+  // Connector deletion state
+  let showConnectorDeleteConfirmDialog = $state(false);
+  let isDeletingConnector = $state(false);
+  let connectorDeleteResult = $state<{
+    success: boolean;
+    entriesDeleted?: number;
+    error?: string;
+  } | null>(null);
+
   onMount(async () => {
     await loadServices();
     await loadConnectorStatuses();
@@ -125,6 +134,39 @@
       connectorStatuses = [];
     } finally {
       isLoadingConnectorStatuses = false;
+    }
+  }
+
+  function openConnectorDeleteConfirmation() {
+    showConnectorDialog = false;
+    showConnectorDeleteConfirmDialog = true;
+    deleteConfirmText = "";
+    connectorDeleteResult = null;
+  }
+
+  async function deleteConnector() {
+    if (!selectedConnector) return;
+
+    isDeletingConnector = true;
+    connectorDeleteResult = null;
+    try {
+      const result = await deleteConnectorDataRemote(selectedConnector.id!);
+      connectorDeleteResult = {
+        success: result.success ?? false,
+        entriesDeleted: result.entriesDeleted,
+        error: result.error ?? undefined,
+      };
+      if (result.success) {
+        await loadConnectorStatuses();
+      }
+    } catch (e) {
+      connectorDeleteResult = {
+        success: false,
+        error:
+          e instanceof Error ? e.message : "Failed to delete connector data",
+      };
+    } finally {
+      isDeletingConnector = false;
     }
   }
 
@@ -748,23 +790,23 @@
                 Refresh
               </Button>
             {/if}
-            {#if servicesOverview.manualSyncEnabled}
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={triggerManualSync}
-                disabled={isManualSyncing}
-                class="gap-2"
-              >
-                {#if isManualSyncing}
-                  <Loader2 class="h-4 w-4 animate-spin" />
-                  Syncing...
-                {:else}
-                  <Download class="h-4 w-4" />
-                  Manual Sync
-                {/if}
-              </Button>
-            {/if}
+            <!-- {#if servicesOverview.manualSyncEnabled} -->
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={triggerManualSync}
+              disabled={isManualSyncing}
+              class="gap-2"
+            >
+              {#if isManualSyncing}
+                <Loader2 class="h-4 w-4 animate-spin" />
+                Syncing...
+              {:else}
+                <Download class="h-4 w-4" />
+                Manual Sync
+              {/if}
+            </Button>
+            <!-- {/if} -->
           </div>
         </div>
       </CardHeader>
@@ -794,12 +836,34 @@
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="font-medium">{connector.name}</span>
-                    <Badge
-                      class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 text-xs"
-                    >
-                      <CheckCircle class="h-3 w-3 mr-1" />
-                      Active
-                    </Badge>
+                    {#if connectorStatus.state === "Syncing"}
+                      <Badge
+                        class="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 text-xs"
+                      >
+                        <Loader2 class="h-3 w-3 mr-1 animate-spin" />
+                        Syncing
+                      </Badge>
+                    {:else if connectorStatus.state === "BackingOff"}
+                      <Badge
+                        variant="secondary"
+                        class="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100 text-xs"
+                      >
+                        <Clock class="h-3 w-3 mr-1" />
+                        Backing Off
+                      </Badge>
+                    {:else if connectorStatus.state === "Error"}
+                      <Badge variant="destructive" class="text-xs">
+                        <AlertCircle class="h-3 w-3 mr-1" />
+                        Error
+                      </Badge>
+                    {:else}
+                      <Badge
+                        class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 text-xs"
+                      >
+                        <CheckCircle class="h-3 w-3 mr-1" />
+                        Active
+                      </Badge>
+                    {/if}
                   </div>
                   <p class="text-sm text-muted-foreground">
                     {connectorStatus.entriesLast24Hours?.toLocaleString() ?? 0} entries
@@ -1482,7 +1546,22 @@
         <!-- Status Badge -->
         <div class="flex items-center justify-between">
           <span class="text-sm font-medium">Status</span>
-          {#if selectedConnector.isHealthy}
+          {#if selectedConnector.state === "Syncing"}
+            <Badge
+              class="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+            >
+              <Loader2 class="h-3 w-3 mr-1 animate-spin" />
+              Syncing...
+            </Badge>
+          {:else if selectedConnector.state === "BackingOff"}
+            <Badge
+              variant="secondary"
+              class="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100"
+            >
+              <Clock class="h-3 w-3 mr-1" />
+              Backing Off
+            </Badge>
+          {:else if selectedConnector.isHealthy}
             <Badge
               class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
             >
@@ -1554,13 +1633,158 @@
             </p>
           </div>
         {/if}
+
+        {#if selectedConnector.status !== "Unreachable"}
+          <Separator />
+
+          <div
+            class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4"
+          >
+            <div class="flex items-start gap-3">
+              <AlertTriangle
+                class="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5"
+              />
+              <div>
+                <p
+                  class="text-sm font-medium text-amber-800 dark:text-amber-200"
+                >
+                  Delete All Data from This Connector
+                </p>
+                <p class="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                  This will permanently delete all entries, treatments, and
+                  device status records synchronized by this connector.
+                </p>
+              </div>
+            </div>
+          </div>
+        {/if}
       </div>
 
       <Dialog.Footer>
         <Button variant="outline" onclick={() => (showConnectorDialog = false)}>
           Close
         </Button>
+        {#if selectedConnector.status !== "Unreachable"}
+          <Button
+            variant="outline"
+            class="gap-2"
+            onclick={openConnectorDeleteConfirmation}
+          >
+            <Trash2 class="h-4 w-4" />
+            Delete Data...
+          </Button>
+        {/if}
       </Dialog.Footer>
     {/if}
   </Dialog.Content>
 </Dialog.Root>
+
+<!-- Connector Delete Confirmation Dialog -->
+<AlertDialog.Root bind:open={showConnectorDeleteConfirmDialog}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title class="flex items-center gap-2 text-destructive">
+        <AlertTriangle class="h-5 w-5" />
+        Permanently Delete Connector Data
+      </AlertDialog.Title>
+      <AlertDialog.Description class="space-y-4">
+        {#if selectedConnector}
+          <div
+            class="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 p-4 mt-4"
+          >
+            <p class="text-sm font-semibold text-red-800 dark:text-red-200">
+              ⚠️ THIS ACTION CANNOT BE UNDONE
+            </p>
+            <p class="text-sm text-red-700 dark:text-red-300 mt-2">
+              You are about to permanently delete <strong>all data</strong>
+              synchronized by
+              <strong>{selectedConnector.name}</strong>
+              . This includes:
+            </p>
+            <ul
+              class="text-sm text-red-700 dark:text-red-300 list-disc list-inside mt-2 space-y-1"
+            >
+              <li>
+                All glucose entries ({selectedConnector.totalEntries?.toLocaleString() ??
+                  0} entries)
+              </li>
+              <li>
+                Any treatments and device status records from this connector
+              </li>
+            </ul>
+          </div>
+
+          {#if connectorDeleteResult}
+            {#if connectorDeleteResult.success}
+              <div
+                class="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20 p-4"
+              >
+                <div
+                  class="flex items-center gap-2 text-green-800 dark:text-green-200"
+                >
+                  <CheckCircle class="h-5 w-5" />
+                  <span class="font-medium">Data deleted successfully</span>
+                </div>
+                <p class="text-sm text-green-700 dark:text-green-300 mt-1">
+                  Deleted {connectorDeleteResult.entriesDeleted?.toLocaleString() ??
+                    0} entries
+                </p>
+              </div>
+            {:else}
+              <div
+                class="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 p-4"
+              >
+                <div
+                  class="flex items-center gap-2 text-red-800 dark:text-red-200"
+                >
+                  <AlertCircle class="h-5 w-5" />
+                  <span class="font-medium">Failed to delete data</span>
+                </div>
+                <p class="text-sm text-red-700 dark:text-red-300 mt-1">
+                  {connectorDeleteResult.error}
+                </p>
+              </div>
+            {/if}
+          {:else}
+            <div class="space-y-2 mt-4">
+              <label for="connector-confirm-delete" class="text-sm font-medium">
+                Type <strong>DELETE</strong>
+                to confirm:
+              </label>
+              <input
+                id="connector-confirm-delete"
+                type="text"
+                bind:value={deleteConfirmText}
+                class="w-full px-3 py-2 rounded-md border bg-background text-sm"
+                placeholder="Type DELETE"
+              />
+            </div>
+          {/if}
+        {/if}
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel
+        onclick={() => (showConnectorDeleteConfirmDialog = false)}
+      >
+        Cancel
+      </AlertDialog.Cancel>
+      {#if !connectorDeleteResult?.success}
+        <Button
+          variant="destructive"
+          onclick={deleteConnector}
+          disabled={isDeletingConnector || deleteConfirmText !== "DELETE"}
+          class="gap-2"
+        >
+          {#if isDeletingConnector}
+            <Loader2 class="h-4 w-4 animate-spin" />
+            Deleting...
+          {:else}
+            <Trash2 class="h-4 w-4" />
+            Delete All Data
+          {/if}
+        </Button>
+      {/if}
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>

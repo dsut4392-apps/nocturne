@@ -291,7 +291,7 @@ public class ServicesController : ControllerBase
     /// <summary>
     /// Trigger a manual sync of all enabled connectors.
     /// This will sync data for the configured lookback period for all enabled connectors.
-    /// Only available if ManualSyncLookbackDays is configured in appsettings.
+    /// Only available if BackfillDays is configured in appsettings.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result of the manual sync operation</returns>
@@ -308,7 +308,7 @@ public class ServicesController : ControllerBase
         if (!_manualSyncService.IsEnabled())
         {
             _logger.LogWarning("Manual sync is not enabled");
-            return BadRequest(new { error = "Manual sync is not enabled. Configure ManualSyncLookbackDays in appsettings." });
+            return BadRequest(new { error = "Manual sync is not enabled. Configure BackfillDays in appsettings." });
         }
 
         try

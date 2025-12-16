@@ -70,7 +70,7 @@ public class ManualSyncService : IManualSyncService
 
         if (!_settings.IsEnabled)
         {
-            _logger.LogWarning("Manual sync is not enabled - ManualSyncLookbackDays is not configured");
+            _logger.LogWarning("Manual sync is not enabled - BackfillDays is not configured");
             result.Success = false;
             result.ErrorMessage = "Manual sync is not enabled";
             result.EndTime = DateTimeOffset.UtcNow;
@@ -79,7 +79,7 @@ public class ManualSyncService : IManualSyncService
 
         _logger.LogInformation(
             "Starting manual sync for all connectors with {LookbackDays} day lookback",
-            _settings.ManualSyncLookbackDays
+            _settings.BackfillDays
         );
 
         var connectorTasks = new List<Task<ConnectorSyncResult>>();

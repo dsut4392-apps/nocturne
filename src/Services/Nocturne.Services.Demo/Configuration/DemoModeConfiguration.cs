@@ -45,7 +45,7 @@ public class DemoModeConfiguration
     /// <summary>
     /// Number of days of historical data to generate on startup.
     /// </summary>
-    public int HistoryDays { get; set; } = 90;
+    public int BackfillDays { get; set; } = 90;
 
     /// <summary>
     /// Base basal rate for insulin calculations (U/hr).

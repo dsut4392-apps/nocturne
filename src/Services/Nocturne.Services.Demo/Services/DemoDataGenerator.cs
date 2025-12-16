@@ -148,7 +148,7 @@ public class DemoDataGenerator : IDemoDataGenerator
     public (List<Entry> Entries, List<Treatment> Treatments) GenerateHistoricalData()
     {
         var endDate = DateTime.UtcNow;
-        var startDate = endDate.AddDays(-_config.HistoryDays);
+        var startDate = endDate.AddDays(-_config.BackfillDays);
 
         var entries = new List<Entry>();
         var treatments = new List<Treatment>();
@@ -197,7 +197,7 @@ public class DemoDataGenerator : IDemoDataGenerator
     public IEnumerable<Entry> GenerateHistoricalEntries()
     {
         var endDate = DateTime.UtcNow;
-        var startDate = endDate.AddDays(-_config.HistoryDays);
+        var startDate = endDate.AddDays(-_config.BackfillDays);
 
         _logger.LogInformation(
             "Streaming historical entries from {StartDate} to {EndDate}",
@@ -343,7 +343,7 @@ public class DemoDataGenerator : IDemoDataGenerator
     public IEnumerable<Treatment> GenerateHistoricalTreatments()
     {
         var endDate = DateTime.UtcNow;
-        var startDate = endDate.AddDays(-_config.HistoryDays);
+        var startDate = endDate.AddDays(-_config.BackfillDays);
 
         _logger.LogInformation(
             "Streaming historical treatments from {StartDate} to {EndDate}",

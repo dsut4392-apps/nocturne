@@ -14,10 +14,10 @@ public class ManualSyncSettings
     /// Gets or sets the number of days to look back when performing a manual sync.
     /// If null or not set, manual sync feature will not be available.
     /// </summary>
-    public int? ManualSyncLookbackDays { get; set; }
+    public int? BackfillDays { get; set; }
 
     /// <summary>
     /// Gets whether manual sync is configured and available
     /// </summary>
-    public bool IsEnabled => ManualSyncLookbackDays.HasValue && ManualSyncLookbackDays.Value > 0;
+    public bool IsEnabled => BackfillDays.HasValue && BackfillDays.Value > 0;
 }

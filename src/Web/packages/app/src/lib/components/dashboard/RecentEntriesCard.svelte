@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Entry } from "$lib/api";
   import { Card, CardContent, CardHeader } from "$lib/components/ui/card";
-  import { Badge } from "$lib/components/ui/badge";
+
   import { formatTime } from "$lib/utils";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
   import { glucoseUnits } from "$lib/stores/appearance-store.svelte";
@@ -10,6 +10,7 @@
     formatGlucoseDelta,
     getUnitLabel,
   } from "$lib/utils/formatting";
+  import { getDirectionInfo } from "$lib/utils";
 
   interface ComponentProps {
     entries?: Entry[];
@@ -35,11 +36,12 @@
     {#if recentEntries.length > 0}
       <div class="space-y-3">
         {#each recentEntries as entry (entry._id || entry.mills)}
+          {@const directionInfo = getDirectionInfo(entry.direction)}
+          {@const Icon = directionInfo.icon}
           <div
             class="flex items-center justify-between p-3 bg-muted rounded-lg"
           >
             <div class="flex items-center gap-3">
-              <Badge variant="outline">{entry.direction}</Badge>
               <div>
                 <div class="font-medium">
                   {#if entry.sgv}
@@ -54,12 +56,13 @@
                 </div>
               </div>
             </div>
-            <div class="text-sm text-muted-foreground">
+            <div class="flex items-center gap-2 text-sm text-muted-foreground">
               {#if entry.delta !== undefined}
                 {formatGlucoseDelta(entry.delta, units)}
               {:else}
                 —
               {/if}
+              <Icon class="h-4 w-4 {directionInfo.css}" />
             </div>
           </div>
         {/each}

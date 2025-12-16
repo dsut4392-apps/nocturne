@@ -1,5 +1,14 @@
 <script lang="ts">
-  import { Chart, Axis, Svg, Spline, Rect, Group, Points } from "layerchart";
+  import {
+    Chart,
+    Axis,
+    Svg,
+    Spline,
+    Rect,
+    Group,
+    Points,
+    Legend,
+  } from "layerchart";
   import { scaleTime, scaleLinear, scaleLog } from "d3-scale";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
@@ -453,6 +462,7 @@
                   }}
                 />
               {/each}
+              <Legend title="Legend" placement="bottom" variant="swatches" />
             </Svg>
           </Chart>
         {:else}

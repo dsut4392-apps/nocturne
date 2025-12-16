@@ -27,9 +27,6 @@
     pingInterval: 25000,
   };
 
-  // Check if we're on a reports sub-page (not the main /reports page)
-  const isReportsSubpage = $derived(page.url.pathname.startsWith("/reports/"));
-
   const { data, children } = $props<{ data: LayoutData; children: any }>();
 
   const realtimeStore = createRealtimeStore(config);
@@ -181,14 +178,7 @@
   <MobileHeader />
   <Sidebar.Inset>
     <!-- Desktop header - hidden on mobile and on reports subpages (which have their own header) -->
-    {#if !isReportsSubpage}
-      <header
-        class="hidden md:flex h-14 shrink-0 items-center gap-2 border-b border-border px-4"
-      >
-        <Sidebar.Trigger class="-ml-1" />
-        <div class="flex-1"></div>
-      </header>
-    {/if}
+
     <main class="flex-1 overflow-auto">
       <svelte:boundary>
         {@render children()}

@@ -372,8 +372,13 @@
   const maxBasalRate = $derived(
     serverChartData?.maxBasalRate ?? defaultBasalRate * 2.5
   );
-  const effectiveDefaultBasalRate = $derived(
-    serverChartData?.defaultBasalRate ?? defaultBasalRate
+
+  // Scheduled basal data for the reference line (profile basal without temp modifications)
+  const scheduledBasalData = $derived(
+    basalData.map((d) => ({
+      time: d.time,
+      rate: d.scheduledRate ?? d.rate,
+    }))
   );
 
   function getGlucoseColor(sgv: number): string {
@@ -420,7 +425,10 @@
   }
 
   // Basal is step-based, so logic is slightly different (value holds until next)
-  function findBasalValue(series: { time: Date; rate: number }[], time: Date) {
+  function findBasalValue(
+    series: { time: Date; rate: number; scheduledRate?: number; isTemp?: boolean }[],
+    time: Date
+  ) {
     if (!series || series.length === 0) return undefined;
     const i = bisectDate(series, time, 1);
     return series[i - 1];
@@ -499,12 +507,17 @@
         padding={{ left: 48, bottom: 0, top: 8, right: 48 }}
       >
         <Svg>
-          <!-- Default basal rate line -->
-          <Rule
-            y={effectiveDefaultBasalRate}
-            class="stroke-muted-foreground/50"
-            stroke-dasharray="4,4"
-          />
+          <!-- Scheduled basal rate line (profile rate without temp modifications) -->
+          {#if scheduledBasalData.length > 0}
+            <Spline
+              data={scheduledBasalData}
+              x={(d) => d.time}
+              y={(d) => d.rate}
+              curve={curveStepAfter}
+              class="stroke-muted-foreground/50 stroke-1 fill-none"
+              stroke-dasharray="4,4"
+            />
+          {/if}
 
           <!-- Basal axis on right -->
           <Axis
@@ -524,7 +537,7 @@
             BASAL
           </Text>
 
-          <!-- Basal area (drips from top due to inverted yRange) -->
+          <!-- Effective basal area (includes temp basals - drips from top due to inverted yRange) -->
           {#if basalData.length > 0}
             <!-- This has to use y0 and y1, don't change it -->
             <Area
@@ -913,11 +926,19 @@
                 {/if}
                 {#if activeBasal}
                   <Tooltip.Item
-                    label="Basal"
+                    label={activeBasal.isTemp ? "Temp Basal" : "Basal"}
                     value={activeBasal.rate}
                     format={"decimal"}
                     color="var(--insulin-basal)"
                   />
+                  {#if activeBasal.isTemp && activeBasal.scheduledRate !== undefined}
+                    <Tooltip.Item
+                      label="Scheduled"
+                      value={activeBasal.scheduledRate}
+                      format={"decimal"}
+                      color="var(--muted-foreground)"
+                    />
+                  {/if}
                 {/if}
               </Tooltip.List>
             {/snippet}

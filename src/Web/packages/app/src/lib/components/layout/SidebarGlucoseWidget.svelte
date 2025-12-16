@@ -13,17 +13,12 @@
   import { GlucoseValueIndicator } from "$lib/components/shared";
   import { Badge } from "$lib/components/ui/badge";
   import { Chart, Svg, Spline, Rule } from "layerchart";
-  import {
-    ArrowUp,
-    ArrowDown,
-    ArrowUpRight,
-    ArrowDownRight,
-    Minus,
-  } from "lucide-svelte";
+
   import {
     getPredictions,
     type PredictionData,
   } from "$lib/data/predictions.remote";
+  import { getDirectionInfo } from "$lib/utils";
 
   const realtimeStore = getRealtimeStore();
 
@@ -71,19 +66,28 @@
   // Fetch oref predictions (re-fetch when new data arrives)
   $effect(() => {
     // Depend on lastUpdated to trigger refetch when new data comes in
-    const _lastUpdated = lastUpdated;
-    void _lastUpdated; // Ensure dependency is tracked
+    lastUpdated;
 
     // Only fetch if we have valid glucose data
     if (rawCurrentBG > 0 && !isStale && !isDisconnected) {
+      let active = true;
+
       getPredictions({})
         .then((data) => {
-          orefPredictions = data;
+          if (active) {
+            orefPredictions = data;
+          }
         })
         .catch((err) => {
-          console.error("Failed to fetch predictions for sidebar:", err);
-          orefPredictions = null;
+          if (active) {
+            console.error("Failed to fetch predictions for sidebar:", err);
+            orefPredictions = null;
+          }
         });
+
+      return () => {
+        active = false;
+      };
     }
   });
 
@@ -146,27 +150,7 @@
     return [minTime, maxTime] as [Date, Date];
   });
 
-  // Get direction icon
-  const getDirectionIcon = (dir: string) => {
-    switch (dir) {
-      case "DoubleUp":
-        return ArrowUp;
-      case "SingleUp":
-        return ArrowUpRight;
-      case "FortyFiveUp":
-        return ArrowUpRight;
-      case "DoubleDown":
-        return ArrowDown;
-      case "SingleDown":
-        return ArrowDownRight;
-      case "FortyFiveDown":
-        return ArrowDownRight;
-      default:
-        return Minus;
-    }
-  };
-
-  const DirectionIcon = $derived(getDirectionIcon(direction));
+  const DirectionIcon = $derived(getDirectionInfo(direction).icon);
 
   // Calculate time since last reading for display
   const timeSince = $derived.by(() => {

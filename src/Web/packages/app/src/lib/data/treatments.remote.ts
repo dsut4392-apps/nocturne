@@ -1,6 +1,34 @@
-import { getRequestEvent, query } from "$app/server";
+import { getRequestEvent, query, command } from "$app/server";
 import type { Treatment } from "$lib/api";
 import { z } from "zod";
+import { TREATMENT_CATEGORIES, type TreatmentCategoryId } from "$lib/constants/treatment-categories";
+
+// Schema for creating/updating treatments
+// We use a loose schema here since strict validation is handled by the API/backend
+const treatmentSchema = z.object({
+  _id: z.string().optional(),
+  eventType: z.string().optional(),
+  created_at: z.string().optional(),
+  glucose: z.number().optional(),
+  glucoseType: z.string().optional(),
+  carbs: z.number().optional(),
+  insulin: z.number().optional(),
+  units: z.string().optional(),
+  notes: z.string().optional(),
+  enteredBy: z.string().optional(),
+  reason: z.string().optional(),
+  profile: z.string().optional(),
+  duration: z.number().optional(),
+  percent: z.number().optional(),
+  absolute: z.number().optional(),
+  rate: z.number().optional(),
+  preBolus: z.number().optional(),
+  carbsConsumed: z.number().optional(),
+  absorptionTime: z.number().optional(),
+  targetTop: z.number().optional(),
+  targetBottom: z.number().optional(),
+  additional_properties: z.record(z.any()).optional(),
+}).passthrough(); // Allow other properties
 
 // Schema for fetching treatments with pagination and filtering
 const treatmentsQuerySchema = z.object({
@@ -13,62 +41,6 @@ const treatmentsQuerySchema = z.object({
   page: z.number().optional().default(0),
   pageSize: z.number().optional().default(100),
 });
-
-/**
- * Treatment category definitions for UI organization
- * Each category groups related event types together
- */
-export const TREATMENT_CATEGORIES = {
-  bolus: {
-    id: "bolus",
-    name: "Bolus & Insulin",
-    description: "Insulin doses, corrections, and combo boluses",
-    eventTypes: ["Snack Bolus", "Meal Bolus", "Correction Bolus", "Combo Bolus"],
-    icon: "💉",
-    color: "blue",
-  },
-  basal: {
-    id: "basal",
-    name: "Basal & Profiles",
-    description: "Temp basals and profile switches",
-    eventTypes: ["Temp Basal Start", "Temp Basal End", "Temp Basal", "Profile Switch"],
-    icon: "📊",
-    color: "purple",
-  },
-  carbs: {
-    id: "carbs",
-    name: "Carbs & Nutrition",
-    description: "Meals, snacks, and carb corrections",
-    eventTypes: ["Carb Correction"],
-    icon: "🍽️",
-    color: "green",
-  },
-  device: {
-    id: "device",
-    name: "Device Events",
-    description: "Sensor, pump, and site changes",
-    eventTypes: [
-      "Site Change",
-      "Sensor Start",
-      "Sensor Change",
-      "Sensor Stop",
-      "Pump Battery Change",
-      "Insulin Change",
-    ],
-    icon: "📱",
-    color: "orange",
-  },
-  notes: {
-    id: "notes",
-    name: "Notes & Alerts",
-    description: "Notes, announcements, and BG checks",
-    eventTypes: ["BG Check", "Note", "Announcement", "Question", "D.A.D. Alert"],
-    icon: "📝",
-    color: "gray",
-  },
-} as const;
-
-export type TreatmentCategoryId = keyof typeof TREATMENT_CATEGORIES;
 
 /**
  * Get all treatments within a date range with optional filtering
@@ -233,76 +205,29 @@ export const getTreatmentStats = query(
 // This file only contains query functions for fetching data
 
 /**
- * Identify anomalous treatments based on configurable thresholds
+ * Create a new treatment
  */
-export function identifyAnomalies(
-  treatments: Treatment[],
-  options: {
-    highInsulinThreshold?: number;
-    highCarbThreshold?: number;
-    unusualTimeHours?: number[];
-  } = {}
-): Treatment[] {
-  const {
-    highInsulinThreshold = 15, // Units of insulin considered high
-    highCarbThreshold = 100, // Grams of carbs considered high
-    unusualTimeHours = [0, 1, 2, 3, 4, 5], // Hours considered unusual for boluses
-  } = options;
-
-  return treatments.filter((t) => {
-    // High insulin bolus
-    if (t.insulin && t.insulin > highInsulinThreshold) return true;
-
-    // High carb entry
-    if (t.carbs && t.carbs > highCarbThreshold) return true;
-
-    // Unusual timing for boluses
-    if (t.insulin && t.created_at) {
-      const hour = new Date(t.created_at).getHours();
-      if (unusualTimeHours.includes(hour)) return true;
-    }
-
-    return false;
-  });
-}
+export const createTreatment = command(treatmentSchema, async (treatment) => {
+  const { locals } = getRequestEvent();
+  const { apiClient } = locals;
+  return apiClient.treatments.createTreatment(treatment as Treatment);
+});
 
 /**
- * Group treatments by time period for analysis
+ * Update an existing treatment
  */
-export function groupTreatmentsByPeriod(
-  treatments: Treatment[],
-  period: "hour" | "day" | "week" | "month"
-): Map<string, Treatment[]> {
-  const groups = new Map<string, Treatment[]>();
+export const updateTreatment = command(treatmentSchema, async (treatment) => {
+  const { locals } = getRequestEvent();
+  const { apiClient } = locals;
+  if (!treatment._id) throw new Error("Treatment ID required for update");
+  return apiClient.treatments.updateTreatment(treatment._id, treatment as Treatment);
+});
 
-  for (const treatment of treatments) {
-    if (!treatment.created_at) continue;
-
-    const date = new Date(treatment.created_at);
-    let key: string;
-
-    switch (period) {
-      case "hour":
-        key = date.toISOString().slice(0, 13); // YYYY-MM-DDTHH
-        break;
-      case "day":
-        key = date.toISOString().slice(0, 10); // YYYY-MM-DD
-        break;
-      case "week":
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        key = weekStart.toISOString().slice(0, 10);
-        break;
-      case "month":
-        key = date.toISOString().slice(0, 7); // YYYY-MM
-        break;
-    }
-
-    if (!groups.has(key)) {
-      groups.set(key, []);
-    }
-    groups.get(key)!.push(treatment);
-  }
-
-  return groups;
-}
+/**
+ * Delete a treatment
+ */
+export const deleteTreatment = command(z.string(), async (id) => {
+  const { locals } = getRequestEvent();
+  const { apiClient } = locals;
+  return apiClient.treatments.deleteTreatment2(id);
+});

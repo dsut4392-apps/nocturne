@@ -9,6 +9,9 @@
   import { Badge } from "$lib/components/ui/badge";
   import { formatTime } from "$lib/utils";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
+  import { TreatmentEditDialog } from "$lib/components/treatments";
+  import { updateTreatment } from "$lib/data/treatments.remote";
+  import { toast } from "svelte-sonner";
 
   interface ComponentProps {
     treatments?: Treatment[];
@@ -36,6 +39,30 @@
       // })
       .slice(0, maxTreatments)
   );
+
+  let selectedTreatment = $state<Treatment | null>(null);
+  let isDialogOpen = $state(false);
+  let isUpdating = $state(false);
+
+  function handleTreatmentClick(treatment: Treatment) {
+    selectedTreatment = treatment;
+    isDialogOpen = true;
+  }
+
+  async function handleSave(updatedTreatment: Treatment) {
+    isUpdating = true;
+    try {
+      await updateTreatment(updatedTreatment);
+      toast.success("Treatment updated");
+      isDialogOpen = false;
+      selectedTreatment = null;
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update treatment");
+    } finally {
+      isUpdating = false;
+    }
+  }
 </script>
 
 <Card>
@@ -59,7 +86,16 @@
         <div class="space-y-3">
           {#each displayTreatments as treatment (treatment._id || treatment.mills)}
             <div
-              class="flex items-center justify-between p-3 bg-muted rounded-lg"
+              class="flex items-center justify-between p-3 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors"
+              onclick={() => handleTreatmentClick(treatment)}
+              role="button"
+              tabindex="0"
+              onkeydown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleTreatmentClick(treatment);
+                }
+              }}
             >
               <div class="flex items-center gap-3">
                 <Badge variant="outline">{treatment.eventType}</Badge>
@@ -94,3 +130,14 @@
     </CardContent>
   </svelte:boundary>
 </Card>
+
+<TreatmentEditDialog
+  bind:open={isDialogOpen}
+  treatment={selectedTreatment}
+  isLoading={isUpdating}
+  onClose={() => {
+    isDialogOpen = false;
+    selectedTreatment = null;
+  }}
+  onSave={handleSave}
+/>

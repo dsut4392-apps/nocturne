@@ -165,7 +165,12 @@ public class ChartDataController : ControllerBase
     }
 
     /// <summary>
-    /// Build basal series from temp basal treatments
+    /// Build basal series using the profile service for accurate scheduled rates and temp basals.
+    /// Uses IProfileService.GetTempBasal() which correctly handles:
+    /// - Profile basal schedule lookups at each time point
+    /// - Active profile switches over time
+    /// - Temp basal treatments (absolute and percent-based)
+    /// - Combo bolus basal contributions
     /// </summary>
     private List<BasalPoint> BuildBasalSeries(
         List<Treatment> treatments,
@@ -176,80 +181,110 @@ public class ChartDataController : ControllerBase
     {
         var series = new List<BasalPoint>();
 
-        // Start with default rate
-        series.Add(new BasalPoint
-        {
-            Timestamp = startTime,
-            Rate = defaultBasalRate,
-            IsTemp = false
-        });
-
-        // Get temp basal treatments sorted by time
-        var tempBasals = treatments
-            .Where(t =>
-                t.EventType == "Temp Basal" &&
-                (t.Rate != null || t.Absolute != null) &&
-                t.Mills >= startTime &&
-                t.Mills <= endTime
-            )
-            .OrderBy(t => t.Mills)
+        // Update profile service with temp basal treatments for accurate lookups
+        var tempBasalTreatments = treatments
+            .Where(t => t.EventType == "Temp Basal")
             .ToList();
 
-        foreach (var t in tempBasals)
+        var comboBolusTreatments = treatments
+            .Where(t => t.EventType == "Combo Bolus")
+            .ToList();
+
+        var profileSwitchTreatments = treatments
+            .Where(t => t.EventType == "Profile Switch")
+            .ToList();
+
+        _profileService.UpdateTreatments(
+            profileSwitchTreatments,
+            tempBasalTreatments,
+            comboBolusTreatments
+        );
+
+        // Use 5-minute intervals for the basal series (same as IOB/COB)
+        const long intervalMs = 5 * 60 * 1000;
+
+        // Track previous values to only add points when rate or temp status changes
+        double? prevRate = null;
+        double? prevScheduledRate = null;
+        bool? prevIsTemp = null;
+
+        for (long t = startTime; t <= endTime; t += intervalMs)
         {
-            var treatmentStart = t.Mills;
-            var duration = (long)((t.Duration ?? 30) * 60 * 1000); // Duration in ms
-            var treatmentEnd = treatmentStart + duration;
-            var rate = t.Rate ?? t.Absolute ?? defaultBasalRate;
+            double rate;
+            double scheduledRate;
+            bool isTemp;
 
-            // Add point just before temp basal starts (at default rate)
-            series.Add(new BasalPoint
+            if (_profileService.HasData())
             {
-                Timestamp = treatmentStart - 1,
-                Rate = defaultBasalRate,
-                IsTemp = false
-            });
+                // Use GetTempBasal which handles:
+                // - Looking up the scheduled basal rate from the active profile at this time
+                // - Checking for active temp basals and applying absolute or percent adjustments
+                // - Including combo bolus basal contributions
+                var tempBasalResult = _profileService.GetTempBasal(t, null);
 
-            // Add temp basal start
-            series.Add(new BasalPoint
+                // TotalBasal includes temp basal + combo bolus contributions
+                rate = tempBasalResult.TotalBasal;
+
+                // Basal is the scheduled rate from the profile (without temp basal)
+                scheduledRate = tempBasalResult.Basal;
+
+                // IsTemp is true if there's an active temp basal treatment
+                isTemp = tempBasalResult.Treatment != null;
+            }
+            else
             {
-                Timestamp = treatmentStart,
-                Rate = rate,
-                IsTemp = true
-            });
+                // No profile data - fall back to default rate
+                rate = defaultBasalRate;
+                scheduledRate = defaultBasalRate;
+                isTemp = false;
+            }
 
-            // Add temp basal end
-            if (treatmentEnd <= endTime)
+            // Add point if rate, scheduled rate, or temp status changed (or first point)
+            if (prevRate == null ||
+                Math.Abs(rate - prevRate.Value) > 0.001 ||
+                Math.Abs(scheduledRate - (prevScheduledRate ?? 0)) > 0.001 ||
+                isTemp != prevIsTemp)
             {
                 series.Add(new BasalPoint
                 {
-                    Timestamp = treatmentEnd,
+                    Timestamp = t,
                     Rate = rate,
-                    IsTemp = true
+                    ScheduledRate = scheduledRate,
+                    IsTemp = isTemp
                 });
 
-                // Return to default rate
-                series.Add(new BasalPoint
-                {
-                    Timestamp = treatmentEnd + 1,
-                    Rate = defaultBasalRate,
-                    IsTemp = false
-                });
+                prevRate = rate;
+                prevScheduledRate = scheduledRate;
+                prevIsTemp = isTemp;
             }
         }
 
-        // End with default rate
-        series.Add(new BasalPoint
+        // Ensure we have at least one point
+        if (series.Count == 0)
         {
-            Timestamp = endTime,
-            Rate = defaultBasalRate,
-            IsTemp = false
-        });
+            series.Add(new BasalPoint
+            {
+                Timestamp = startTime,
+                Rate = defaultBasalRate,
+                ScheduledRate = defaultBasalRate,
+                IsTemp = false
+            });
+        }
 
-        // Sort and deduplicate
-        return series
-            .OrderBy(p => p.Timestamp)
-            .ToList();
+        // Ensure we end at endTime
+        var lastPoint = series.Last();
+        if (lastPoint.Timestamp < endTime)
+        {
+            series.Add(new BasalPoint
+            {
+                Timestamp = endTime,
+                Rate = lastPoint.Rate,
+                ScheduledRate = lastPoint.ScheduledRate,
+                IsTemp = lastPoint.IsTemp
+            });
+        }
+
+        return series;
     }
 }
 
@@ -321,9 +356,14 @@ public class BasalPoint
     public long Timestamp { get; set; }
 
     /// <summary>
-    /// Basal rate in U/hr
+    /// Effective basal rate in U/hr (includes temp basals and combo bolus)
     /// </summary>
     public double Rate { get; set; }
+
+    /// <summary>
+    /// Scheduled basal rate from profile in U/hr (without temp basal modifications)
+    /// </summary>
+    public double ScheduledRate { get; set; }
 
     /// <summary>
     /// Whether this is a temporary basal rate

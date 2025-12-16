@@ -1,11 +1,11 @@
 import { getLocalTimeZone, now, fromDate } from "@internationalized/date";
 
 import {
-  MoveUp,
-  MoveUpRight,
-  MoveDown,
-  MoveDownRight,
-  MoveRight,
+  ArrowUp,
+  ArrowUpRight,
+  ArrowDown,
+  ArrowDownRight,
+  Minus,
   HelpCircle,
   AlertTriangle,
 } from "lucide-svelte";
@@ -76,29 +76,33 @@ export function getDirectionInfo(direction?: string) {
   > = {
     DoubleUp: {
       label: "rising very fast",
-      icon: MoveUp,
+      icon: ArrowUp,
       css: "text-red-500",
     },
-    SingleUp: { label: "rising", icon: MoveUpRight, css: "text-orange-500" },
+    SingleUp: {
+      label: "rising",
+      icon: ArrowUpRight,
+      css: "text-orange-500",
+    },
     FortyFiveUp: {
       label: "rising slowly",
-      icon: MoveUp,
+      icon: ArrowUpRight,
       css: "text-yellow-500",
     },
-    Flat: { label: "stable", icon: MoveRight, css: "text-green-500" },
+    Flat: { label: "stable", icon: Minus, css: "text-green-500" },
     FortyFiveDown: {
       label: "falling slowly",
-      icon: MoveDown,
+      icon: ArrowDownRight,
       css: "text-yellow-500",
     },
     SingleDown: {
       label: "falling",
-      icon: MoveDownRight,
+      icon: ArrowDownRight,
       css: "text-orange-500",
     },
     DoubleDown: {
       label: "falling very fast",
-      icon: MoveDown,
+      icon: ArrowDown,
       css: "text-red-500",
     },
     "NOT COMPUTABLE": {

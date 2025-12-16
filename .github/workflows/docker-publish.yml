@@ -352,6 +352,7 @@ jobs:
       contents: read
       packages: read
       security-events: write
+      actions: read
     strategy:
       matrix:
         image-name:

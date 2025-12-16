@@ -189,7 +189,9 @@
 </script>
 
 <Sidebar.Sidebar collapsible="icon">
-  <Sidebar.Header class="p-4">
+  <Sidebar.Header
+    class="flex flex-row items-center justify-between p-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
+  >
     <div class="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
       <div
         class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary"
@@ -198,13 +200,7 @@
       </div>
       <span class="text-lg font-bold">Nocturne</span>
     </div>
-    <div class="hidden group-data-[collapsible=icon]:flex justify-center">
-      <div
-        class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary"
-      >
-        <Activity class="h-4 w-4 text-primary-foreground" />
-      </div>
-    </div>
+    <Sidebar.Trigger />
   </Sidebar.Header>
 
   <Sidebar.Content>

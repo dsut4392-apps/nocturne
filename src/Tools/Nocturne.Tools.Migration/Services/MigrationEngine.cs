@@ -839,6 +839,8 @@ public class MigrationEngine(
     {
         var succeeded = 0;
         var failed = 0;
+        var currentSubBatchDocs = new List<BsonDocument>();
+        long currentSubBatchSizeBytes = 0;
 
         try
         {
@@ -846,9 +848,33 @@ public class MigrationEngine(
                 cancellationToken
             );
 
-            // Stage entities, then save once per batch for performance
             foreach (var document in batch)
             {
+                // Calculate estimated size of the document
+                var docSize = document.ToBson().Length;
+
+                // Check if adding this document would exceed the limit
+                // If so, flush the current sub-batch first
+                if (currentSubBatchDocs.Count > 0 &&
+                    currentSubBatchSizeBytes + docSize > config.MaxBatchPayloadSizeBytes)
+                {
+                    var (subSucceeded, subFailed) = await SaveSubBatchAsync(
+                        dataContext,
+                        collectionName,
+                        currentSubBatchDocs,
+                        config,
+                        cancellationToken
+                    );
+
+                    succeeded += subSucceeded;
+                    failed += subFailed;
+
+                    // Reset for next sub-batch
+                    currentSubBatchDocs.Clear();
+                    currentSubBatchSizeBytes = 0;
+                    dataContext.ChangeTracker.Clear();
+                }
+
                 try
                 {
                     await TransformAndInsertDocumentAsync(
@@ -858,7 +884,9 @@ public class MigrationEngine(
                         config,
                         cancellationToken
                     );
-                    succeeded++;
+
+                    currentSubBatchDocs.Add(document);
+                    currentSubBatchSizeBytes += docSize;
                 }
                 catch (Exception ex)
                 {
@@ -872,72 +900,21 @@ public class MigrationEngine(
                 }
             }
 
-            try
+            // Flush any remaining documents in the batch
+            if (currentSubBatchDocs.Count > 0)
             {
-                await dataContext.SaveChangesAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                // Fallback: try per-document save to isolate failures
-                _logger.LogWarning(
-                    ex,
-                    "Batch SaveChanges failed for collection {CollectionName}. Falling back to per-document saves.",
-                    collectionName
+                var (subSucceeded, subFailed) = await SaveSubBatchAsync(
+                    dataContext,
+                    collectionName,
+                    currentSubBatchDocs,
+                    config,
+                    cancellationToken
                 );
 
-                // Reset change tracker and reprocess documents one by one with save
+                succeeded += subSucceeded;
+                failed += subFailed;
+
                 dataContext.ChangeTracker.Clear();
-                succeeded = 0;
-                failed = 0;
-                var skipped = 0;
-
-                foreach (var document in batch)
-                {
-                    try
-                    {
-                        await TransformAndInsertDocumentAsync(
-                            dataContext,
-                            collectionName,
-                            document,
-                            config,
-                            cancellationToken
-                        );
-                        await dataContext.SaveChangesAsync(cancellationToken);
-                        succeeded++;
-                    }
-                    catch (DbUpdateException docEx)
-                        when (config.SkipDuplicates && IsDuplicateKeyViolation(docEx))
-                    {
-                        _logger.LogDebug(
-                            "Skipping duplicate document in collection {CollectionName}",
-                            collectionName
-                        );
-                        // Clear tracked changes to avoid cascading errors
-                        dataContext.ChangeTracker.Clear();
-                        skipped++;
-                    }
-                    catch (Exception docEx)
-                    {
-                        _logger.LogWarning(
-                            docEx,
-                            "Per-document save failed in collection {CollectionName}: {Error}",
-                            collectionName,
-                            docEx.Message
-                        );
-                        // Clear tracked changes to avoid cascading errors
-                        dataContext.ChangeTracker.Clear();
-                        failed++;
-                    }
-                }
-
-                if (skipped > 0)
-                {
-                    _logger.LogInformation(
-                        "Skipped {SkippedCount} duplicate documents in collection {CollectionName}",
-                        skipped,
-                        collectionName
-                    );
-                }
             }
 
             await transaction.CommitAsync(cancellationToken);
@@ -986,7 +963,91 @@ public class MigrationEngine(
                 collectionName,
                 ex.Message
             );
-            failed += batch.Length;
+            // If the transaction fails, the entire batch (including sub-batches) is rolled back.
+            // We mark all documents in the batch as failed.
+            return (0, batch.Length);
+        }
+
+        return (succeeded, failed);
+    }
+
+    private async Task<(int Succeeded, int Failed)> SaveSubBatchAsync(
+        MigrationDataContext dataContext,
+        string collectionName,
+        List<BsonDocument> documents,
+        MigrationEngineConfiguration config,
+        CancellationToken cancellationToken
+    )
+    {
+        var succeeded = 0;
+        var failed = 0;
+        var skipped = 0;
+
+        try
+        {
+            await dataContext.SaveChangesAsync(cancellationToken);
+            succeeded = documents.Count;
+        }
+        catch (Exception ex)
+        {
+            // Fallback: try per-document save to isolate failures
+            _logger.LogWarning(
+                ex,
+                "Batch SaveChanges failed for collection {CollectionName} (Count: {Count}). Falling back to per-document saves.",
+                collectionName,
+                documents.Count
+            );
+
+            // Reset change tracker and reprocess documents one by one with save
+            dataContext.ChangeTracker.Clear();
+
+            foreach (var document in documents)
+            {
+                try
+                {
+                    await TransformAndInsertDocumentAsync(
+                        dataContext,
+                        collectionName,
+                        document,
+                        config,
+                        cancellationToken
+                    );
+                    await dataContext.SaveChangesAsync(cancellationToken);
+                    succeeded++;
+                    // Clear after each successful save to keep context clean
+                    dataContext.ChangeTracker.Clear();
+                }
+                catch (DbUpdateException docEx)
+                    when (config.SkipDuplicates && IsDuplicateKeyViolation(docEx))
+                {
+                    _logger.LogDebug(
+                        "Skipping duplicate document in collection {CollectionName}",
+                        collectionName
+                    );
+                    dataContext.ChangeTracker.Clear();
+                    skipped++;
+                }
+                catch (Exception docEx)
+                {
+                    _logger.LogWarning(
+                        docEx,
+                        "Per-document save failed in collection {CollectionName}: {Error}",
+                        collectionName,
+                        docEx.Message
+                    );
+                    dataContext.ChangeTracker.Clear();
+                    failed++;
+                }
+            }
+
+            if (skipped > 0)
+            {
+                _logger.LogInformation(
+                    "Skipped {SkippedCount} duplicate documents in collection {CollectionName}",
+                    skipped,
+                    collectionName
+                );
+            }
         }
 
         return (succeeded, failed);

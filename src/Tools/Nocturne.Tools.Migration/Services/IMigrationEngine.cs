@@ -103,6 +103,12 @@ public class MigrationEngineConfiguration
     public long MaxMemoryUsageMB { get; set; } = 512;
 
     /// <summary>
+    /// Maximum size of a batch payload in bytes before flushing to database.
+    /// Default is 5MB to avoid large request payloads.
+    /// </summary>
+    public long MaxBatchPayloadSizeBytes { get; set; } = 5 * 1024 * 1024;
+
+    /// <summary>
     /// Maximum degree of parallelism
     /// </summary>
     public int MaxDegreeOfParallelism { get; set; } = Environment.ProcessorCount;

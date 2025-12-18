@@ -6,24 +6,55 @@
   import { BarChart, Tooltip } from "layerchart";
   import { calculateTimeInRange as calculateTimeInRangeRemote } from "$lib/data/statistics.remote.ts";
   import type { Entry } from "$lib/api";
+
+  interface TimeInRangePercentages {
+    severeLow?: number;
+    low?: number;
+    target?: number;
+    high?: number;
+    severeHigh?: number;
+  }
+
   let {
     entries,
     config,
-  }: { entries: Entry[]; config?: ExtendedAnalysisConfig } = $props();
+    percentages,
+  }: {
+    entries: Entry[];
+    config?: ExtendedAnalysisConfig;
+    /** Pre-computed percentages - when provided, skips API call */
+    percentages?: TimeInRangePercentages;
+  } = $props();
 
   const mergedConfig = {
     ...DEFAULT_CONFIG,
     ...config,
   };
 
+  // Only fetch from API if percentages not provided
   const timeInRangePromise = $derived(
-    calculateTimeInRangeRemote({
-      entries,
-      config: mergedConfig,
-    })
+    percentages
+      ? null
+      : calculateTimeInRangeRemote({
+          entries,
+          config: mergedConfig,
+        })
   );
 
   const timeInRange = $derived.by(() => {
+    // Use pre-fetched percentages if provided
+    if (percentages) {
+      return {
+        percentages: {
+          severeLow: percentages.severeLow ?? 0,
+          low: percentages.low ?? 0,
+          target: percentages.target ?? 0,
+          high: percentages.high ?? 0,
+          severeHigh: percentages.severeHigh ?? 0,
+        },
+      };
+    }
+
     // Extract percentages from the backend response
     if (!timeInRangePromise) return { percentages: {} };
 

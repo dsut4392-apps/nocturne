@@ -192,14 +192,15 @@ export const getReportsData = query(
 		const treatments = allTreatments;
 		const population = DiabetesPopulation.Type1Adult; // TODO: Get from user settings
 
-		// Get summary and analysis
-		const [summary, analysis] = await Promise.all([
+		// Get summary, analysis, and averaged stats in parallel
+		const [summary, analysis, averagedStats] = await Promise.all([
 			apiClient.statistics.getMultiPeriodStatistics(),
 			apiClient.statistics.analyzeGlucoseDataExtended({
 				entries,
 				treatments,
 				population,
 			}),
+			apiClient.statistics.calculateAveragedStats(entries),
 		]);
 
 		return {
@@ -207,6 +208,7 @@ export const getReportsData = query(
 			treatments,
 			summary,
 			analysis,
+			averagedStats,
 			dateRange: {
 				from: startDate.toISOString(),
 				to: endDate.toISOString(),

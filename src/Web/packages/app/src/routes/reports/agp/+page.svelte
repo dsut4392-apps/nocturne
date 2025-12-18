@@ -87,6 +87,7 @@
 {:then data}
   {@const entries = data?.entries ?? []}
   {@const analysis = data?.analysis}
+  {@const averagedStats = data?.averagedStats}
   {@const dateRange = data?.dateRange ?? {
     from: new Date().toISOString(),
     to: new Date().toISOString(),
@@ -274,7 +275,7 @@
           </div>
         </CardHeader>
         <CardContent class="h-80 md:h-96">
-          <AmbulatoryGlucoseProfile {entries} />
+          <AmbulatoryGlucoseProfile {entries} {averagedStats} />
         </CardContent>
       </Card>
 
@@ -291,7 +292,7 @@
             </CardDescription>
           </CardHeader>
           <CardContent class="space-y-4 py-4 h-48">
-            <TIRStackedChart {entries} />
+            <TIRStackedChart {entries} percentages={tir} />
           </CardContent>
         </Card>
 

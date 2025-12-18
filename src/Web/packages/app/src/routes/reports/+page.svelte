@@ -123,6 +123,7 @@
     treatments: reportsQuery.current?.treatments ?? [],
     analysis: reportsQuery.current?.analysis,
     summary: reportsQuery.current?.summary,
+    averagedStats: reportsQuery.current?.averagedStats,
     dateRange: reportsQuery.current?.dateRange ?? {
       from: new Date().toISOString(),
       to: new Date().toISOString(),
@@ -550,7 +551,7 @@
             <CardDescription>Where you spend your time</CardDescription>
           </CardHeader>
           <CardContent class="flex justify-center">
-            <TIRStackedChart entries={data.entries} />
+            <TIRStackedChart entries={data.entries} percentages={tir} />
           </CardContent>
         </Card>
 
@@ -579,7 +580,10 @@
             </div>
           </CardHeader>
           <CardContent class="h-64">
-            <AmbulatoryGlucoseProfile entries={data.entries} />
+            <AmbulatoryGlucoseProfile
+              entries={data.entries}
+              averagedStats={data.averagedStats}
+            />
           </CardContent>
         </Card>
       </div>

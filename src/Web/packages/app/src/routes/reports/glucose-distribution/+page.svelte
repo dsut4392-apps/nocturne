@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Chart, Svg, Arc, Text, Group } from "layerchart";
+  import { PieChart, Text } from "layerchart";
   import * as Card from "$lib/components/ui/card";
   import * as Table from "$lib/components/ui/table";
   import { getReportsData } from "$lib/data/reports.remote";
@@ -13,6 +13,18 @@
 
   // Query for reports data
   const reportsQuery = $derived(getReportsData(dateRangeInput));
+
+  // Unwrap the data from the query with null safety
+  const data = $derived({
+    entries: reportsQuery.current?.entries ?? [],
+    treatments: reportsQuery.current?.treatments ?? [],
+    analysis: reportsQuery.current?.analysis,
+    dateRange: reportsQuery.current?.dateRange ?? {
+      from: new Date().toISOString(),
+      to: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+    },
+  });
 
   // Glucose distribution ranges (using CSS variables for theme support)
   const RANGES = [
@@ -192,79 +204,40 @@
         <Card.Content>
           <div class="flex flex-col items-center">
             {#if pieData.some((d) => d.value > 0)}
-              {@const totalValue = pieData.reduce((sum, d) => sum + d.value, 0)}
-              {@const arcsData = pieData.reduce(
-                (
-                  acc: {
-                    name: string;
-                    value: number;
-                    color: string;
-                    startAngle: number;
-                    endAngle: number;
-                  }[],
-                  d,
-                  i
-                ) => {
-                  const startAngle = i === 0 ? 0 : acc[i - 1].endAngle;
-                  const endAngle =
-                    startAngle + (d.value / totalValue) * Math.PI * 2;
-                  acc.push({ ...d, startAngle, endAngle });
-                  return acc;
-                },
-                []
-              )}
-              <div class="h-[300px] w-[300px]">
-                <Chart>
-                  <Svg>
-                    <Group center>
-                      {#each arcsData as arc}
-                        <Arc
-                          startAngle={arc.startAngle}
-                          endAngle={arc.endAngle}
-                          innerRadius={60}
-                          outerRadius={120}
-                          fill={arc.color}
-                        />
-                        <!-- Label -->
-                        {#if arc.value > 5}
-                          {@const midAngle =
-                            (arc.startAngle + arc.endAngle) / 2}
-                          {@const labelRadius = 90}
-                          {@const x = Math.sin(midAngle) * labelRadius}
-                          {@const y = -Math.cos(midAngle) * labelRadius}
-                          <Text
-                            {x}
-                            {y}
-                            textAnchor="middle"
-                            verticalAnchor="middle"
-                            class="fill-foreground text-sm font-medium"
-                          >
-                            {arc.value.toFixed(1)}%
-                          </Text>
-                        {/if}
-                      {/each}
-                      <!-- Center text -->
-                      <Text
-                        x={0}
-                        y={-10}
-                        textAnchor="middle"
-                        class="fill-foreground text-2xl font-bold"
-                      >
-                        {rangeStats
-                          .find((s) => s.name === "In Range")
-                          ?.percentage.toFixed(0)}%
-                      </Text>
-                      <Text
-                        x={0}
-                        y={15}
-                        textAnchor="middle"
-                        class="fill-muted-foreground text-xs"
-                      >
-                        In Range
-                      </Text>
-                    </Group>
-                  </Svg>
-                </Chart>
+              <div class="h-[300px] w-full">
+                <PieChart
+                  data={rangeStats}
+                  key="name"
+                  value="percentage"
+                  cRange={rangeStats.map((s) => s.color)}
+                  innerRadius={-60}
+                  cornerRadius={3}
+                  padAngle={0.02}
+                  renderContext="svg"
+                  legend
+                  props={{
+                    legend: {
+                      placement: "bottom",
+                    },
+                  }}
+                >
+                  {#snippet aboveMarks()}
+                    <Text
+                      value={`${rangeStats.find((s) => s.name === "In Range")?.percentage.toFixed(0)}%`}
+                      textAnchor="middle"
+                      verticalAnchor="middle"
+                      dy={-8}
+                      class="fill-foreground text-2xl font-bold"
+                    />
+                    <Text
+                      value="In Range"
+                      textAnchor="middle"
+                      verticalAnchor="middle"
+                      dy={16}
+                      class="fill-muted-foreground text-xs"
+                    />
+                  {/snippet}
+                </PieChart>
               </div>
             {:else}
               <div
@@ -273,19 +246,6 @@
                 No data available
               </div>
             {/if}
-
-            <!-- Legend -->
-            <div class="mt-4 flex justify-center gap-6">
-              {#each rangeStats as stat}
-                <div class="flex items-center gap-2">
-                  <div
-                    class="h-4 w-4 rounded"
-                    style="background-color: {stat.color}"
-                  ></div>
-                  <span class="text-sm">{stat.name}</span>
-                </div>
-              {/each}
-            </div>
           </div>
         </Card.Content>
       </Card.Root>

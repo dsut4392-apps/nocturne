@@ -205,7 +205,8 @@ public class ChartDataController : ControllerBase
         // Use case-insensitive Contains to match "Temp Basal", "temp basal", etc.
         var tempBasalTreatments = treatments
             .Where(t => !string.IsNullOrEmpty(t.EventType) &&
-                        t.EventType.Contains("Temp Basal", StringComparison.OrdinalIgnoreCase))
+                       (t.EventType.Contains("Temp Basal", StringComparison.OrdinalIgnoreCase) ||
+                        t.EventType.Replace(" ", "").Replace("-", "").Contains("tempbasal", StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
         _logger.LogDebug(

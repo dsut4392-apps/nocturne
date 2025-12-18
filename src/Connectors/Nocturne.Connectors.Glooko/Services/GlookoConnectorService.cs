@@ -749,6 +749,8 @@ namespace Nocturne.Connectors.Glooko.Services
                     return false;
                 }
 
+                _stateService?.SetState(ConnectorState.Syncing, "Syncing treatments via sidecar...");
+
                 var actualConfig = config ?? _config;
                 _logger.LogInformation(
                     $"FetchAndUploadTreatmentsAsync: SaveRawData={actualConfig.SaveRawData}, DataDirectory={actualConfig.DataDirectory}"
@@ -762,6 +764,7 @@ namespace Nocturne.Connectors.Glooko.Services
                 if (batchData == null)
                 {
                     _logger.LogWarning("No batch data retrieved from Glooko");
+                    _stateService?.SetState(ConnectorState.Error, "No data retrieved from Glooko");
                     return false;
                 }
 
@@ -773,6 +776,7 @@ namespace Nocturne.Connectors.Glooko.Services
                 if (nightscoutTreatments.Count == 0)
                 {
                     _logger.LogInformation("No treatments to upload");
+                    _stateService?.SetState(ConnectorState.Idle, "Sync completed (no new treatments)");
                     return true;
                 }
 
@@ -791,11 +795,17 @@ namespace Nocturne.Connectors.Glooko.Services
                     $"Treatment upload {(success ? "succeeded" : "failed")}: {treatments.Count} treatments"
                 );
 
+                if (success)
+                    _stateService?.SetState(ConnectorState.Idle, "Sync completed successfully");
+                else
+                    _stateService?.SetState(ConnectorState.Error, "Treatment upload failed");
+
                 return success;
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Error fetching and uploading treatments: {ex.Message}");
+                _stateService?.SetState(ConnectorState.Error, $"Error: {ex.Message}");
                 return false;
             }
         }
@@ -1061,6 +1071,8 @@ namespace Nocturne.Connectors.Glooko.Services
 
                 if (config.UseAsyncProcessing && _apiDataSubmitter != null)
                 {
+                    _stateService?.SetState(ConnectorState.Syncing, "Syncing health data via sidecar...");
+
                     // For Glooko, we can fetch comprehensive health data and publish it
                     var sinceTimestamp = await CalculateSinceTimestampAsync(config, since);
                     var glucoseEntries = await FetchGlucoseDataAsync(sinceTimestamp);
@@ -1078,11 +1090,13 @@ namespace Nocturne.Connectors.Glooko.Services
                     if (success)
                     {
                         _logger.LogInformation("Glooko health data published successfully via API");
+                        _stateService?.SetState(ConnectorState.Idle, "Health sync completed");
                         return true;
                     }
                     else
                     {
                         _logger.LogWarning("Health data publishing failed");
+                        _stateService?.SetState(ConnectorState.Error, "Health data publishing failed");
                         return false;
                     }
                 }
@@ -1133,19 +1147,13 @@ namespace Nocturne.Connectors.Glooko.Services
             };
         }
 
-        private DateTime GetCorrectedGlookoTime(DateTime rawDate, bool isV3 = false)
+        private DateTime GetCorrectedGlookoTime(DateTime rawDate)
         {
-            // V2 sends tomorrow's date with a timezone offset.
-            // V3 sends today's date with a timezone offset.
-            // In both cases, the time is local time, but marked as UTC.
-
-            // To correct V2: Subtract offset AND 24 hours.
-            // To correct V3: Subtract offset.
-
-            var offsetHours = _config.TimezoneOffset + (isV3 ? 0 : 24);
+            // The time is local time, but marked as UTC.
+            var offsetHours = _config.TimezoneOffset;
             var corrected = rawDate.AddHours(-offsetHours);
-             _logger.LogInformation("GetCorrectedGlookoTime: Raw={Raw}, IsV3={IsV3}, ConfigOffset={ConfigOffset}, CalcOffset={CalcOffset}, Result={Result}",
-                rawDate, isV3, _config.TimezoneOffset, offsetHours, corrected);
+            _logger.LogInformation("GetCorrectedGlookoTime: Raw={Raw}, ConfigOffset={ConfigOffset}, Result={Result}",
+                rawDate, _config.TimezoneOffset, corrected);
             return corrected;
         }
 

@@ -74,9 +74,10 @@ namespace Nocturne.Connectors.FreeStyle.Services
             IRetryDelayStrategy retryDelayStrategy,
             IRateLimitingStrategy rateLimitingStrategy,
             IApiDataSubmitter? apiDataSubmitter = null,
-            IConnectorMetricsTracker? metricsTracker = null
+            IConnectorMetricsTracker? metricsTracker = null,
+            IConnectorStateService? stateService = null
         )
-            : base(httpClient, logger, apiDataSubmitter, metricsTracker)
+            : base(httpClient, logger, apiDataSubmitter, metricsTracker, stateService)
         {
             _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
             _retryDelayStrategy =

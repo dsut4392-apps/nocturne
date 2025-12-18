@@ -31,11 +31,10 @@
 
   // Query for reports data
   const reportsQuery = $derived(getReportsData(dateRangeInput));
-  const data = $derived(await reportsQuery);
 
-  const treatments = $derived(data?.treatments ?? []);
+  const treatments = $derived(reportsQuery.current?.treatments ?? []);
   const dateRange = $derived(
-    data?.dateRange ?? {
+    reportsQuery.current?.dateRange ?? {
       from: new Date().toISOString(),
       to: new Date().toISOString(),
     }

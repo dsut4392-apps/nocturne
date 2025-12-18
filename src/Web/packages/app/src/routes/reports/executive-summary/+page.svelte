@@ -33,9 +33,16 @@
 
   // Query for reports data
   const reportsQuery = $derived(getReportsData(dateRangeInput));
-  const data = $derived(await reportsQuery);
 
-  const { dateRange, entries } = $derived(data);
+  const dateRange = $derived(
+    reportsQuery.current?.dateRange ?? {
+      from: new Date().toISOString(),
+      to: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+    }
+  );
+  const entries = $derived(reportsQuery.current?.entries ?? []);
+  const analysis = $derived(reportsQuery.current?.analysis);
 
   // Helper to get date values
   const startDate = $derived(new Date(dateRange.from));
@@ -154,7 +161,9 @@
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p class="text-destructive-foreground">{error instanceof Error ? error.message : String(error)}</p>
+          <p class="text-destructive-foreground">
+            {error instanceof Error ? error.message : String(error)}
+          </p>
           <Button
             variant="outline"
             class="mt-4"
@@ -176,8 +185,7 @@
       </p>
     </div>
 
-    {#if data.analysis}
-      {@const analysis = data.analysis}
+    {#if analysis}
       {@const tir = analysis?.timeInRange?.percentages}
       {@const durations = analysis?.timeInRange?.durations}
       {@const variability = analysis?.glycemicVariability}

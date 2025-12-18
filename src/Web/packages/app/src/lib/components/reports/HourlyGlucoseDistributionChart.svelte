@@ -26,7 +26,6 @@
 
   // Fetch hourly statistics from backend
   const hourlyStatsQuery = $derived(calculateAveragedStats({ entries }));
-  const hourlyStats = $derived(await hourlyStatsQuery);
 
   // Transform backend data to chart format
   function transformToChartData(stats: AveragedStats[]): HourlyRangeData[] {
@@ -42,14 +41,6 @@
       count: s.count ?? 0,
     }));
   }
-
-  const chartData = $derived(
-    hourlyStats && hourlyStats.length > 0
-      ? transformToChartData(hourlyStats)
-      : []
-  );
-
-  const hasData = $derived(chartData?.some((d) => d.count > 0));
 
   // Format hour for display based on user's time format preference
   function formatHour(hour: number): string {
@@ -76,36 +67,58 @@
 </script>
 
 <div class="w-full">
-  {#if hasData}
-    <div class="h-[350px] w-full">
-      <AreaChart
-        data={chartData}
-        x="hour"
-        yDomain={[0, 100]}
-        series={chartSeries}
-        seriesLayout="stack"
-        legend
-        props={{
-          xAxis: {
-            format: formatHour,
-          },
-          yAxis: {
-            label: "Percentage",
-            format: (v: number) => `${v}%`,
-          },
-        }}
-        padding={{ top: 20, right: 20, bottom: 40, left: 50 }}
-      />
+  {#await hourlyStatsQuery}
+    <div class="flex h-[350px] w-full items-center justify-center">
+      <div
+        class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
+      ></div>
     </div>
-  {:else}
+  {:then hourlyStats}
+    {@const chartData =
+      hourlyStats && hourlyStats.length > 0
+        ? transformToChartData(hourlyStats)
+        : []}
+    {@const hasData = chartData?.some((d) => d.count > 0)}
+    {#if hasData}
+      <div class="h-[350px] w-full">
+        <AreaChart
+          data={chartData}
+          x="hour"
+          yDomain={[0, 100]}
+          series={chartSeries}
+          seriesLayout="stack"
+          legend
+          props={{
+            xAxis: {
+              format: formatHour,
+            },
+            yAxis: {
+              label: "Percentage",
+              format: (v: number) => `${v}%`,
+            },
+          }}
+          padding={{ top: 20, right: 20, bottom: 40, left: 50 }}
+        />
+      </div>
+    {:else}
+      <div
+        class="flex h-[350px] w-full items-center justify-center text-muted-foreground"
+      >
+        <div class="text-center">
+          <BarChart2 class="mx-auto h-10 w-10 opacity-30" />
+          <p class="mt-2 font-medium">No glucose data available</p>
+          <p class="text-sm">Hourly distribution requires glucose entries</p>
+        </div>
+      </div>
+    {/if}
+  {:catch}
     <div
       class="flex h-[350px] w-full items-center justify-center text-muted-foreground"
     >
       <div class="text-center">
         <BarChart2 class="mx-auto h-10 w-10 opacity-30" />
-        <p class="mt-2 font-medium">No glucose data available</p>
-        <p class="text-sm">Hourly distribution requires glucose entries</p>
+        <p class="mt-2 font-medium">Error loading chart data</p>
       </div>
     </div>
-  {/if}
+  {/await}
 </div>

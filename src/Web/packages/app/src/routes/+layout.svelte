@@ -13,6 +13,7 @@
   import type { TitleFaviconSettings } from "$lib/stores/serverSettings";
   import { browser } from "$app/environment";
   import { ModeWatcher } from "mode-watcher";
+  import * as Card from "$lib/components/ui/card";
 
   // LocalStorage key for title/favicon settings
   const SETTINGS_STORAGE_KEY = "nocturne-title-favicon-settings";
@@ -176,13 +177,16 @@
           </div>
         {/snippet}
         {#snippet failed(e)}
-          <div class="flex items-center justify-center h-full">
-            <div class="text-destructive">
-              Error loading entries: {e instanceof Error
-                ? e.message
-                : JSON.stringify(e)}
-            </div>
-          </div>
+          <Card.Root class="flex items-center justify-center h-full ">
+            <Card.Header>
+              <Card.Title>Error</Card.Title>
+            </Card.Header>
+            <Card.Content
+              class="text-destructive grid place-items-center h-full max-w-2xl"
+            >
+              {e instanceof Error ? e.message : JSON.stringify(e)}
+            </Card.Content>
+          </Card.Root>
         {/snippet}
       </svelte:boundary>
     </main>

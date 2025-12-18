@@ -26,7 +26,6 @@
 
   // Fetch retrospective data using remote function
   const retrospectiveQuery = $derived(getRetrospectiveAt({ time }));
-  const data = $derived(await retrospectiveQuery);
 
   // Get units preference
   const units = $derived(glucoseUnits.current);
@@ -58,67 +57,41 @@
   }
 </script>
 
-<svelte:boundary>
-  {#snippet pending()}
-    <Card.Root class="border-2 border-primary/20 bg-primary/5">
-      <Card.Header class="pb-2">
-        <Card.Title class="flex items-center gap-2 text-base">
-          <Activity class="h-4 w-4" />
-          Status at {timeDisplay}
-        </Card.Title>
-      </Card.Header>
-      <Card.Content>
-        <!-- Skeleton loading state - matches the layout below -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {#each [1, 2, 3, 4] as _}
-            <div
-              class="flex flex-col items-center gap-1 p-3 rounded-lg bg-background/50"
-            >
-              <div class="flex items-center gap-1">
-                <div
-                  class="h-4 w-4 rounded bg-muted-foreground/20 animate-pulse"
-                ></div>
-                <div
-                  class="h-3 w-12 rounded bg-muted-foreground/20 animate-pulse"
-                ></div>
-              </div>
+{#await retrospectiveQuery}
+  <Card.Root class="border-2 border-primary/20 bg-primary/5">
+    <Card.Header class="pb-2">
+      <Card.Title class="flex items-center gap-2 text-base">
+        <Activity class="h-4 w-4" />
+        Status at {timeDisplay}
+      </Card.Title>
+    </Card.Header>
+    <Card.Content>
+      <!-- Skeleton loading state - matches the layout below -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {#each [1, 2, 3, 4] as _}
+          <div
+            class="flex flex-col items-center gap-1 p-3 rounded-lg bg-background/50"
+          >
+            <div class="flex items-center gap-1">
               <div
-                class="h-8 w-16 rounded bg-muted-foreground/20 animate-pulse mt-1"
+                class="h-4 w-4 rounded bg-muted-foreground/20 animate-pulse"
               ></div>
               <div
-                class="h-3 w-20 rounded bg-muted-foreground/20 animate-pulse mt-1"
+                class="h-3 w-12 rounded bg-muted-foreground/20 animate-pulse"
               ></div>
             </div>
-          {/each}
-        </div>
-      </Card.Content>
-    </Card.Root>
-  {/snippet}
-
-  {#snippet failed(error, reset)}
-    <Card.Root class="border-2 border-destructive/20 bg-destructive/5">
-      <Card.Header class="pb-2">
-        <Card.Title class="flex items-center gap-2 text-base text-destructive">
-          <AlertTriangle class="h-4 w-4" />
-          Error Loading Status
-        </Card.Title>
-      </Card.Header>
-      <Card.Content>
-        <div class="text-center space-y-3">
-          <p class="text-sm text-muted-foreground">
-            {error instanceof Error
-              ? error.message
-              : "Failed to load retrospective data"}
-          </p>
-          <Button variant="outline" size="sm" onclick={reset}>
-            <RefreshCw class="h-4 w-4 mr-2" />
-            Try Again
-          </Button>
-        </div>
-      </Card.Content>
-    </Card.Root>
-  {/snippet}
-
+            <div
+              class="h-8 w-16 rounded bg-muted-foreground/20 animate-pulse mt-1"
+            ></div>
+            <div
+              class="h-3 w-20 rounded bg-muted-foreground/20 animate-pulse mt-1"
+            ></div>
+          </div>
+        {/each}
+      </div>
+    </Card.Content>
+  </Card.Root>
+{:then data}
   <Card.Root class="border-2 border-primary/20 bg-primary/5">
     <Card.Header class="pb-2">
       <Card.Title class="flex items-center gap-2 text-base">
@@ -248,4 +221,30 @@
       </div>
     </Card.Content>
   </Card.Root>
-</svelte:boundary>
+{:catch error}
+  <Card.Root class="border-2 border-destructive/20 bg-destructive/5">
+    <Card.Header class="pb-2">
+      <Card.Title class="flex items-center gap-2 text-base text-destructive">
+        <AlertTriangle class="h-4 w-4" />
+        Error Loading Status
+      </Card.Title>
+    </Card.Header>
+    <Card.Content>
+      <div class="text-center space-y-3">
+        <p class="text-sm text-muted-foreground">
+          {error instanceof Error
+            ? error.message
+            : "Failed to load retrospective data"}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={() => getRetrospectiveAt({ time }).refresh()}
+        >
+          <RefreshCw class="h-4 w-4 mr-2" />
+          Try Again
+        </Button>
+      </div>
+    </Card.Content>
+  </Card.Root>
+{/await}

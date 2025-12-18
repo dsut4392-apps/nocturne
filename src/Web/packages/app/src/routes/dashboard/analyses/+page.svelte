@@ -51,9 +51,12 @@
   });
 
   // Fetch analyses using remote function
-  const data = $derived(await getAnalyses(urlFilters));
+  const analysesQuery = $derived(getAnalyses(urlFilters));
 
-  const { analyses, filters } = $derived(data);
+  const analyses = $derived(analysesQuery.current?.analyses ?? []);
+  const filters = $derived(
+    analysesQuery.current?.filters ?? { count: 50, skip: 0 }
+  );
 
   // Form state - initialized from URL params
   let searchPath = $state(initialRequestPath);

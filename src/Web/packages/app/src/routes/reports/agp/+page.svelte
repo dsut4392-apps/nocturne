@@ -44,32 +44,11 @@
   // Query for reports data
   const reportsQuery = $derived(getReportsData(dateRangeInput));
 
-  // Unwrap the data from the query
-  const data = $derived(await reportsQuery);
+  let dayByDayPage = $state(1);
 
-  const entries = $derived(data?.entries ?? []);
-  const analysis = $derived(data?.analysis);
-  const dateRange = $derived(
-    data?.dateRange ?? {
-      from: new Date().toISOString(),
-      to: new Date().toISOString(),
-    }
-  );
-
-  // Helper dates
-  const startDate = $derived(new Date(dateRange.from));
-  const endDate = $derived(new Date(dateRange.to));
-  const dayCount = $derived(
-    Math.max(
-      1,
-      Math.round(
-        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-      )
-    )
-  );
-
-  const entriesByDay = $derived(
-    Object.entries(
+  // Helper function to compute entries by day
+  function computeEntriesByDay(entries: Entry[]) {
+    return Object.entries(
       entries.reduce(
         (acc, entry) => {
           const date = new Date(entry.mills ?? 0).toLocaleDateString();
@@ -91,10 +70,8 @@
         return a[0].localeCompare(b[0]);
       }
       return timeA - timeB;
-    })
-  );
-
-  let dayByDayPage = $state(1);
+    });
+  }
 </script>
 
 <svelte:head>
@@ -105,35 +82,24 @@
   />
 </svelte:head>
 
-<svelte:boundary>
-  {#snippet pending()}
-    <ReportsSkeleton />
-  {/snippet}
-
-  {#snippet failed(error)}
-    <div class="container mx-auto px-4 py-6 space-y-8 max-w-7xl">
-      <Card class="border-2 border-destructive">
-        <CardHeader>
-          <CardTitle class="flex items-center gap-2 text-destructive">
-            <AlertTriangle class="w-5 h-5" />
-            Error Loading AGP Data
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p class="text-destructive-foreground">
-            {error instanceof Error ? error.message : "An error occurred"}
-          </p>
-          <Button
-            variant="outline"
-            class="mt-4"
-            onclick={() => getReportsData(dateRangeInput).refresh()}
-          >
-            Try again
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  {/snippet}
+{#await reportsQuery}
+  <ReportsSkeleton />
+{:then data}
+  {@const entries = data?.entries ?? []}
+  {@const analysis = data?.analysis}
+  {@const dateRange = data?.dateRange ?? {
+    from: new Date().toISOString(),
+    to: new Date().toISOString(),
+  }}
+  {@const startDate = new Date(dateRange.from)}
+  {@const endDate = new Date(dateRange.to)}
+  {@const dayCount = Math.max(
+    1,
+    Math.round(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    )
+  )}
+  {@const entriesByDay = computeEntriesByDay(entries)}
 
   <div class="container mx-auto px-4 py-6 space-y-8 max-w-7xl">
     <!-- Header with AGP Explanation -->
@@ -570,4 +536,27 @@
       Last updated {new Date(dateRange.lastUpdated).toLocaleString()}.
     </div>
   </div>
-</svelte:boundary>
+{:catch error}
+  <div class="container mx-auto px-4 py-6 space-y-8 max-w-7xl">
+    <Card class="border-2 border-destructive">
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2 text-destructive">
+          <AlertTriangle class="w-5 h-5" />
+          Error Loading AGP Data
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p class="text-destructive-foreground">
+          {error instanceof Error ? error.message : "An error occurred"}
+        </p>
+        <Button
+          variant="outline"
+          class="mt-4"
+          onclick={() => getReportsData(dateRangeInput).refresh()}
+        >
+          Try again
+        </Button>
+      </CardContent>
+    </Card>
+  </div>
+{/await}

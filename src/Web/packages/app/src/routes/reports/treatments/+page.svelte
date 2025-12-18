@@ -49,11 +49,17 @@
   const dateRangeInput = $derived(useDateRange());
 
   // Query for reports data
-  const data = $derived(await getReportsData(dateRangeInput));
-  const treatments = $derived(data?.treatments ?? []);
+  const reportsQuery = $derived(getReportsData(dateRangeInput));
+  const treatments = $derived(reportsQuery.current?.treatments ?? []);
+  const dateRange = $derived(
+    reportsQuery.current?.dateRange ?? {
+      from: new Date().toISOString(),
+      to: new Date().toISOString(),
+    }
+  );
 
   const treatmentSummary = $derived(
-    data?.analysis?.treatmentSummary ??
+    reportsQuery.current?.analysis?.treatmentSummary ??
       ({
         totals: { food: { carbs: 0 }, insulin: { bolus: 0, basal: 0 } },
         treatmentCount: 0,
@@ -284,8 +290,8 @@
       >
         <Calendar class="h-4 w-4" />
         <span>
-          {new Date(data.dateRange.from).toLocaleDateString()} – {new Date(
-            data.dateRange.to
+          {new Date(dateRange.from).toLocaleDateString()} – {new Date(
+            dateRange.to
           ).toLocaleDateString()}
         </span>
         <span class="text-muted-foreground/50">•</span>
@@ -302,7 +308,7 @@
     <TreatmentStatsCard
       {treatmentSummary}
       counts={filteredCounts}
-      dateRange={data.dateRange}
+      {dateRange}
     />
 
     <!-- Category Tabs -->
@@ -445,8 +451,8 @@
     <div class="text-center text-xs text-muted-foreground">
       <p>
         Report generated from {treatments.length.toLocaleString()} treatments between
-        {new Date(data.dateRange.from).toLocaleDateString()} and {new Date(
-          data.dateRange.to
+        {new Date(dateRange.from).toLocaleDateString()} and {new Date(
+          dateRange.to
         ).toLocaleDateString()}
       </p>
     </div>

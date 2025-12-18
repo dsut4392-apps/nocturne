@@ -118,13 +118,12 @@
   const reportsQuery = $derived(getReportsData(dateRangeInput));
 
   // Unwrap the data from the query with null safety
-  const queryResult = $derived(await reportsQuery);
   const data = $derived({
-    entries: queryResult?.entries ?? [],
-    treatments: queryResult?.treatments ?? [],
-    analysis: queryResult?.analysis,
-    summary: queryResult?.summary,
-    dateRange: queryResult?.dateRange ?? {
+    entries: reportsQuery.current?.entries ?? [],
+    treatments: reportsQuery.current?.treatments ?? [],
+    analysis: reportsQuery.current?.analysis,
+    summary: reportsQuery.current?.summary,
+    dateRange: reportsQuery.current?.dateRange ?? {
       from: new Date().toISOString(),
       to: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),

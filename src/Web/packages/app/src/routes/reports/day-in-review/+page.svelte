@@ -62,7 +62,8 @@
   );
 
   // Fetch data using remote function
-  const dayData = $derived(await getDayInReviewData(dateParam));
+  const dayDataQuery = $derived(getDayInReviewData(dateParam));
+  const dayData = $derived(dayDataQuery.current);
 
   // Parse current date from URL
   const currentDate = $derived(new Date(dateParam));

@@ -13,7 +13,6 @@
 
   // Query for reports data
   const reportsQuery = $derived(getReportsData(dateRangeInput));
-  const data = $derived(await reportsQuery);
 
   // Glucose distribution ranges (using CSS variables for theme support)
   const RANGES = [
@@ -23,7 +22,7 @@
   ] as const;
 
   const rangeStats = $derived.by(() => {
-    const analysis = data.analysis;
+    const analysis = reportsQuery.current?.analysis;
     const rangeStatsBE = analysis?.timeInRange?.rangeStats;
 
     if (!rangeStatsBE) {

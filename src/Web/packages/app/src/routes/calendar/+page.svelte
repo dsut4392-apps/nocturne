@@ -31,7 +31,6 @@
 
   // Query for punch card data (calculations done on backend)
   const punchCardQuery = $derived(getPunchCardData(dateRangeInput));
-  const data = $derived(await punchCardQuery);
 
   // Navigation functions
   function previousMonth() {
@@ -97,7 +96,8 @@
 
   // Get days data from backend response
   const daysData = $derived.by(() => {
-    const monthData = data?.months?.[0];
+    const currentData = punchCardQuery.current;
+    const monthData = currentData?.months?.[0];
     const daysMap = new Map<string, DayStats>();
 
     if (monthData) {
@@ -236,31 +236,9 @@
   });
 </script>
 
-<svelte:boundary>
-  {#snippet pending()}
-    <CalendarSkeleton />
-  {/snippet}
-
-  {#snippet failed(error)}
-    <div class="flex items-center justify-center h-full p-6">
-      <Card.Root class="max-w-md border-destructive">
-        <Card.Content class="py-8">
-          <div class="text-center">
-            <p class="font-medium text-destructive">
-              Failed to load calendar data
-            </p>
-            <p class="text-sm text-muted-foreground mt-1">
-              {error instanceof Error ? error.message : "An error occurred"}
-            </p>
-            <Button class="mt-4" onclick={() => window.location.reload()}>
-              Try Again
-            </Button>
-          </div>
-        </Card.Content>
-      </Card.Root>
-    </div>
-  {/snippet}
-
+{#await punchCardQuery}
+  <CalendarSkeleton />
+{:then _data}
   <div class="flex flex-col h-full">
     <!-- Header -->
     <div
@@ -624,4 +602,22 @@
       </Card.Root>
     </div>
   </div>
-</svelte:boundary>
+{:catch error}
+  <div class="flex items-center justify-center h-full p-6">
+    <Card.Root class="max-w-md border-destructive">
+      <Card.Content class="py-8">
+        <div class="text-center">
+          <p class="font-medium text-destructive">
+            Failed to load calendar data
+          </p>
+          <p class="text-sm text-muted-foreground mt-1">
+            {error instanceof Error ? error.message : "An error occurred"}
+          </p>
+          <Button class="mt-4" onclick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </Card.Content>
+    </Card.Root>
+  </div>
+{/await}

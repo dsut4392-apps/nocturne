@@ -21,12 +21,31 @@
   });
 
   // Fetch data using remote function
-  const fetchedData = $derived(await getCompatibilityData(urlParams));
+  const compatibilityQuery = $derived(getCompatibilityData(urlParams));
 
   // Use derived values for the fetched data to maintain reactivity
-  const analyses = $derived(fetchedData.analyses);
-  const metrics = $derived(fetchedData.metrics);
-  const config = $derived(fetchedData.config);
+  const analyses = $derived(compatibilityQuery.current?.analyses ?? []);
+  const metrics = $derived(
+    compatibilityQuery.current?.metrics ?? {
+      totalRequests: 0,
+      compatibilityScore: 0,
+      criticalDifferences: 0,
+      averageNocturneResponseTime: 0,
+    }
+  );
+  const config = $derived(
+    compatibilityQuery.current?.config ?? {
+      nightscoutUrl: "",
+      defaultStrategy: "",
+    }
+  );
+  const filters = $derived(
+    compatibilityQuery.current?.filters ?? {
+      requestPath: "",
+      requestMethod: "",
+      overallMatch: "",
+    }
+  );
 
   // Mutable state
   let isPolling = $state(true);
@@ -35,7 +54,7 @@
 
   // Local override for analyses when polling
   let polledAnalyses = $state<AnalysisListItemDto[] | null>(null);
-  let polledMetrics = $state<typeof fetchedData.metrics | null>(null);
+  let polledMetrics = $state<typeof metrics | null>(null);
 
   // Polling interval (5 seconds)
   let pollInterval: NodeJS.Timeout | null = null;
@@ -48,9 +67,9 @@
 
   // Initialize filter state from fetched data
   $effect(() => {
-    filterPath = fetchedData.filters.requestPath || "";
-    filterMethod = fetchedData.filters.requestMethod || "";
-    filterMatch = fetchedData.filters.overallMatch || "";
+    filterPath = filters.requestPath || "";
+    filterMethod = filters.requestMethod || "";
+    filterMatch = filters.overallMatch || "";
   });
 
   // Helper to get match type display

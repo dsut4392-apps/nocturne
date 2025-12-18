@@ -25,9 +25,9 @@
   const analysisId = $derived(page.params.id ?? "");
 
   // Fetch analysis using remote function
-  const data = $derived(await getAnalysisById(analysisId));
+  const analysisQuery = $derived(getAnalysisById(analysisId));
 
-  const { analysis } = $derived(data);
+  const analysis = $derived(analysisQuery.current?.analysis ?? {});
 
   function getMatchTypeDescription(matchType: number): string {
     switch (matchType) {

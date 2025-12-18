@@ -36,7 +36,6 @@
 
   // Query for reports data
   const reportsQuery = $derived(getReportsData(dateRangeInput));
-  const data = $derived(await reportsQuery);
 
   // Day of week colors - matches Nightscout
   const DAY_COLORS = [
@@ -115,11 +114,13 @@
     const { start, end } = currentWeekRange;
 
     // Filter entries to current week
-    const weekEntries = (data?.entries ?? []).filter((entry: Entry) => {
-      const entryTime =
-        entry.mills ?? new Date(entry.dateString ?? "").getTime();
-      return entryTime >= start.getTime() && entryTime <= end.getTime();
-    });
+    const weekEntries = (reportsQuery.current?.entries ?? []).filter(
+      (entry: Entry) => {
+        const entryTime =
+          entry.mills ?? new Date(entry.dateString ?? "").getTime();
+        return entryTime >= start.getTime() && entryTime <= end.getTime();
+      }
+    );
 
     // Group by day of week and normalize time to be within a single 24-hour period
     const grouped: Map<

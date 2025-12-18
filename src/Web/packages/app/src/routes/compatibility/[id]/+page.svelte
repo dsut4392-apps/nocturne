@@ -7,9 +7,9 @@
   const analysisId = $derived(page.params.id ?? "");
 
   // Fetch analysis data using remote function
-  const analysisData = $derived(await getAnalysisDetail(analysisId));
+  const analysisQuery = $derived(getAnalysisDetail(analysisId));
 
-  const analysis = $derived(analysisData.analysis);
+  const analysis = $derived(analysisQuery.current?.analysis ?? {});
 
   // Helper to get match type display
   function getMatchTypeDisplay(matchType: number) {

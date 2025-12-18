@@ -33,18 +33,19 @@
 
   // Query for reports data
   const reportsQuery = $derived(getReportsData(dateRangeInput));
-  const data = $derived(await reportsQuery);
 
-  const treatments = $derived((data?.treatments ?? []) as Treatment[]);
+  const treatments = $derived(
+    (reportsQuery.current?.treatments ?? []) as Treatment[]
+  );
   const dateRange = $derived(
-    data?.dateRange ?? {
+    reportsQuery.current?.dateRange ?? {
       from: new Date().toISOString(),
       to: new Date().toISOString(),
     }
   );
 
   const treatmentSummary = $derived(
-    data?.analysis?.treatmentSummary ??
+    reportsQuery.current?.analysis?.treatmentSummary ??
       ({
         totals: { food: { carbs: 0 }, insulin: { bolus: 0, basal: 0 } },
         treatmentCount: 0,

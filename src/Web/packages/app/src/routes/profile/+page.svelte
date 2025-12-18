@@ -102,9 +102,6 @@
   // Query for profiles data - passes selectedProfileId as argument
   const profilesQuery = $derived(getProfiles(urlProfileId ?? undefined));
 
-  // Unwrap the data from the query
-  const data = $derived(await profilesQuery);
-
   // Icon component map
   const iconComponents: Record<string, typeof Icon> = {
     user: User,
@@ -147,14 +144,24 @@
   // Currently selected profile ID - derived from URL or default
   let selectedProfileId = $derived.by(() => {
     const urlId = page.url.searchParams.get("id");
-    return urlId ?? data.selectedProfileId ?? data.currentProfile?._id ?? null;
+    const currentData = profilesQuery.current;
+    return (
+      urlId ??
+      currentData?.selectedProfileId ??
+      currentData?.currentProfile?._id ??
+      null
+    );
   });
 
   // Derived: get selected profile
-  let selectedProfile = $derived(
-    data.profiles.find((p) => p._id === selectedProfileId) ??
-      data.currentProfile
-  );
+  let selectedProfile = $derived.by(() => {
+    const currentData = profilesQuery.current;
+    if (!currentData) return null;
+    return (
+      currentData.profiles.find((p: Profile) => p._id === selectedProfileId) ??
+      currentData.currentProfile
+    );
+  });
 
   // Derived: get selected profile's store names
   let profileStoreNames = $derived(
@@ -273,7 +280,10 @@
 
       // Navigate to another profile if we deleted the selected one
       if (deletedId === selectedProfileId) {
-        const remaining = data.profiles.filter((p) => p._id !== deletedId);
+        const currentData = profilesQuery.current;
+        const remaining =
+          currentData?.profiles.filter((p: Profile) => p._id !== deletedId) ??
+          [];
         selectProfile(remaining[0]?._id ?? null);
       }
     } catch (error) {
@@ -292,35 +302,13 @@
   />
 </svelte:head>
 
-<svelte:boundary>
-  {#snippet pending()}
-    <div class="container mx-auto p-6 max-w-5xl">
-      <div class="flex items-center justify-center h-64">
-        <div class="animate-pulse text-muted-foreground">
-          Loading profiles...
-        </div>
-      </div>
+{#await profilesQuery}
+  <div class="container mx-auto p-6 max-w-5xl">
+    <div class="flex items-center justify-center h-64">
+      <div class="animate-pulse text-muted-foreground">Loading profiles...</div>
     </div>
-  {/snippet}
-
-  {#snippet failed(error)}
-    <div class="container mx-auto p-6 max-w-5xl">
-      <Card class="border-destructive">
-        <CardContent class="py-8">
-          <div class="text-center space-y-2">
-            <p class="text-destructive font-medium">Failed to load profiles</p>
-            <p class="text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : "An error occurred"}
-            </p>
-            <Button variant="outline" onclick={() => profilesQuery.refresh()}>
-              Try again
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  {/snippet}
-
+  </div>
+{:then data}
   <div class="container mx-auto p-6 max-w-5xl space-y-6">
     <!-- Header -->
     <div class="flex items-start justify-between">
@@ -732,7 +720,23 @@
       {/if}
     {/if}
   </div>
-</svelte:boundary>
+{:catch error}
+  <div class="container mx-auto p-6 max-w-5xl">
+    <Card class="border-destructive">
+      <CardContent class="py-8">
+        <div class="text-center space-y-2">
+          <p class="text-destructive font-medium">Failed to load profiles</p>
+          <p class="text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : "An error occurred"}
+          </p>
+          <Button variant="outline" onclick={() => window.location.reload()}>
+            Try again
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+{/await}
 
 <!-- Dialogs -->
 <ProfileCreateDialog

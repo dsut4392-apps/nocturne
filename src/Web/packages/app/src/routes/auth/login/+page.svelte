@@ -15,14 +15,15 @@
 
   // Check auth state and redirect if already logged in
   const authStateQuery = getAuthState();
-  const authState = $derived(await authStateQuery);
 
   // Get return URL from query params
   const returnUrl = $derived(page.url.searchParams.get("returnUrl") || "/");
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated - using $effect with derived query
   $effect(() => {
-    if (authState?.isAuthenticated && authState?.user) {
+    // Check inside effect - authStateQuery.current gives us resolved value if available
+    const currentAuth = authStateQuery.current;
+    if (currentAuth?.isAuthenticated && currentAuth?.user) {
       goto(returnUrl, { replaceState: true });
     }
   });

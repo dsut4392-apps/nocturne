@@ -40,7 +40,10 @@ public class MyFitnessPalManualSyncService : IMyFitnessPalManualSyncService
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if sync was successful</returns>
-    public async Task<bool> TriggerManualSyncAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> TriggerManualSyncAsync(
+        int? days = null,
+        CancellationToken cancellationToken = default
+    )
     {
         if (string.IsNullOrWhiteSpace(_username))
         {
@@ -64,7 +67,7 @@ public class MyFitnessPalManualSyncService : IMyFitnessPalManualSyncService
             }
 
             // Get the date range for sync - sync last 7 days by default for manual sync
-            var syncDays = _configuration.GetValue<int>("MyFitnessPal:SyncDays", 7);
+            var syncDays = days ?? _configuration.GetValue<int>("MyFitnessPal:SyncDays", 7);
             var fromDate = DateTime.Today.AddDays(-syncDays);
             var toDate = DateTime.Today;
 

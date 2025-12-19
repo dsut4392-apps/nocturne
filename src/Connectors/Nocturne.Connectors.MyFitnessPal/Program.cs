@@ -76,7 +76,11 @@ public class Program
         // Configure manual sync endpoint
         app.MapPost(
             "/sync",
-            async (IServiceProvider serviceProvider, CancellationToken cancellationToken) =>
+            async (
+                int? days,
+                IServiceProvider serviceProvider,
+                CancellationToken cancellationToken
+            ) =>
             {
                 var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
@@ -85,8 +89,14 @@ public class Program
                     var manualSyncService =
                         serviceProvider.GetRequiredService<IMyFitnessPalManualSyncService>();
 
-                    logger.LogInformation("Manual sync triggered for MyFitnessPal connector");
-                    var success = await manualSyncService.TriggerManualSyncAsync(cancellationToken);
+                    logger.LogInformation(
+                        "Manual sync triggered for MyFitnessPal connector with lookback: {Days} days",
+                        days
+                    );
+                    var success = await manualSyncService.TriggerManualSyncAsync(
+                        days,
+                        cancellationToken
+                    );
 
                     return Results.Ok(
                         new

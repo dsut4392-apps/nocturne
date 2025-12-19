@@ -75,7 +75,11 @@ public class Program
         // Configure manual sync endpoint
         app.MapPost(
             "/sync",
-            async (IServiceProvider serviceProvider, CancellationToken cancellationToken) =>
+            async (
+                int? days,
+                IServiceProvider serviceProvider,
+                CancellationToken cancellationToken
+            ) =>
             {
                 var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
                 var config = serviceProvider
@@ -88,10 +92,16 @@ public class Program
                     var connectorService =
                         scope.ServiceProvider.GetRequiredService<NightscoutConnectorService>();
 
-                    logger.LogInformation("Manual sync triggered for Nightscout connector");
+                    var since = days.HasValue ? DateTime.UtcNow.AddDays(-days.Value) : null;
+                    logger.LogInformation(
+                        "Manual sync triggered for Nightscout connector with lookback: {Days} days",
+                        days
+                    );
+
                     var success = await connectorService.SyncNightscoutDataAsync(
                         config,
-                        cancellationToken
+                        cancellationToken,
+                        since
                     );
 
                     return Results.Ok(

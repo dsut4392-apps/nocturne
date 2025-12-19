@@ -579,7 +579,8 @@ namespace Nocturne.Connectors.FreeStyle.Services
         /// <returns>True if sync was successful</returns>
         public async Task<bool> SyncLibreDataAsync(
             LibreLinkUpConnectorConfiguration config,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            DateTime? since = null
         )
         {
             try
@@ -590,7 +591,7 @@ namespace Nocturne.Connectors.FreeStyle.Services
                 );
 
                 // Use the hybrid sync method from BaseConnectorService
-                var success = await SyncDataAsync(config, cancellationToken);
+                var success = await SyncDataAsync(config, cancellationToken, since);
 
                 if (success)
                 {

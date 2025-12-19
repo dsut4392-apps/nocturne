@@ -1044,6 +1044,13 @@ namespace Nocturne.Connectors.Glooko.Services
         /// <param name="config">Connector configuration</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>True if sync was successful</returns>
+        /// <summary>
+        /// Syncs Glooko health data (Glucose AND Treatments) using message publishing when available.
+        /// Performs a comprehensive sync in a single fetch.
+        /// </summary>
+        /// <param name="config">Connector configuration</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>True if sync was successful</returns>
         public async Task<bool> SyncGlookoHealthDataAsync(
             GlookoConnectorConfiguration config,
             CancellationToken cancellationToken = default,
@@ -1053,7 +1060,7 @@ namespace Nocturne.Connectors.Glooko.Services
             try
             {
                 _logger.LogInformation(
-                    "Starting Glooko health data sync using {Mode} mode",
+                    "Starting Glooko health data sync (Comprehensive: Glucose + Treatments) using {Mode} mode",
                     config.UseAsyncProcessing ? "asynchronous" : "direct API"
                 );
 
@@ -1071,51 +1078,96 @@ namespace Nocturne.Connectors.Glooko.Services
 
                 if (config.UseAsyncProcessing && _apiDataSubmitter != null)
                 {
-                    _stateService?.SetState(ConnectorState.Syncing, "Syncing health data via sidecar...");
+                    _stateService?.SetState(ConnectorState.Syncing, "Syncing data via sidecar...");
 
-                    // For Glooko, we can fetch comprehensive health data and publish it
+                    // 1. Calculate Since Timestamp
                     var sinceTimestamp = await CalculateSinceTimestampAsync(config, since);
-                    var glucoseEntries = await FetchGlucoseDataAsync(sinceTimestamp);
 
-                    // Publish health data (for now, just glucose - other health data would require additional API calls)
-                    var success = await PublishHealthDataAsync(
-                        glucoseEntries.ToArray(),
-                        Array.Empty<object>(), // Blood pressure readings - would need separate API call
-                        Array.Empty<object>(), // Weight readings - would need separate API call
-                        Array.Empty<object>(), // Sleep readings - would need separate API call
-                        config,
-                        cancellationToken
-                    );
+                    // 2. Fetch Comprehensive Batch Data (Once)
+                    var batchData = await FetchBatchDataAsync(sinceTimestamp);
+                    if (batchData == null)
+                    {
+                        _logger.LogWarning("No batch data retrieved from Glooko");
+                        return false;
+                    }
+
+                    // 3. Save Raw Data (if configured)
+                    await SaveBatchDataAsync(batchData, ServiceName, config, _logger);
+
+                    // 4. Transform and Upload Glucose
+                    var glucoseEntries = TransformBatchDataToEntries(batchData).ToList();
+                    bool glucoseSuccess = true;
+                    if (glucoseEntries.Count > 0)
+                    {
+                        glucoseSuccess = await PublishGlucoseDataInBatchesAsync(
+                            glucoseEntries,
+                            config,
+                            cancellationToken
+                        );
+                        if(glucoseSuccess) _logger.LogInformation("Published {Count} glucose entries", glucoseEntries.Count);
+                    }
+                    else
+                    {
+                         _logger.LogInformation("No new glucose entries found");
+                    }
+
+                    // 5. Transform and Upload Treatments
+                    var nightscoutTreatments = TransformBatchDataToTreatments(batchData);
+                    bool treatmentsSuccess = true;
+
+                    if (nightscoutTreatments.Count > 0)
+                    {
+                         // Convert to Core Treatment models (Models.Treatment -> Core.Models.Treatment)
+                         // Note: Assuming ToTreatment() extension is available as used in FetchAndUploadTreatmentsAsync
+                         var treatments = nightscoutTreatments.Select(t => t.ToTreatment()).ToList();
+
+                         // Save Transformed Treatments Raw Data (if configured)
+                         if (config.SaveRawData)
+                         {
+                             await SaveTreatmentsToFileAsync(treatments, ServiceName, config, _logger);
+                         }
+
+                         treatmentsSuccess = await PublishTreatmentDataInBatchesAsync(
+                             treatments,
+                             config,
+                             cancellationToken
+                         );
+                         if(treatmentsSuccess) _logger.LogInformation("Published {Count} treatments", treatments.Count);
+                    }
+                     else
+                    {
+                         _logger.LogInformation("No new treatments found");
+                    }
+
+                    // 6. Report Status
+                    var success = glucoseSuccess && treatmentsSuccess;
 
                     if (success)
                     {
-                        _logger.LogInformation("Glooko health data published successfully via API");
-                        _stateService?.SetState(ConnectorState.Idle, "Health sync completed");
+                        _logger.LogInformation("Glooko comprehensive sync completed successfully");
+                        _stateService?.SetState(ConnectorState.Idle, "Sync completed successfully");
                         return true;
                     }
                     else
                     {
-                        _logger.LogWarning("Health data publishing failed");
-                        _stateService?.SetState(ConnectorState.Error, "Health data publishing failed");
+                        _logger.LogWarning("Glooko comprehensive sync completed with errors");
+                        _stateService?.SetState(ConnectorState.Error, "Sync completed with errors");
                         return false;
                     }
                 }
                 else
                 {
-                    // Use traditional sync method
+                    // Fallback to legacy behavior for direct API mode (or TODO: Implement comprehensive sync for Direct API too)
+                    // For now, we'll keep the existing flow but warn
+                    _logger.LogWarning("Direct API mode selected - defaulting to Glucose-only sync via base class");
                     var success = await SyncDataAsync(config, cancellationToken, since);
-                    if (success)
-                    {
-                        _logger.LogInformation(
-                            "Glooko health data sync completed successfully via direct API"
-                        );
-                    }
                     return success;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during Glooko health data sync");
+                _stateService?.SetState(ConnectorState.Error, $"Error: {ex.Message}");
                 return false;
             }
         }

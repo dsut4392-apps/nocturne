@@ -579,7 +579,8 @@ namespace Nocturne.Connectors.Nightscout.Services
         /// </summary>
         public async Task<bool> SyncNightscoutDataV3Async(
             NightscoutConnectorConfiguration config,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            DateTime? since = null
         )
         {
             try
@@ -592,11 +593,12 @@ namespace Nocturne.Connectors.Nightscout.Services
                     _logger.LogWarning(
                         "Source Nightscout does not support v3 API, falling back to v1"
                     );
-                    return await SyncNightscoutDataAsync(config, cancellationToken);
+                    return await SyncNightscoutDataAsync(config, cancellationToken, since);
                 }
 
                 var allSuccess = true;
-                var sinceTimestamp = DateTime.UtcNow.AddHours(-24);
+                var allSuccess = true;
+                var sinceTimestamp = since ?? DateTime.UtcNow.AddHours(-24);
 
                 // Try to get lastModified to optimize sync
                 var lastModified = await GetLastModifiedAsync();
@@ -1391,7 +1393,8 @@ namespace Nocturne.Connectors.Nightscout.Services
         /// <returns>True if sync was successful</returns>
         public async Task<bool> SyncNightscoutDataAsync(
             NightscoutConnectorConfiguration config,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            DateTime? since = null
         )
         {
             try
@@ -1399,7 +1402,7 @@ namespace Nocturne.Connectors.Nightscout.Services
                 _logger.LogInformation("Starting Nightscout data sync using API data submitter");
 
                 var allSuccess = true;
-                var sinceTimestamp = DateTime.UtcNow.AddHours(-24);
+                var sinceTimestamp = since ?? DateTime.UtcNow.AddHours(-24);
 
                 // Sync glucose entries
                 try

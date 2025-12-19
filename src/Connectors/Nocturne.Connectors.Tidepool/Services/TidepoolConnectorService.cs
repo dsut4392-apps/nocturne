@@ -529,7 +529,8 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
     /// </summary>
     public async Task<bool> SyncTidepoolDataAsync(
         TidepoolConnectorConfiguration config,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        DateTime? since = null
     )
     {
         try
@@ -537,12 +538,12 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
             _logger.LogInformation("Starting Tidepool data sync");
 
             // Sync glucose data using base class
-            var success = await SyncDataAsync(config, cancellationToken);
+            var success = await SyncDataAsync(config, cancellationToken, since);
 
             // Optionally sync treatments
             if (success && config.SyncTreatments)
             {
-                await SyncTreatmentsAsync(cancellationToken);
+                await SyncTreatmentsAsync(cancellationToken, since);
             }
 
             if (success)
@@ -563,12 +564,12 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
         }
     }
 
-    private async Task SyncTreatmentsAsync(CancellationToken cancellationToken)
+    private async Task SyncTreatmentsAsync(CancellationToken cancellationToken, DateTime? since = null)
     {
         try
         {
             _stateService?.SetState(ConnectorState.Syncing, "Downloading treatments...");
-            var since = DateTime.UtcNow.AddDays(-1);
+            since ??= DateTime.UtcNow.AddDays(-1);
 
             // Fetch bolus data
             var boluses = await FetchBolusDataAsync(since);

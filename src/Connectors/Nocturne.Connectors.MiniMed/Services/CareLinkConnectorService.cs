@@ -730,7 +730,8 @@ namespace Nocturne.Connectors.MiniMed.Services
         /// <returns>True if sync was successful</returns>
         public async Task<bool> SyncCareLinkDataAsync(
             CareLinkConnectorConfiguration config,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            DateTime? since = null
         )
         {
             try
@@ -741,7 +742,7 @@ namespace Nocturne.Connectors.MiniMed.Services
                 );
 
                 // Use the hybrid sync method from BaseConnectorService for glucose data
-                var success = await SyncDataAsync(config, cancellationToken);
+                var success = await SyncDataAsync(config, cancellationToken, since);
 
                 if (success)
                 {

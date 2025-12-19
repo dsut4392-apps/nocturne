@@ -13,7 +13,10 @@ public interface IMyFitnessPalManualSyncService
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if sync was successful</returns>
-    Task<bool> TriggerManualSyncAsync(CancellationToken cancellationToken = default);
+    Task<bool> TriggerManualSyncAsync(
+        int? days = null,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>
     /// Gets the sync service status

@@ -76,7 +76,11 @@ public class Program
         // Configure manual sync endpoint
         app.MapPost(
             "/sync",
-            async (IServiceProvider serviceProvider, CancellationToken cancellationToken) =>
+            async (
+                int? days,
+                IServiceProvider serviceProvider,
+                CancellationToken cancellationToken
+            ) =>
             {
                 var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
                 var config = serviceProvider.GetRequiredService<TidepoolConnectorConfiguration>();
@@ -87,10 +91,16 @@ public class Program
                     var connectorService =
                         scope.ServiceProvider.GetRequiredService<TidepoolConnectorService>();
 
-                    logger.LogInformation("Manual sync triggered for Tidepool connector");
+                    var since = days.HasValue ? DateTime.UtcNow.AddDays(-days.Value) : null;
+                    logger.LogInformation(
+                        "Manual sync triggered for Tidepool connector with lookback: {Days} days",
+                        days
+                    );
+
                     var success = await connectorService.SyncTidepoolDataAsync(
                         config,
-                        cancellationToken
+                        cancellationToken,
+                        since
                     );
 
                     return Results.Ok(

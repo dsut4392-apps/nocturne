@@ -459,6 +459,11 @@ public class TreatmentSummary
     /// Total number of treatment entries
     /// </summary>
     public int TreatmentCount { get; set; }
+
+    /// <summary>
+    /// Carbohydrate to insulin ratio (grams of carbs per unit of insulin)
+    /// </summary>
+    public double CarbToInsulinRatio { get; set; }
 }
 
 /// <summary>

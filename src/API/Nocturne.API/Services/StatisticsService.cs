@@ -1553,6 +1553,12 @@ public class StatisticsService : IStatisticsService
                 summary.Totals.Food.Fat += treatment.Fat.Value;
         }
 
+        // Calculate carb to insulin ratio
+        var totalInsulin = summary.Totals.Insulin.Bolus + summary.Totals.Insulin.Basal;
+        summary.CarbToInsulinRatio = totalInsulin > 0
+            ? Math.Round(summary.Totals.Food.Carbs / totalInsulin * 10) / 10
+            : 0;
+
         return summary;
     }
 

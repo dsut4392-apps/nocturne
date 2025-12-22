@@ -13748,6 +13748,7 @@ export interface ExtendedTimeInRangePercentages {
 export interface TreatmentSummary {
     totals?: TreatmentTotals;
     treatmentCount?: number;
+    carbToInsulinRatio?: number;
 }
 
 export interface TreatmentTotals {

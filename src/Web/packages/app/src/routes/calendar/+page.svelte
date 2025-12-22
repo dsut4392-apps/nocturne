@@ -1,28 +1,45 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { page } from "$app/state";
   import * as Select from "$lib/components/ui/select";
   import * as Card from "$lib/components/ui/card";
   import * as Tooltip from "$lib/components/ui/tooltip";
   import { Calendar, ChevronLeft, ChevronRight } from "lucide-svelte";
   import { Button } from "$lib/components/ui/button";
-  import {
-    type DayStats,
-    getPunchCardData,
-  } from "$lib/data/month-to-month.remote";
+  import { getPunchCardData } from "$lib/data/month-to-month.remote";
   import { cn } from "$lib/utils";
   import { glucoseUnits } from "$lib/stores/appearance-store.svelte";
   import { formatGlucoseValue, getUnitLabel } from "$lib/utils/formatting";
   import CalendarSkeleton from "$lib/components/calendar/CalendarSkeleton.svelte";
 
-  // Current viewing month/year
-  let viewDate = $state(new Date());
+  // Infer DayStats type from the query result
+  type DayStats = NonNullable<
+    Awaited<ReturnType<typeof getPunchCardData>>
+  >["months"][number]["days"][number];
+
+  // Initialize viewDate from URL params or use current date
+  let viewDate = $state(
+    (() => {
+      const yearParam = page.url.searchParams.get("year");
+      const monthParam = page.url.searchParams.get("month");
+      if (yearParam && monthParam) {
+        const year = parseInt(yearParam);
+        const month = parseInt(monthParam) - 1; // URL uses 1-indexed month
+        if (!isNaN(year) && !isNaN(month) && month >= 0 && month <= 11) {
+          return new Date(year, month, 1);
+        }
+      }
+      return new Date();
+    })()
+  );
   const currentMonth = $derived(viewDate.getMonth());
   const currentYear = $derived(viewDate.getFullYear());
 
   // Calculate date range for current view (full month)
+  // Use full ISO timestamps to ensure the entire day is included
   const dateRangeInput = $derived.by(() => {
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const firstDay = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
     return {
       fromDate: firstDay.toISOString().split("T")[0],
       toDate: lastDay.toISOString().split("T")[0],
@@ -32,17 +49,38 @@
   // Query for punch card data (calculations done on backend)
   const punchCardQuery = $derived(getPunchCardData(dateRangeInput));
 
+  // Update URL when month changes
+  function updateUrl(date: Date) {
+    const url = new URL(page.url);
+    const today = new Date();
+    const isCurrentMonth =
+      today.getMonth() === date.getMonth() &&
+      today.getFullYear() === date.getFullYear();
+
+    if (isCurrentMonth) {
+      url.searchParams.delete("year");
+      url.searchParams.delete("month");
+    } else {
+      url.searchParams.set("year", String(date.getFullYear()));
+      url.searchParams.set("month", String(date.getMonth() + 1)); // 1-indexed
+    }
+    goto(url.toString(), { invalidateAll: true });
+  }
+
   // Navigation functions
   function previousMonth() {
     viewDate = new Date(currentYear, currentMonth - 1, 1);
+    updateUrl(viewDate);
   }
 
   function nextMonth() {
     viewDate = new Date(currentYear, currentMonth + 1, 1);
+    updateUrl(viewDate);
   }
 
   function goToToday() {
     viewDate = new Date();
+    updateUrl(viewDate);
   }
 
   // Check if current view is today's month
@@ -244,7 +282,7 @@
 
 {#await punchCardQuery}
   <CalendarSkeleton />
-{:then _data}
+{:then}
   <div class="flex flex-col h-full">
     <!-- Header -->
     <div

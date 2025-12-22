@@ -326,6 +326,43 @@ namespace Nocturne.Connectors.Glooko.Services
                 if (request.DataTypes.Contains(SyncDataType.Treatments))
                 {
                     var treatments = TransformBatchDataToTreatments(batchData);
+
+                    // V3 API Integration: Fetch additional data types not available in v2
+                    if (_config.UseV3Api)
+                    {
+                        try
+                        {
+                            _logger.LogInformation("[{ConnectorSource}] Fetching additional data from v3 API...", ConnectorSource);
+                            var v3Data = await FetchV3GraphDataAsync(from);
+                            if (v3Data != null)
+                            {
+                                var v3Treatments = TransformV3ToTreatments(v3Data);
+                                // Add v3 treatments that don't already exist (based on Id)
+                                var existingIds = treatments.Select(t => t.Id).ToHashSet();
+                                var newV3Treatments = v3Treatments.Where(t => !existingIds.Contains(t.Id)).ToList();
+                                treatments.AddRange(newV3Treatments);
+                                _logger.LogInformation("[{ConnectorSource}] Added {Count} unique treatments from v3 API",
+                                    ConnectorSource, newV3Treatments.Count);
+
+                                // Optionally add CGM backfill entries
+                                if (_config.V3IncludeCgmBackfill && request.DataTypes.Contains(SyncDataType.Glucose))
+                                {
+                                    var v3Entries = TransformV3ToEntries(v3Data).ToList();
+                                    if (v3Entries.Any())
+                                    {
+                                        await PublishGlucoseDataInBatchesAsync(v3Entries, config, cancellationToken);
+                                        _logger.LogInformation("[{ConnectorSource}] Published {Count} CGM backfill entries from v3",
+                                            ConnectorSource, v3Entries.Count);
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception v3Ex)
+                        {
+                            _logger.LogWarning(v3Ex, "[{ConnectorSource}] V3 API fetch failed, continuing with v2 data only", ConnectorSource);
+                        }
+                    }
+
                     if (treatments.Any())
                     {
                         var coreTreatments = treatments.Select(t => t.ToTreatment()).ToList();
@@ -1122,5 +1159,346 @@ namespace Nocturne.Connectors.Glooko.Services
                  System.Globalization.DateTimeStyles.RoundtripKind
              );
         }
+
+        #region V3 API Methods
+
+        private string? _meterUnits;
+
+        /// <summary>
+        /// Fetch user profile from v3 API to get meter units setting
+        /// </summary>
+        public async Task<GlookoV3UsersResponse?> FetchV3UserProfileAsync()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_sessionCookie))
+                {
+                    throw new InvalidOperationException("Not authenticated with Glooko. Call AuthenticateAsync first.");
+                }
+
+                var url = "/api/v3/session/users";
+                _logger.LogDebug("Fetching Glooko v3 user profile from {Url}", url);
+
+                var result = await FetchFromGlookoEndpoint(url);
+                if (result.HasValue)
+                {
+                    var profile = JsonSerializer.Deserialize<GlookoV3UsersResponse>(result.Value.GetRawText());
+                    if (profile?.CurrentUser != null)
+                    {
+                        _meterUnits = profile.CurrentUser.MeterUnits;
+                        _logger.LogInformation("[{ConnectorSource}] User profile loaded. MeterUnits: {Units}",
+                            ConnectorSource, _meterUnits);
+                    }
+                    return profile;
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching Glooko v3 user profile");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Fetch data from v3 graph/data API - single call for all data types
+        /// </summary>
+        public async Task<GlookoV3GraphResponse?> FetchV3GraphDataAsync(DateTime? since = null)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_sessionCookie))
+                {
+                    throw new InvalidOperationException("Not authenticated with Glooko. Call AuthenticateAsync first.");
+                }
+
+                if (_userData?.UserLogin?.GlookoCode == null)
+                {
+                    _logger.LogWarning("Missing Glooko user code, cannot fetch v3 data");
+                    return null;
+                }
+
+                // Ensure we have meter units
+                if (string.IsNullOrEmpty(_meterUnits))
+                {
+                    await FetchV3UserProfileAsync();
+                }
+
+                var fromDate = since ?? DateTime.UtcNow.AddDays(-1);
+                var toDate = DateTime.UtcNow;
+
+                var url = ConstructV3GraphUrl(fromDate, toDate);
+                _logger.LogInformation("[{ConnectorSource}] Fetching v3 graph data from {StartDate:yyyy-MM-dd} to {EndDate:yyyy-MM-dd}",
+                    ConnectorSource, fromDate, toDate);
+
+                var result = await FetchFromGlookoEndpointWithRetry(url);
+                if (result.HasValue)
+                {
+                    var graphData = JsonSerializer.Deserialize<GlookoV3GraphResponse>(result.Value.GetRawText());
+
+                    if (graphData?.Series != null)
+                    {
+                        _logger.LogInformation(
+                            "[{ConnectorSource}] Fetched v3 graph data: " +
+                            "AutomaticBolus={AutoBolus}, DeliveredBolus={Bolus}, " +
+                            "PumpAlarm={Alarms}, ReservoirChange={Reservoir}, SetSiteChange={SetSite}, " +
+                            "CgmReadings={Cgm}",
+                            ConnectorSource,
+                            graphData.Series.AutomaticBolus?.Length ?? 0,
+                            graphData.Series.DeliveredBolus?.Length ?? 0,
+                            graphData.Series.PumpAlarm?.Length ?? 0,
+                            graphData.Series.ReservoirChange?.Length ?? 0,
+                            graphData.Series.SetSiteChange?.Length ?? 0,
+                            (graphData.Series.CgmHigh?.Length ?? 0) +
+                            (graphData.Series.CgmNormal?.Length ?? 0) +
+                            (graphData.Series.CgmLow?.Length ?? 0));
+                    }
+
+                    return graphData;
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching Glooko v3 graph data");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Construct URL for v3 graph/data endpoint with all requested series
+        /// </summary>
+        private string ConstructV3GraphUrl(DateTime startDate, DateTime endDate)
+        {
+            var patientCode = _userData?.UserLogin?.GlookoCode;
+
+            // Series to request
+            var series = new[]
+            {
+                "automaticBolus",
+                "deliveredBolus",
+                "injectionBolus",
+                "pumpAlarm",
+                "reservoirChange",
+                "setSiteChange",
+                "carbAll",
+                "scheduledBasal",
+                "temporaryBasal",
+                "suspendBasal",
+                "profileChange"
+            };
+
+            // Add CGM series if backfill is enabled
+            if (_config.V3IncludeCgmBackfill)
+            {
+                series = series.Concat(new[] { "cgmHigh", "cgmNormal", "cgmLow" }).ToArray();
+            }
+
+            var seriesParams = string.Join("&", series.Select(s => $"series[]={s}"));
+
+            return $"/api/v3/graph/data?patient={patientCode}" +
+                   $"&startDate={startDate:yyyy-MM-ddTHH:mm:ss.fffZ}" +
+                   $"&endDate={endDate:yyyy-MM-ddTHH:mm:ss.fffZ}" +
+                   $"&{seriesParams}" +
+                   "&locale=en&insulinTooltips=false&filterBgReadings=false&splitByDay=false";
+        }
+
+        /// <summary>
+        /// Transform v3 graph data to Treatment objects
+        /// </summary>
+        public List<Treatment> TransformV3ToTreatments(GlookoV3GraphResponse graphData)
+        {
+            var treatments = new List<Treatment>();
+
+            if (graphData?.Series == null)
+                return treatments;
+
+            var series = graphData.Series;
+
+            // Process Automatic Boluses
+            if (series.AutomaticBolus != null)
+            {
+                foreach (var bolus in series.AutomaticBolus)
+                {
+                    var timestamp = DateTimeOffset.FromUnixTimeSeconds(bolus.X).UtcDateTime;
+                    treatments.Add(new Treatment
+                    {
+                        Id = GenerateTreatmentId("Automatic Bolus", timestamp, $"insulin:{bolus.Y}"),
+                        EventType = "Automatic Bolus",
+                        CreatedAt = timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        Insulin = bolus.Y,
+                        DataSource = ConnectorSource,
+                        Notes = "AID automatic bolus"
+                    });
+                }
+            }
+
+            // Process Delivered Boluses
+            if (series.DeliveredBolus != null)
+            {
+                foreach (var bolus in series.DeliveredBolus)
+                {
+                    var timestamp = DateTimeOffset.FromUnixTimeSeconds(bolus.X).UtcDateTime;
+                    var carbsInput = bolus.Data?.CarbsInput;
+
+                    treatments.Add(new Treatment
+                    {
+                        Id = GenerateTreatmentId("Meal Bolus", timestamp, $"insulin:{bolus.Y}_carbs:{carbsInput}"),
+                        EventType = carbsInput > 0 ? "Meal Bolus" : "Correction Bolus",
+                        CreatedAt = timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        Insulin = bolus.Y,
+                        Carbs = carbsInput > 0 ? carbsInput : null,
+                        DataSource = ConnectorSource
+                    });
+                }
+            }
+
+            // Process Pump Alarms
+            if (series.PumpAlarm != null)
+            {
+                foreach (var alarm in series.PumpAlarm)
+                {
+                    var timestamp = DateTimeOffset.FromUnixTimeSeconds(alarm.X).UtcDateTime;
+                    treatments.Add(new Treatment
+                    {
+                        Id = GenerateTreatmentId("Pump Alarm", timestamp, $"type:{alarm.AlarmType}"),
+                        EventType = "Pump Alarm",
+                        CreatedAt = timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        Notes = alarm.Data?.AlarmDescription ?? alarm.Label ?? alarm.AlarmType ?? "Unknown alarm",
+                        DataSource = ConnectorSource
+                    });
+                }
+            }
+
+            // Process Reservoir Changes
+            if (series.ReservoirChange != null)
+            {
+                foreach (var change in series.ReservoirChange)
+                {
+                    var timestamp = DateTimeOffset.FromUnixTimeSeconds(change.X).UtcDateTime;
+                    treatments.Add(new Treatment
+                    {
+                        Id = GenerateTreatmentId("Reservoir Change", timestamp, null),
+                        EventType = "Reservoir Change",
+                        CreatedAt = timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        Notes = change.Label,
+                        DataSource = ConnectorSource
+                    });
+                }
+            }
+
+            // Process Set Site Changes
+            if (series.SetSiteChange != null)
+            {
+                foreach (var change in series.SetSiteChange)
+                {
+                    var timestamp = DateTimeOffset.FromUnixTimeSeconds(change.X).UtcDateTime;
+                    treatments.Add(new Treatment
+                    {
+                        Id = GenerateTreatmentId("Site Change", timestamp, null),
+                        EventType = "Site Change",
+                        CreatedAt = timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        Notes = change.Label,
+                        DataSource = ConnectorSource
+                    });
+                }
+            }
+
+            // Process Carbs
+            if (series.CarbAll != null)
+            {
+                foreach (var carb in series.CarbAll)
+                {
+                    var timestamp = DateTimeOffset.FromUnixTimeSeconds(carb.X).UtcDateTime;
+                    treatments.Add(new Treatment
+                    {
+                        Id = GenerateTreatmentId("Carb Correction", timestamp, $"carbs:{carb.Y}"),
+                        EventType = "Carb Correction",
+                        CreatedAt = timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        Carbs = carb.Y,
+                        DataSource = ConnectorSource
+                    });
+                }
+            }
+
+            // Process Profile Changes
+            if (series.ProfileChange != null)
+            {
+                foreach (var change in series.ProfileChange)
+                {
+                    var timestamp = DateTimeOffset.FromUnixTimeSeconds(change.X).UtcDateTime;
+                    treatments.Add(new Treatment
+                    {
+                        Id = GenerateTreatmentId("Profile Switch", timestamp, $"profile:{change.ProfileName}"),
+                        EventType = "Profile Switch",
+                        CreatedAt = timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        Notes = change.ProfileName ?? change.Label,
+                        DataSource = ConnectorSource
+                    });
+                }
+            }
+
+            _logger.LogInformation("[{ConnectorSource}] Transformed {Count} treatments from v3 data",
+                ConnectorSource, treatments.Count);
+
+            return treatments;
+        }
+
+        /// <summary>
+        /// Transform v3 CGM data to Entry objects (for optional backfill)
+        /// </summary>
+        public IEnumerable<Entry> TransformV3ToEntries(GlookoV3GraphResponse graphData)
+        {
+            var entries = new List<Entry>();
+
+            if (graphData?.Series == null)
+                return entries;
+
+            var series = graphData.Series;
+            var allCgm = (series.CgmHigh ?? Array.Empty<GlookoV3GlucoseDataPoint>())
+                .Concat(series.CgmNormal ?? Array.Empty<GlookoV3GlucoseDataPoint>())
+                .Concat(series.CgmLow ?? Array.Empty<GlookoV3GlucoseDataPoint>())
+                .OrderBy(p => p.X);
+
+            foreach (var reading in allCgm)
+            {
+                if (reading.Calculated)
+                    continue; // Skip interpolated values
+
+                var timestamp = DateTimeOffset.FromUnixTimeSeconds(reading.X).UtcDateTime;
+                var sgvMgdl = ConvertToMgdl(reading.Y);
+
+                entries.Add(new Entry
+                {
+                    Id = $"glooko_v3_{reading.X}",
+                    Date = timestamp,
+                    Sgv = (int)Math.Round(sgvMgdl),
+                    Type = "sgv",
+                    Device = ConnectorSource,
+                    Direction = Direction.Flat.ToString() // v3 doesn't provide trend
+                });
+            }
+
+            _logger.LogInformation("[{ConnectorSource}] Transformed {Count} CGM entries from v3 data",
+                ConnectorSource, entries.Count);
+
+            return entries;
+        }
+
+        /// <summary>
+        /// Convert glucose value to mg/dL based on user's meter units setting
+        /// </summary>
+        private double ConvertToMgdl(double value)
+        {
+            if (_meterUnits?.ToLowerInvariant() == "mmol")
+            {
+                return value * 18.0182;
+            }
+            return value;
+        }
+
+        #endregion
     }
 }

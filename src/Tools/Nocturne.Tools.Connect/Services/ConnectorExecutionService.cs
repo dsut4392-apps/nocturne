@@ -324,16 +324,21 @@ public class ConnectorExecutionService
         IConnectorConfiguration config
     )
     {
-        // For now, use the individual connector's sync method by calling their specific methods
-        // This avoids the generic variance issue while maintaining functionality
         try
         {
             var connectorType = connector.GetType().Name;
             _logger.LogDebug("Performing sync with connector: {ConnectorType}", connectorType);
 
-            // Get glucose data and upload to Nightscout
-            var entries = await connector.FetchGlucoseDataAsync();
-            return await connector.UploadToNightscoutAsync(entries, config);
+            // Use the new SyncDataAsync method
+            var request = new SyncRequest
+            {
+                DataTypes = connector.SupportedDataTypes,
+                From = DateTime.UtcNow.AddHours(-3), // Default 3-hour lookback
+                To = DateTime.UtcNow
+            };
+
+            var result = await connector.SyncDataAsync(request, config, CancellationToken.None);
+            return result.Success;
         }
         catch (Exception ex)
         {
@@ -547,15 +552,18 @@ internal class ConnectorServiceWrapper<TConfig> : IConnectorService<IConnectorCo
 
     public string ServiceName => _innerService.ServiceName;
 
+    public List<SyncDataType> SupportedDataTypes => _innerService.SupportedDataTypes;
+
     public Task<bool> AuthenticateAsync() => _innerService.AuthenticateAsync();
 
     public Task<IEnumerable<Entry>> FetchGlucoseDataAsync(DateTime? since = null) =>
         _innerService.FetchGlucoseDataAsync(since);
 
-    public Task<bool> UploadToNightscoutAsync(
-        IEnumerable<Entry> entries,
-        IConnectorConfiguration config
-    ) => _innerService.UploadToNightscoutAsync(entries, (TConfig)config);
+    public Task<SyncResult> SyncDataAsync(
+        SyncRequest request,
+        IConnectorConfiguration config,
+        CancellationToken cancellationToken
+    ) => _innerService.SyncDataAsync(request, (TConfig)config, cancellationToken);
 
     public void Dispose() => _innerService.Dispose();
 }

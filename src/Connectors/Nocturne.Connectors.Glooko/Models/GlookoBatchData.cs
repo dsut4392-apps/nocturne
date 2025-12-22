@@ -437,4 +437,19 @@ namespace Nocturne.Connectors.Glooko.Models
         [JsonPropertyName("eventData")]
         public object? EventData { get; set; }
     }
+
+    public class GlookoReservoirChange
+    {
+        [JsonPropertyName("x")]
+        public long X { get; set; }
+
+        [JsonPropertyName("y")]
+        public double Y { get; set; }
+
+        [JsonPropertyName("timestamp")]
+        public string Timestamp { get; set; } = string.Empty;
+
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = string.Empty;
+    }
 }

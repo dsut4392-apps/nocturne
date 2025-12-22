@@ -15,8 +15,8 @@ public class QueryParser : IQueryParser
 {
     private static readonly Dictionary<string, Func<string, object>> DefaultEntryConverters = new()
     {
-        ["date"] = s => long.Parse(s),
-        ["mills"] = s => long.Parse(s),
+        ["date"] = ParseIsoDateToMills,
+        ["mills"] = ParseIsoDateToMills,
         ["sgv"] = s => int.Parse(s),
         ["filtered"] = s => int.Parse(s),
         ["unfiltered"] = s => int.Parse(s),

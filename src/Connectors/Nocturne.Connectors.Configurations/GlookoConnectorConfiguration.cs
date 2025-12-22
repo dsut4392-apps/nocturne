@@ -69,6 +69,20 @@ namespace Nocturne.Connectors.Configurations
         )]
         public string GlookoServer { get; set; } = "US";
 
+        /// <summary>
+        /// Use v3 API for additional data types (alarms, automatic boluses, consumables).
+        /// This provides a single API call instead of multiple v2 calls.
+        /// </summary>
+        [EnvironmentVariable("CONNECT_GLOOKO_USE_V3_API")]
+        public bool UseV3Api { get; set; } = true;
+
+        /// <summary>
+        /// Include CGM readings from v3 as backup to primary CGM source (e.g., xDrip).
+        /// Only use this if you want Glooko to fill gaps in your primary CGM data.
+        /// </summary>
+        [EnvironmentVariable("CONNECT_GLOOKO_V3_CGM_BACKFILL")]
+        public bool V3IncludeCgmBackfill { get; set; } = false;
+
         protected override void ValidateSourceSpecificConfiguration()
         {
             if (string.IsNullOrWhiteSpace(GlookoUsername))

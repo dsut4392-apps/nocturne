@@ -13076,6 +13076,10 @@
           "treatmentCount": {
             "type": "integer",
             "format": "int32"
+          },
+          "carbToInsulinRatio": {
+            "type": "number",
+            "format": "double"
           }
         }
       },

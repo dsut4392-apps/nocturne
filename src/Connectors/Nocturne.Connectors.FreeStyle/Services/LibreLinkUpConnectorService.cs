@@ -67,6 +67,8 @@ namespace Nocturne.Connectors.FreeStyle.Services
         /// </summary>
         public override string ConnectorSource => DataSources.LibreConnector;
 
+        public override List<SyncDataType> SupportedDataTypes => new() { SyncDataType.Glucose };
+
         public LibreConnectorService(
             HttpClient httpClient,
             IOptions<LibreLinkUpConnectorConfiguration> config,
@@ -571,47 +573,7 @@ namespace Nocturne.Connectors.FreeStyle.Services
             }
         }
 
-        /// <summary>
-        /// Syncs FreeStyle LibreLinkUp data using message publishing when available, with fallback to direct API
-        /// </summary>
-        /// <param name="config">Connector configuration</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>True if sync was successful</returns>
-        public async Task<bool> SyncLibreDataAsync(
-            LibreLinkUpConnectorConfiguration config,
-            CancellationToken cancellationToken = default,
-            DateTime? since = null
-        )
-        {
-            try
-            {
-                _logger.LogInformation(
-                    "Starting FreeStyle LibreLinkUp data sync using {Mode} mode",
-                    config.UseAsyncProcessing ? "asynchronous" : "direct API"
-                );
 
-                // Use the hybrid sync method from BaseConnectorService
-                var success = await SyncDataAsync(config, cancellationToken, since);
-
-                if (success)
-                {
-                    _logger.LogInformation(
-                        "FreeStyle LibreLinkUp data sync completed successfully"
-                    );
-                }
-                else
-                {
-                    _logger.LogWarning("FreeStyle LibreLinkUp data sync failed");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during FreeStyle LibreLinkUp data sync");
-                return false;
-            }
-        }
 
         private class LibreLoginResponse
         {

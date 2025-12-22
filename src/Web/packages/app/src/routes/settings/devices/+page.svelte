@@ -7,12 +7,11 @@
     CardHeader,
     CardTitle,
   } from "$lib/components/ui/card";
-  import { Button } from "$lib/components/ui/button";
   import { Badge } from "$lib/components/ui/badge";
   import { Switch } from "$lib/components/ui/switch";
   import { Label } from "$lib/components/ui/label";
   import { Separator } from "$lib/components/ui/separator";
-  import { AlertCircle } from "lucide-svelte";
+  import { AlertCircle, Loader2 } from "lucide-svelte";
   import {
     Select,
     SelectContent,
@@ -23,49 +22,38 @@
     Smartphone,
     Activity,
     Bluetooth,
-    Plus,
-    Settings,
-    Trash2,
-    RefreshCw,
     Battery,
+    Droplet,
+    Radio,
+    Watch,
   } from "lucide-svelte";
   import SettingsPageSkeleton from "$lib/components/settings/SettingsPageSkeleton.svelte";
+  import {
+    getRecentDeviceStatuses,
+    type DisplayDevice,
+  } from "$lib/data/devices.remote";
 
   const store = getSettingsStore();
 
-  function getStatusBadge(status: string | undefined) {
+  function getStatusBadge(status: DisplayDevice["status"]) {
     switch (status) {
-      case "connected":
-        return { variant: "default" as const, text: "Connected" };
-      case "disconnected":
-        return { variant: "secondary" as const, text: "Disconnected" };
-      case "error":
-        return { variant: "destructive" as const, text: "Error" };
+      case "active":
+        return { variant: "default" as const, text: "Active" };
+      case "stale":
+        return { variant: "secondary" as const, text: "Stale" };
       default:
-        return { variant: "secondary" as const, text: status ?? "Unknown" };
+        return { variant: "secondary" as const, text: "Unknown" };
     }
   }
 
-  function formatLastSync(date: Date | undefined): string {
-    if (!date) return "Never";
-    const diff = Date.now() - new Date(date).getTime();
+  function formatLastSeen(date: Date): string {
+    const diff = Date.now() - date.getTime();
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) return "Just now";
     if (minutes < 60) return `${minutes}m ago`;
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h ago`;
-    return new Date(date).toLocaleDateString();
-  }
-
-  function removeDevice(deviceId: string | undefined) {
-    if (!deviceId || !store.devices?.connectedDevices) return;
-    const index = store.devices.connectedDevices.findIndex(
-      (d) => d.id === deviceId
-    );
-    if (index !== -1) {
-      store.devices.connectedDevices.splice(index, 1);
-      store.markChanged();
-    }
+    return date.toLocaleDateString();
   }
 </script>
 
@@ -95,89 +83,90 @@
       </CardContent>
     </Card>
   {:else if store.devices}
-    <!-- Connected Devices -->
+    <!-- Active Devices -->
     <Card>
       <CardHeader>
-        <div class="flex items-center justify-between">
-          <div>
-            <CardTitle>Connected Devices</CardTitle>
-            <CardDescription>
-              Devices currently paired with Nocturne
-            </CardDescription>
-          </div>
-          <Button size="sm" class="gap-2">
-            <Plus class="h-4 w-4" />
-            Add Device
-          </Button>
-        </div>
+        <CardTitle>Active Devices</CardTitle>
+        <CardDescription>
+          Devices actively reporting data to Nocturne
+        </CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">
-        {#if !store.devices.connectedDevices || store.devices.connectedDevices.length === 0}
-          <div class="text-center py-8 text-muted-foreground">
-            <Bluetooth class="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p class="font-medium">No devices connected</p>
-            <p class="text-sm">Add a CGM or pump to get started</p>
+        {#await getRecentDeviceStatuses()}
+          <div class="flex items-center justify-center py-8">
+            <Loader2 class="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        {:else}
-          {#each store.devices.connectedDevices as device}
-            <div
-              class="flex items-center justify-between p-4 rounded-lg border"
-            >
-              <div class="flex items-center gap-4">
-                <div
-                  class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10"
-                >
-                  {#if device.type === "cgm"}
-                    <Activity class="h-6 w-6 text-primary" />
-                  {:else}
-                    <Smartphone class="h-6 w-6 text-primary" />
-                  {/if}
-                </div>
-                <div>
-                  <div class="flex items-center gap-2">
-                    <span class="font-medium">{device.name}</span>
-                    <Badge variant={getStatusBadge(device.status).variant}>
-                      {getStatusBadge(device.status).text}
-                    </Badge>
-                  </div>
-                  <div
-                    class="text-sm text-muted-foreground flex items-center gap-3"
-                  >
-                    {#if device.battery != null}
-                      <span class="flex items-center gap-1">
-                        <Battery class="h-3 w-3" />
-                        {device.battery}%
-                      </span>
-                      <span>•</span>
-                    {/if}
-                    <span>Last sync: {formatLastSync(device.lastSync)}</span>
-                  </div>
-                  {#if device.serialNumber}
-                    <div class="text-xs text-muted-foreground mt-1">
-                      S/N: {device.serialNumber}
-                    </div>
-                  {/if}
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <Button variant="ghost" size="icon">
-                  <RefreshCw class="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Settings class="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="text-destructive"
-                  onclick={() => removeDevice(device.id)}
-                >
-                  <Trash2 class="h-4 w-4" />
-                </Button>
-              </div>
+        {:then devices}
+          {#if devices.length === 0}
+            <div class="text-center py-8 text-muted-foreground">
+              <Bluetooth class="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p class="font-medium">No active devices found</p>
+              <p class="text-sm">Connect a CGM or pump app to see it here</p>
             </div>
-          {/each}
-        {/if}
+          {:else}
+            {#each devices as device (device.id)}
+              <div
+                class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-4"
+              >
+                <div class="flex items-start sm:items-center gap-4">
+                  <div
+                    class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10"
+                  >
+                    {#if device.type === "cgm"}
+                      <Activity class="h-6 w-6 text-primary" />
+                    {:else if device.type === "pump"}
+                      <Droplet class="h-6 w-6 text-primary" />
+                    {:else if device.type === "loop"}
+                      <Radio class="h-6 w-6 text-primary" />
+                    {:else if device.type === "uploader"}
+                      <Smartphone class="h-6 w-6 text-primary" />
+                    {:else}
+                      <Watch class="h-6 w-6 text-primary" />
+                    {/if}
+                  </div>
+                  <div>
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                      <span class="font-medium">{device.name}</span>
+                      <Badge variant={getStatusBadge(device.status).variant}>
+                        {getStatusBadge(device.status).text}
+                      </Badge>
+                    </div>
+
+                    <div
+                      class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground"
+                    >
+                      {#if device.batteryLevel != null}
+                        <span class="flex items-center gap-1">
+                          <Battery class="h-3 w-3" />
+                          {device.batteryLevel}%
+                        </span>
+                      {/if}
+
+                      {#each device.details as detail}
+                        <span class="flex items-center gap-1">
+                          <span class="opacity-70">{detail.label}:</span>
+                          <span>{detail.value}{detail.unit ?? ""}</span>
+                        </span>
+                      {/each}
+                    </div>
+
+                    <div class="text-xs text-muted-foreground mt-1">
+                      Last seen: {formatLastSeen(device.lastSeen)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        {:catch error}
+          <div class="text-center py-8 text-muted-foreground">
+            <AlertCircle
+              class="h-12 w-12 mx-auto mb-4 opacity-50 text-destructive"
+            />
+            <p class="font-medium text-destructive">Failed to load devices</p>
+            <p class="text-sm">{error.message}</p>
+          </div>
+        {/await}
       </CardContent>
     </Card>
 

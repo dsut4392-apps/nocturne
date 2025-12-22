@@ -502,6 +502,11 @@ public enum AlertType
     /// Device warning or error
     /// </summary>
     DeviceWarning,
+
+    /// <summary>
+    /// Forecast low glucose alert
+    /// </summary>
+    ForecastLow,
 }
 
 /// <summary>

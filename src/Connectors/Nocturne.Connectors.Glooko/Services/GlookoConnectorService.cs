@@ -58,6 +58,14 @@ namespace Nocturne.Connectors.Glooko.Services
         public override string ServiceName => "Glooko";
         public override string ConnectorSource => DataSources.GlookoConnector;
 
+        public override List<SyncDataType> SupportedDataTypes => new()
+        {
+            SyncDataType.Glucose,
+            SyncDataType.Treatments,
+            SyncDataType.Food,
+            SyncDataType.Activity
+        };
+
         public GlookoConnectorService(
             HttpClient httpClient,
             IOptions<GlookoConnectorConfiguration> config,
@@ -249,6 +257,111 @@ namespace Nocturne.Connectors.Glooko.Services
             {
                 _logger.LogError($"Glooko authentication error: {ex.Message}");
                 return false;
+            }
+        }
+
+        protected override async Task<SyncResult> PerformSyncInternalAsync(
+            SyncRequest request,
+            GlookoConnectorConfiguration config,
+            CancellationToken cancellationToken
+        )
+        {
+            var result = new SyncResult
+            {
+                Success = true,
+                Message = "Sync completed successfully",
+                StartTime = DateTime.UtcNow
+            };
+
+            _stateService?.SetState(ConnectorState.Syncing, "Starting Glooko batch sync...");
+
+            try
+            {
+                if (IsSessionExpired())
+                {
+                    if (!await AuthenticateAsync())
+                    {
+                        result.Success = false;
+                        result.Message = "Authentication failed";
+                        result.Errors.Add("Authentication failed");
+                        _stateService?.SetState(ConnectorState.Error, "Authentication failed");
+                        return result;
+                    }
+                }
+
+                // Glooko fetches everything in one go, so determine the earliest 'From' date needed
+                DateTime? from = request.From;
+
+                var batchData = await FetchBatchDataAsync(from);
+
+                if (batchData == null)
+                {
+                    result.Success = false;
+                    result.Message = "Failed to fetch data";
+                    result.Errors.Add("No data returned from Glooko");
+                    _stateService?.SetState(ConnectorState.Error, "Failed to fetch data");
+                    return result;
+                }
+
+                // 1. Process Glucose
+                if (request.DataTypes.Contains(SyncDataType.Glucose))
+                {
+                    var entries = TransformBatchDataToEntries(batchData).ToList();
+                    if (entries.Any())
+                    {
+                        var success = await PublishGlucoseDataInBatchesAsync(
+                            entries,
+                            config,
+                            cancellationToken
+                        );
+                        if (success)
+                        {
+                            result.ItemsSynced[SyncDataType.Glucose] = entries.Count;
+                            result.LastEntryTimes[SyncDataType.Glucose] = entries.Max(e => e.Date);
+                        }
+                    }
+                }
+
+                // 2. Process Treatments
+                if (request.DataTypes.Contains(SyncDataType.Treatments))
+                {
+                    var treatments = TransformBatchDataToTreatments(batchData);
+                    if (treatments.Any())
+                    {
+                        var coreTreatments = treatments.Select(t => t.ToTreatment()).ToList();
+                        var success = await PublishTreatmentDataInBatchesAsync(
+                            coreTreatments,
+                            config,
+                            cancellationToken
+                        );
+
+                        if (success)
+                        {
+                            result.ItemsSynced[SyncDataType.Treatments] = coreTreatments.Count;
+
+                            // Parse timestamp safely
+                            var maxDateStr = treatments.Max(t => t.CreatedAt);
+                            if (DateTime.TryParse(maxDateStr, out var maxDate))
+                            {
+                                result.LastEntryTimes[SyncDataType.Treatments] = maxDate;
+                            }
+                        }
+                    }
+                }
+
+                result.EndTime = DateTime.UtcNow;
+                _stateService?.SetState(ConnectorState.Idle, "Sync completed");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during Glooko batch sync");
+                result.Success = false;
+                result.Message = "Sync failed with exception";
+                result.Errors.Add(ex.Message);
+                result.EndTime = DateTime.UtcNow;
+                _stateService?.SetState(ConnectorState.Error, "Sync failed");
+                return result;
             }
         }
 
@@ -730,85 +843,6 @@ namespace Nocturne.Connectors.Glooko.Services
             return treatments;
         }
 
-        /// <summary>
-        /// Fetch Glooko data and upload treatments to Nightscout
-        /// This provides the complete treatment upload workflow
-        /// </summary>
-        public async Task<bool> FetchAndUploadTreatmentsAsync(
-            DateTime? since = null,
-            GlookoConnectorConfiguration? config = null
-        )
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(_sessionCookie))
-                {
-                    _logger.LogWarning(
-                        "Not authenticated with Glooko. Call AuthenticateAsync first."
-                    );
-                    return false;
-                }
-
-                _stateService?.SetState(ConnectorState.Syncing, "Syncing treatments via sidecar...");
-
-                var actualConfig = config ?? _config;
-                _logger.LogInformation(
-                    $"FetchAndUploadTreatmentsAsync: SaveRawData={actualConfig.SaveRawData}, DataDirectory={actualConfig.DataDirectory}"
-                );
-
-                // Use catch-up functionality to determine optimal since timestamp
-                var effectiveSince = await CalculateSinceTimestampAsync(actualConfig, since);
-
-                // Fetch comprehensive batch data from Glooko
-                var batchData = await FetchBatchDataAsync(effectiveSince);
-                if (batchData == null)
-                {
-                    _logger.LogWarning("No batch data retrieved from Glooko");
-                    _stateService?.SetState(ConnectorState.Error, "No data retrieved from Glooko");
-                    return false;
-                }
-
-                // Save raw data files if configured - now using reflection-based helper
-                await SaveBatchDataAsync(batchData, ServiceName, actualConfig, _logger);
-
-                // Transform to treatments
-                var nightscoutTreatments = TransformBatchDataToTreatments(batchData);
-                if (nightscoutTreatments.Count == 0)
-                {
-                    _logger.LogInformation("No treatments to upload");
-                    _stateService?.SetState(ConnectorState.Idle, "Sync completed (no new treatments)");
-                    return true;
-                }
-
-                // Convert to Core Treatment models
-                var treatments = nightscoutTreatments.Select(t => t.ToTreatment()).ToList();
-
-                // Save transformed treatments if configured to do so
-                if (actualConfig.SaveRawData)
-                {
-                    await SaveTreatmentsToFileAsync(treatments, ServiceName, actualConfig, _logger);
-                }
-                // Upload treatments to Nocturne API (via ApiDataSubmitter)
-                var success = await PublishTreatmentDataInBatchesAsync(treatments, actualConfig);
-
-                _logger.LogInformation(
-                    $"Treatment upload {(success ? "succeeded" : "failed")}: {treatments.Count} treatments"
-                );
-
-                if (success)
-                    _stateService?.SetState(ConnectorState.Idle, "Sync completed successfully");
-                else
-                    _stateService?.SetState(ConnectorState.Error, "Treatment upload failed");
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error fetching and uploading treatments: {ex.Message}");
-                _stateService?.SetState(ConnectorState.Error, $"Error: {ex.Message}");
-                return false;
-            }
-        }
 
         private string ConstructGlookoUrl(string endpoint, DateTime startDate, DateTime endDate)
         {
@@ -1037,140 +1071,6 @@ namespace Nocturne.Connectors.Glooko.Services
             throw new HttpRequestException($"All {maxRetries} attempts failed for {url}");
         }
 
-        /// <summary>
-        /// Syncs Glooko health data using message publishing when available, with fallback to direct API
-        /// This includes glucose, blood pressure, weight, and sleep data
-        /// </summary>
-        /// <param name="config">Connector configuration</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>True if sync was successful</returns>
-        /// <summary>
-        /// Syncs Glooko health data (Glucose AND Treatments) using message publishing when available.
-        /// Performs a comprehensive sync in a single fetch.
-        /// </summary>
-        /// <param name="config">Connector configuration</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>True if sync was successful</returns>
-        public async Task<bool> SyncGlookoHealthDataAsync(
-            GlookoConnectorConfiguration config,
-            CancellationToken cancellationToken = default,
-            DateTime? since = null
-        )
-        {
-            try
-            {
-                _logger.LogInformation(
-                    "Starting Glooko health data sync (Comprehensive: Glucose + Treatments) using {Mode} mode",
-                    config.UseAsyncProcessing ? "asynchronous" : "direct API"
-                );
-
-                // Authenticate first if we don't have a session cookie
-                if (string.IsNullOrEmpty(_sessionCookie))
-                {
-                    _logger.LogInformation("Authenticating with Glooko...");
-                    var authSuccess = await AuthenticateAsync();
-                    if (!authSuccess)
-                    {
-                        _logger.LogError("Failed to authenticate with Glooko");
-                        return false;
-                    }
-                }
-
-                if (config.UseAsyncProcessing && _apiDataSubmitter != null)
-                {
-                    _stateService?.SetState(ConnectorState.Syncing, "Syncing data via sidecar...");
-
-                    // 1. Calculate Since Timestamp
-                    var sinceTimestamp = await CalculateSinceTimestampAsync(config, since);
-
-                    // 2. Fetch Comprehensive Batch Data (Once)
-                    var batchData = await FetchBatchDataAsync(sinceTimestamp);
-                    if (batchData == null)
-                    {
-                        _logger.LogWarning("No batch data retrieved from Glooko");
-                        return false;
-                    }
-
-                    // 3. Save Raw Data (if configured)
-                    await SaveBatchDataAsync(batchData, ServiceName, config, _logger);
-
-                    // 4. Transform and Upload Glucose
-                    var glucoseEntries = TransformBatchDataToEntries(batchData).ToList();
-                    bool glucoseSuccess = true;
-                    if (glucoseEntries.Count > 0)
-                    {
-                        glucoseSuccess = await PublishGlucoseDataInBatchesAsync(
-                            glucoseEntries,
-                            config,
-                            cancellationToken
-                        );
-                        if(glucoseSuccess) _logger.LogInformation("Published {Count} glucose entries", glucoseEntries.Count);
-                    }
-                    else
-                    {
-                         _logger.LogInformation("No new glucose entries found");
-                    }
-
-                    // 5. Transform and Upload Treatments
-                    var nightscoutTreatments = TransformBatchDataToTreatments(batchData);
-                    bool treatmentsSuccess = true;
-
-                    if (nightscoutTreatments.Count > 0)
-                    {
-                         // Convert to Core Treatment models (Models.Treatment -> Core.Models.Treatment)
-                         // Note: Assuming ToTreatment() extension is available as used in FetchAndUploadTreatmentsAsync
-                         var treatments = nightscoutTreatments.Select(t => t.ToTreatment()).ToList();
-
-                         // Save Transformed Treatments Raw Data (if configured)
-                         if (config.SaveRawData)
-                         {
-                             await SaveTreatmentsToFileAsync(treatments, ServiceName, config, _logger);
-                         }
-
-                         treatmentsSuccess = await PublishTreatmentDataInBatchesAsync(
-                             treatments,
-                             config,
-                             cancellationToken
-                         );
-                         if(treatmentsSuccess) _logger.LogInformation("Published {Count} treatments", treatments.Count);
-                    }
-                     else
-                    {
-                         _logger.LogInformation("No new treatments found");
-                    }
-
-                    // 6. Report Status
-                    var success = glucoseSuccess && treatmentsSuccess;
-
-                    if (success)
-                    {
-                        _logger.LogInformation("Glooko comprehensive sync completed successfully");
-                        _stateService?.SetState(ConnectorState.Idle, "Sync completed successfully");
-                        return true;
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Glooko comprehensive sync completed with errors");
-                        _stateService?.SetState(ConnectorState.Error, "Sync completed with errors");
-                        return false;
-                    }
-                }
-                else
-                {
-                    // Fallback to legacy behavior for direct API mode (or TODO: Implement comprehensive sync for Direct API too)
-                    // For now, we'll keep the existing flow but warn
-                    _logger.LogWarning("Direct API mode selected - defaulting to Glucose-only sync via base class");
-                    var success = await SyncDataAsync(config, cancellationToken, since);
-                    return success;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during Glooko health data sync");
-                _stateService?.SetState(ConnectorState.Error, $"Error: {ex.Message}");
-                return false;
-            }
-        }
 
         /// <summary>
         /// Parses a Glooko trend string to Direction enum
@@ -1207,6 +1107,11 @@ namespace Nocturne.Connectors.Glooko.Services
             _logger.LogInformation("GetCorrectedGlookoTime: Raw={Raw}, ConfigOffset={ConfigOffset}, Result={Result}",
                 rawDate, _config.TimezoneOffset, corrected);
             return corrected;
+        }
+
+        private bool IsSessionExpired()
+        {
+            return string.IsNullOrEmpty(_sessionCookie);
         }
 
         private DateTime GetRawGlookoDate(string timestamp, string? pumpTimestamp)

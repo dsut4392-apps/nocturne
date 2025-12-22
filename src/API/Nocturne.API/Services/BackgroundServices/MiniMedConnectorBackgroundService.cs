@@ -24,6 +24,6 @@ public class MiniMedConnectorBackgroundService
         using var scope = ServiceProvider.CreateScope();
         var connectorService = scope.ServiceProvider.GetRequiredService<CareLinkConnectorService>();
 
-        return await connectorService.SyncCareLinkDataAsync(Config, cancellationToken);
+        return await connectorService.SyncDataAsync(Config, cancellationToken);
     }
 }

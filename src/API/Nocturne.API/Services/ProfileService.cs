@@ -425,7 +425,7 @@ public class ProfileService : IProfileService
                 // Fallback for systems using 'Amount' instead of 'Rate'
                 tempBasal = treatment.Amount.Value;
             }
-            else if (treatment.Insulin.HasValue && treatment.Duration.Value > 0)
+            else if (treatment.Insulin.HasValue && treatment.Duration.GetValueOrDefault() > 0)
             {
                 // Fallback: use calculated Rate property
                 tempBasal = treatment.Rate ?? 0;

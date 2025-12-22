@@ -1,14 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
+using Nocturne.API.Models;
 using Nocturne.API.Services;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models.Services;
+using Nocturne.Infrastructure.Data.Abstractions;
 
 namespace Nocturne.API.Controllers.V4;
 
 /// <summary>
 /// Services controller for managing data sources, connectors, and integrations.
 /// Provides information about connected data sources, available connectors,
-/// and setup instructions for uploaders like xDrip+, Loop, AAPS, etc.
+/// sync status for connectors, and setup instructions for uploaders like xDrip+, Loop, AAPS, etc.
 /// </summary>
 [ApiController]
 [Route("api/v4/services")]
@@ -16,19 +18,25 @@ namespace Nocturne.API.Controllers.V4;
 public class ServicesController : ControllerBase
 {
     private readonly IDataSourceService _dataSourceService;
-    private readonly IManualSyncService _manualSyncService;
+    private readonly IConnectorSyncService _connectorSyncService;
+    private readonly IPostgreSqlService _postgreSqlService;
+    private readonly IConnectorHealthService _connectorHealthService;
     private readonly ILogger<ServicesController> _logger;
     private readonly IConfiguration _configuration;
 
     public ServicesController(
         IDataSourceService dataSourceService,
-        IManualSyncService manualSyncService,
+        IConnectorSyncService connectorSyncService,
+        IPostgreSqlService postgreSqlService,
+        IConnectorHealthService connectorHealthService,
         ILogger<ServicesController> logger,
         IConfiguration configuration
     )
     {
         _dataSourceService = dataSourceService;
-        _manualSyncService = manualSyncService;
+        _connectorSyncService = connectorSyncService;
+        _postgreSqlService = postgreSqlService;
+        _connectorHealthService = connectorHealthService;
         _logger = logger;
         _configuration = configuration;
     }
@@ -330,35 +338,39 @@ public class ServicesController : ControllerBase
     }
 
     /// <summary>
-    /// Trigger a manual sync of all enabled connectors.
-    /// This will sync data for the configured lookback period for all enabled connectors.
-    /// Only available if BackfillDays is configured in appsettings.
+    /// Trigger a manual sync for a specific connector with granular control.
     /// </summary>
+    /// <param name="id">Connector ID</param>
+    /// <param name="request">Sync request parameters</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result of the manual sync operation</returns>
-    [HttpPost("manual-sync")]
-    [ProducesResponseType(typeof(ManualSyncResult), 200)]
+    [HttpPost("connectors/{id}/sync")]
+    [ProducesResponseType(typeof(Nocturne.Connectors.Core.Models.SyncResult), 200)]
     [ProducesResponseType(400)]
+    [ProducesResponseType(404)]
     [ProducesResponseType(500)]
-    public async Task<ActionResult<ManualSyncResult>> TriggerManualSync(
-        [FromQuery] int? days = null,
+    public async Task<ActionResult<Nocturne.Connectors.Core.Models.SyncResult>> TriggerConnectorSync(
+        string id,
+        [FromBody] Nocturne.Connectors.Core.Models.SyncRequest request,
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogInformation("Manual sync triggered via API");
-
-        if (!_manualSyncService.IsEnabled())
-        {
-            _logger.LogWarning("Manual sync is not enabled");
-            return BadRequest(new { error = "Manual sync is not enabled. Configure BackfillDays in appsettings." });
-        }
+        _logger.LogInformation("Granular sync triggered for connector {Id} via API", id);
 
         try
         {
-            var result = await _manualSyncService.TriggerManualSyncAsync(days, cancellationToken);
+            var result = await _connectorSyncService.TriggerConnectorSyncAsync(id, request, cancellationToken);
 
             if (!result.Success)
             {
+                if (result.Message?.Contains("not found") == true)
+                {
+                    return NotFound(new { error = result.Message });
+                }
+                if (result.Message?.Contains("not configured") == true)
+                {
+                    return BadRequest(new { error = result.Message });
+                }
                 return StatusCode(500, result);
             }
 
@@ -366,9 +378,136 @@ public class ServicesController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error triggering manual sync");
-            return StatusCode(500, new { error = "Failed to trigger manual sync" });
+            _logger.LogError(ex, "Error triggering granular sync for {Id}", id);
+            return StatusCode(500, new { error = "Failed to trigger sync" });
         }
+    }
+
+    /// <summary>
+    /// Get the supported sync capabilities for a specific connector.
+    /// </summary>
+    /// <param name="id">Connector ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of supported data types</returns>
+    [HttpGet("connectors/{id}/capabilities")]
+    [ProducesResponseType(typeof(List<Nocturne.Connectors.Core.Models.SyncDataType>), 200)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<ActionResult<List<Nocturne.Connectors.Core.Models.SyncDataType>>> GetConnectorCapabilities(
+        string id,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("Getting capabilities for connector {Id}", id);
+
+        try
+        {
+            var capabilities = await _connectorSyncService.GetConnectorCapabilitiesAsync(id, cancellationToken);
+            return Ok(capabilities);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting capabilities for {Id}", id);
+            return StatusCode(500, new { error = "Failed to get connector capabilities" });
+        }
+    }
+
+
+
+    /// <summary>
+    /// Get sync status for a specific connector, including latest timestamps and connector state.
+    /// Used by connectors on startup to determine where to resume syncing from.
+    /// </summary>
+    /// <param name="id">The connector ID (e.g., "dexcom", "libre", "glooko")</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Complete sync status including timestamps for entries, treatments, and connector state</returns>
+    [HttpGet("connectors/{id}/sync-status")]
+    [ProducesResponseType(typeof(ConnectorSyncStatus), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(500)]
+    public async Task<ActionResult<ConnectorSyncStatus>> GetConnectorSyncStatus(
+        string id,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("Getting sync status for connector: {Id}", id);
+
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return BadRequest(new { error = "Connector ID is required" });
+        }
+
+        try
+        {
+            // Map connector ID to data source name used in database
+            var dataSource = MapConnectorIdToDataSource(id);
+
+            // Get latest timestamps from database
+            var entryTimestamp = await _postgreSqlService.GetLatestEntryTimestampBySourceAsync(
+                dataSource,
+                cancellationToken
+            );
+
+            var oldestEntryTimestamp = await _postgreSqlService.GetOldestEntryTimestampBySourceAsync(
+                dataSource,
+                cancellationToken
+            );
+
+            var treatmentTimestamp = await _postgreSqlService.GetLatestTreatmentTimestampBySourceAsync(
+                dataSource,
+                cancellationToken
+            );
+
+            var oldestTreatmentTimestamp = await _postgreSqlService.GetOldestTreatmentTimestampBySourceAsync(
+                dataSource,
+                cancellationToken
+            );
+
+            // Get connector health/state
+            var connectorStatuses = await _connectorHealthService.GetConnectorStatusesAsync(cancellationToken);
+            var connectorStatus = connectorStatuses.FirstOrDefault(c =>
+                c.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+
+            return Ok(new ConnectorSyncStatus
+            {
+                ConnectorId = id,
+                DataSource = dataSource,
+                LatestEntryTimestamp = entryTimestamp,
+                OldestEntryTimestamp = oldestEntryTimestamp,
+                LatestTreatmentTimestamp = treatmentTimestamp,
+                OldestTreatmentTimestamp = oldestTreatmentTimestamp,
+                HasEntries = entryTimestamp.HasValue,
+                HasTreatments = treatmentTimestamp.HasValue,
+                State = connectorStatus?.State ?? "Unknown",
+                StateMessage = connectorStatus?.StateMessage,
+                IsHealthy = connectorStatus?.IsHealthy ?? false,
+                QueriedAt = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting sync status for connector: {Id}", id);
+            return StatusCode(500, new { error = "Failed to get sync status" });
+        }
+    }
+
+    /// <summary>
+    /// Maps a connector ID (e.g., "dexcom") to the data source name used in the database (e.g., "dexcom-connector")
+    /// </summary>
+    private static string MapConnectorIdToDataSource(string connectorId)
+    {
+        // Most connectors use "{id}-connector" format
+        return connectorId.ToLowerInvariant() switch
+        {
+            "dexcom" => "dexcom-connector",
+            "libre" => "libre-connector",
+            "glooko" => "glooko-connector",
+            "nightscout" => "nightscout-connector",
+            "carelink" => "carelink-connector",
+            "myfitnesspal" => "myfitnesspal-connector",
+            "tidepool" => "tidepool-connector",
+            _ => $"{connectorId.ToLowerInvariant()}-connector"
+        };
     }
 
     private string GetBaseUrl()
@@ -443,4 +582,70 @@ public class UploaderSetupResponse
     /// xDrip+ style URL with embedded secret placeholder
     /// </summary>
     public string XdripStyleUrl { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Response model for connector sync status
+/// </summary>
+public class ConnectorSyncStatus
+{
+    /// <summary>
+    /// The connector ID (e.g., "dexcom", "libre")
+    /// </summary>
+    public string ConnectorId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The data source name used in the database (e.g., "dexcom-connector")
+    /// </summary>
+    public string DataSource { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The timestamp of the latest entry, or null if no entries exist
+    /// </summary>
+    public DateTime? LatestEntryTimestamp { get; set; }
+
+    /// <summary>
+    /// The timestamp of the oldest entry, or null if no entries exist
+    /// </summary>
+    public DateTime? OldestEntryTimestamp { get; set; }
+
+    /// <summary>
+    /// The timestamp of the latest treatment, or null if no treatments exist
+    /// </summary>
+    public DateTime? LatestTreatmentTimestamp { get; set; }
+
+    /// <summary>
+    /// The timestamp of the oldest treatment, or null if no treatments exist
+    /// </summary>
+    public DateTime? OldestTreatmentTimestamp { get; set; }
+
+    /// <summary>
+    /// Whether any entries exist for this connector
+    /// </summary>
+    public bool HasEntries { get; set; }
+
+    /// <summary>
+    /// Whether any treatments exist for this connector
+    /// </summary>
+    public bool HasTreatments { get; set; }
+
+    /// <summary>
+    /// Current connector state (Idle, Syncing, BackingOff, Error)
+    /// </summary>
+    public string State { get; set; } = "Unknown";
+
+    /// <summary>
+    /// Optional message describing the current state
+    /// </summary>
+    public string? StateMessage { get; set; }
+
+    /// <summary>
+    /// Whether the connector is healthy
+    /// </summary>
+    public bool IsHealthy { get; set; }
+
+    /// <summary>
+    /// When this status was queried
+    /// </summary>
+    public DateTime QueriedAt { get; set; }
 }

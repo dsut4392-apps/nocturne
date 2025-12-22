@@ -84,4 +84,28 @@ public interface IApiDataSubmitter
         string source,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Get the timestamp of the latest entry for a specific data source
+    /// This enables "catch up" sync functionality to fetch only new data since the last upload
+    /// </summary>
+    /// <param name="source">Source connector identifier (e.g., "dexcom-connector", "libre-connector")</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The timestamp of the latest entry, or null if no entries exist for this source</returns>
+    Task<DateTime?> GetLatestEntryTimestampAsync(
+        string source,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Get the timestamp of the latest treatment for a specific data source
+    /// This enables "catch up" sync functionality to fetch only new data since the last upload
+    /// </summary>
+    /// <param name="source">Source connector identifier (e.g., "dexcom-connector", "libre-connector")</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The timestamp of the latest treatment, or null if no treatments exist for this source</returns>
+    Task<DateTime?> GetLatestTreatmentTimestampAsync(
+        string source,
+        CancellationToken cancellationToken = default
+    );
 }

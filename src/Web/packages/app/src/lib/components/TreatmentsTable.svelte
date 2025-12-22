@@ -11,7 +11,7 @@
   import { Button } from "$lib/components/ui/button";
   import { Edit, Trash2 } from "lucide-svelte";
   import { formatNotes } from "$lib/utils/formatting";
-  import { getEventType } from "$lib/constants/event-types";
+  import { getEventTypeStyle } from "$lib/constants/treatment-categories";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import type { Treatment } from "$lib/api";
   import { formatDateTime } from "$lib/utils/formatting";
@@ -147,45 +147,6 @@
   }
 
   // Utility function to get event type styling
-  function getEventTypeStyle(eventTypeVal: string): string {
-    const eventType = getEventType(eventTypeVal);
-    if (!eventType) return "bg-muted/20 text-muted-foreground border-muted/30";
-
-    // Define styles based on event type categories
-    const bolusTypes = [
-      "Snack Bolus",
-      "Meal Bolus",
-      "Correction Bolus",
-      "Combo Bolus",
-    ];
-    const basalTypes = ["Temp Basal Start", "Temp Basal End", "Temp Basal"];
-    const sensorTypes = ["Sensor Start", "Sensor Change", "Sensor Stop"];
-    const pumpTypes = ["Site Change", "Pump Battery Change", "Insulin Change"];
-    const profileTypes = ["Profile Switch"];
-    const noteTypes = ["Note", "Announcement", "Question", "D.A.D. Alert"];
-    const bgTypes = ["BG Check"];
-    const carbTypes = ["Carb Correction"];
-
-    if (bolusTypes.includes(eventType.name)) {
-      return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700";
-    } else if (basalTypes.includes(eventType.name)) {
-      return "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700";
-    } else if (sensorTypes.includes(eventType.name)) {
-      return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700";
-    } else if (pumpTypes.includes(eventType.name)) {
-      return "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700";
-    } else if (profileTypes.includes(eventType.name)) {
-      return "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-700";
-    } else if (noteTypes.includes(eventType.name)) {
-      return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800/30 dark:text-gray-300 dark:border-gray-600";
-    } else if (bgTypes.includes(eventType.name)) {
-      return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700";
-    } else if (carbTypes.includes(eventType.name)) {
-      return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700";
-    }
-
-    return "bg-primary/10 text-primary border-primary/20";
-  }
 </script>
 
 <section class="overflow-auto max-h-[70vh]">
@@ -265,14 +226,12 @@
                 {formatDateTime(treatment.created_at)}
               {:else if column.key === "eventType"}
                 {#if treatment.eventType}
-                  {@const eventType = getEventType(treatment.eventType)}
+                  {@const style = getEventTypeStyle(treatment.eventType)}
                   <span
-                    class="px-2 py-1 text-xs rounded-full border {getEventTypeStyle(
-                      treatment.eventType
-                    )}"
-                    title={eventType?.name || treatment.eventType}
+                    class="px-2 py-1 text-xs rounded-full border {style.bgClass} {style.colorClass} {style.borderClass}"
+                    title={treatment.eventType}
                   >
-                    {eventType?.name || treatment.eventType}
+                    {treatment.eventType}
                   </span>
                 {:else}
                   <span class="text-muted-foreground">-</span>

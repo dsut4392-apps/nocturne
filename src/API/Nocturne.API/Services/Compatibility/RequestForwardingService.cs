@@ -1,5 +1,9 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Nocturne.API.Configuration;
 using Nocturne.API.Models.Compatibility;
@@ -36,6 +40,7 @@ public class RequestForwardingService : IRequestForwardingService
     private readonly IResponseCacheService _responseCacheService;
     private readonly IDiscrepancyPersistenceService _discrepancyPersistenceService;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IMemoryCache _memoryCache;
 
     /// <summary>
     /// Initializes a new instance of the RequestForwardingService class
@@ -56,7 +61,8 @@ public class RequestForwardingService : IRequestForwardingService
         IResponseComparisonService responseComparisonService,
         IResponseCacheService responseCacheService,
         IDiscrepancyPersistenceService discrepancyPersistenceService,
-        IHttpContextAccessor httpContextAccessor
+        IHttpContextAccessor httpContextAccessor,
+        IMemoryCache memoryCache
     )
     {
         _httpClientFactory = httpClientFactory;
@@ -67,6 +73,7 @@ public class RequestForwardingService : IRequestForwardingService
         _responseComparisonService = responseComparisonService;
         _responseCacheService = responseCacheService;
         _discrepancyPersistenceService = discrepancyPersistenceService;
+        _memoryCache = memoryCache;
     }
 
     /// <inheritdoc />
@@ -248,6 +255,12 @@ public class RequestForwardingService : IRequestForwardingService
             if (!string.IsNullOrEmpty(correlationId))
             {
                 httpRequest.Headers.Add("X-Correlation-ID", correlationId);
+            }
+
+            // Configure authentication for Nightscout target
+            if (targetName == "Nightscout")
+            {
+                await AddNightscoutAuthAsync(httpRequest, cancellationToken);
             }
 
             // Add headers (excluding sensitive ones from logging)
@@ -564,5 +577,94 @@ public class RequestForwardingService : IRequestForwardingService
         var host = request.Host.Value;
 
         return $"{scheme}://{host}";
+    }
+
+    private async Task AddNightscoutAuthAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var config = _configuration.Value;
+
+        // 1. Try Subject Token (V3 JWT Auth)
+        if (!string.IsNullOrEmpty(config.NightscoutSubjectToken))
+        {
+            var token = await GetJwtTokenAsync(config.NightscoutSubjectToken, config.NightscoutUrl, cancellationToken);
+            if (!string.IsNullOrEmpty(token))
+            {
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                _logger.LogDebug("Added JWT auth header to Nightscout request");
+                return;
+            }
+        }
+
+        // 2. Try API Secret (V1/Admin Auth) - Only if no JWT
+        // Note: RequestForwardingService previously relied on incoming headers,
+        // but explicit config should take precedence or augment.
+        if (!string.IsNullOrEmpty(config.NightscoutApiSecret))
+        {
+            // Check if api-secret is already present (from incoming request)
+            if (!request.Headers.Contains("api-secret"))
+            {
+                // Add hashed secret
+                var hash = ComputeSha1Hash(config.NightscoutApiSecret);
+                request.Headers.Add("api-secret", hash);
+                _logger.LogDebug("Added api-secret header to Nightscout request");
+            }
+        }
+    }
+
+    private async Task<string?> GetJwtTokenAsync(string subjectToken, string nightscoutUrl, CancellationToken cancellationToken)
+    {
+        var cacheKey = $"nightscout_jwt_{subjectToken.GetHashCode()}";
+
+        if (_memoryCache.TryGetValue(cacheKey, out string? cachedToken) && !string.IsNullOrEmpty(cachedToken))
+        {
+            return cachedToken;
+        }
+
+        try
+        {
+            using var client = _httpClientFactory.CreateClient("NightscoutClient"); // Re-use configured client
+            // Note: NightscoutClient has base address set in extensions
+
+            var tokenUrl = $"/api/v2/authorization/request/{subjectToken}";
+
+            // Temporary request to get token
+            // We use a separate request message to avoid messing with the main client's defaults if any
+            var request = new HttpRequestMessage(HttpMethod.Get, tokenUrl);
+
+            var response = await client.SendAsync(request, cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                var json = JsonDocument.Parse(content);
+                if (json.RootElement.TryGetProperty("token", out var tokenElement))
+                {
+                    var token = tokenElement.GetString();
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        // Cache for 50 minutes (standard expiry is 1 hour)
+                        _memoryCache.Set(cacheKey, token, TimeSpan.FromMinutes(50));
+                        return token;
+                    }
+                }
+            }
+            else
+            {
+                _logger.LogWarning("Failed to obtain JWT from Nightscout: {StatusCode}", response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting JWT token");
+        }
+
+        return null;
+    }
+
+    private static string ComputeSha1Hash(string input)
+    {
+        var bytes = Encoding.UTF8.GetBytes(input);
+        var hash = SHA1.HashData(bytes);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

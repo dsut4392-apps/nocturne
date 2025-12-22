@@ -68,21 +68,80 @@ namespace Nocturne.Connectors.Core.Services
         }
 
         /// <summary>
-        /// Get the timestamp of the most recent treatment from the Nocturne API
+        /// Get the timestamp of the most recent entry from the Nocturne API
         /// This enables "catch up" functionality to fetch only new data since the last upload
         /// </summary>
-        /// <remarks>
-        /// TODO: Implement querying Nocturne API for most recent treatment timestamp.
-        /// For now, returns null to use default lookback period.
-        /// </remarks>
-        protected virtual async Task<DateTime?> FetchLatestTreatmentTimestampAsync(TConfig config)
+        protected virtual async Task<DateTime?> FetchLatestEntryTimestampAsync(TConfig config)
         {
-            return await Task.FromResult<DateTime?>(null);
+            if (_apiDataSubmitter == null)
+            {
+                _logger?.LogDebug("API data submitter not available, cannot fetch latest entry timestamp");
+                return null;
+            }
+
+            try
+            {
+                var timestamp = await _apiDataSubmitter.GetLatestEntryTimestampAsync(ConnectorSource);
+                if (timestamp.HasValue)
+                {
+                    _logger?.LogInformation(
+                        "Latest entry timestamp from API for {ConnectorSource}: {Timestamp:yyyy-MM-dd HH:mm:ss} UTC",
+                        ConnectorSource,
+                        timestamp.Value
+                    );
+                }
+                else
+                {
+                    _logger?.LogDebug("No existing entries found for {ConnectorSource}", ConnectorSource);
+                }
+                return timestamp;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to fetch latest entry timestamp for {ConnectorSource}", ConnectorSource);
+                return null;
+            }
         }
 
         /// <summary>
-        /// Calculate the optimal "since" timestamp for data fetching
-        /// Uses catch-up logic to fetch from the most recent treatment, or falls back to default lookback
+        /// Get the timestamp of the most recent treatment from the Nocturne API
+        /// This enables "catch up" functionality to fetch only new data since the last upload
+        /// </summary>
+        protected virtual async Task<DateTime?> FetchLatestTreatmentTimestampAsync(TConfig config)
+        {
+            if (_apiDataSubmitter == null)
+            {
+                _logger?.LogDebug("API data submitter not available, cannot fetch latest treatment timestamp");
+                return null;
+            }
+
+            try
+            {
+                var timestamp = await _apiDataSubmitter.GetLatestTreatmentTimestampAsync(ConnectorSource);
+                if (timestamp.HasValue)
+                {
+                    _logger?.LogInformation(
+                        "Latest treatment timestamp from API for {ConnectorSource}: {Timestamp:yyyy-MM-dd HH:mm:ss} UTC",
+                        ConnectorSource,
+                        timestamp.Value
+                    );
+                }
+                else
+                {
+                    _logger?.LogDebug("No existing treatments found for {ConnectorSource}", ConnectorSource);
+                }
+                return timestamp;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to fetch latest treatment timestamp for {ConnectorSource}", ConnectorSource);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Calculate the optimal "since" timestamp for fetching glucose entries
+        /// Uses catch-up logic to fetch from the most recent entry, or falls back to default lookback
         /// </summary>
         protected virtual async Task<DateTime> CalculateSinceTimestampAsync(
             TConfig config,
@@ -94,28 +153,113 @@ namespace Nocturne.Connectors.Core.Services
                 return defaultSince.Value;
             }
 
-            // First try to get the most recent treatment timestamp from target Nightscout
-            var mostRecentTimestamp = await FetchLatestTreatmentTimestampAsync(config);
+            // Get the most recent entry timestamp from Nocturne API
+            var latestEntryTimestamp = await FetchLatestEntryTimestampAsync(config);
 
-            if (mostRecentTimestamp.HasValue)
+            return CalculateSinceFromTimestamp(latestEntryTimestamp, "entries");
+        }
+
+        /// <summary>
+        /// Calculate the optimal "since" timestamp for fetching treatments
+        /// Uses catch-up logic to fetch from the most recent treatment, or falls back to default lookback
+        /// </summary>
+        protected virtual async Task<DateTime> CalculateTreatmentSinceTimestampAsync(
+            TConfig config,
+            DateTime? defaultSince = null
+        )
+        {
+            if (defaultSince.HasValue)
             {
-                // Add a small overlap to ensure we don't miss any entries
-                var sinceWithOverlap = mostRecentTimestamp.Value.AddMinutes(-5);
+                return defaultSince.Value;
+            }
 
-                // Maximum 7 days for safety
+            // Get the most recent treatment timestamp from Nocturne API
+            var latestTreatmentTimestamp = await FetchLatestTreatmentTimestampAsync(config);
+
+            return CalculateSinceFromTimestamp(latestTreatmentTimestamp, "treatments");
+        }
+
+        /// <summary>
+        /// Calculate the optimal "since" timestamp for fetching ALL data types (entries AND treatments)
+        /// Uses the EARLIER of the two timestamps to ensure we don't miss any data.
+        /// Use this when a single API call fetches both entries and treatments together.
+        /// </summary>
+        protected virtual async Task<DateTime> CalculateComprehensiveSinceTimestampAsync(
+            TConfig config,
+            DateTime? defaultSince = null
+        )
+        {
+            if (defaultSince.HasValue)
+            {
+                return defaultSince.Value;
+            }
+
+            // Get both timestamps
+            var latestEntryTimestamp = await FetchLatestEntryTimestampAsync(config);
+            var latestTreatmentTimestamp = await FetchLatestTreatmentTimestampAsync(config);
+
+            // Use the EARLIER of the two timestamps to ensure we catch up on all data types
+            DateTime? earliestTimestamp = null;
+            if (latestEntryTimestamp.HasValue && latestTreatmentTimestamp.HasValue)
+            {
+                earliestTimestamp = latestEntryTimestamp.Value < latestTreatmentTimestamp.Value
+                    ? latestEntryTimestamp.Value
+                    : latestTreatmentTimestamp.Value;
+
+                _logger?.LogDebug(
+                    "Using earlier timestamp for comprehensive sync: entries={EntryTimestamp}, treatments={TreatmentTimestamp}, using={Using}",
+                    latestEntryTimestamp.Value,
+                    latestTreatmentTimestamp.Value,
+                    earliestTimestamp.Value
+                );
+            }
+            else
+            {
+                // Use whichever one is available
+                earliestTimestamp = latestEntryTimestamp ?? latestTreatmentTimestamp;
+            }
+
+            return CalculateSinceFromTimestamp(earliestTimestamp, "entries and treatments");
+        }
+
+        /// <summary>
+        /// Helper method to calculate the since timestamp from a latest timestamp
+        /// </summary>
+        private DateTime CalculateSinceFromTimestamp(DateTime? latestTimestamp, string dataType)
+        {
+            if (latestTimestamp.HasValue)
+            {
+                // Add a small overlap to ensure we don't miss any data due to clock drift
+                var sinceWithOverlap = latestTimestamp.Value.AddMinutes(-5);
+
+                // Maximum 7 days for safety to avoid overwhelming the source API
                 var maxLookback = DateTime.UtcNow.AddDays(-7);
                 if (sinceWithOverlap < maxLookback)
                 {
+                    _logger?.LogInformation(
+                        "Last {DataType} sync was more than 7 days ago, limiting lookback to 7 days for {ConnectorSource}",
+                        dataType,
+                        ConnectorSource
+                    );
                     return maxLookback;
                 }
 
+                _logger?.LogInformation(
+                    "Starting catch-up sync for {DataType} from {ConnectorSource} since {Since:yyyy-MM-dd HH:mm:ss} UTC",
+                    dataType,
+                    ConnectorSource,
+                    sinceWithOverlap
+                );
                 return sinceWithOverlap;
             }
 
-            // Fallback to provided default or 24 hours
-            var fallbackSince = defaultSince ?? DateTime.UtcNow.AddHours(-24);
-            Console.WriteLine(
-                $"Using fallback mode: fetching data since {fallbackSince:yyyy-MM-dd HH:mm:ss} UTC"
+            // Fallback to 24 hours if no existing data found (first sync)
+            var fallbackSince = DateTime.UtcNow.AddHours(-24);
+            _logger?.LogInformation(
+                "No existing {DataType} found for {ConnectorSource}, performing initial sync from {Since:yyyy-MM-dd HH:mm:ss} UTC",
+                dataType,
+                ConnectorSource,
+                fallbackSince
             );
             return fallbackSince;
         }
@@ -132,21 +276,225 @@ namespace Nocturne.Connectors.Core.Services
 
         public abstract string ServiceName { get; }
 
+        /// <inheritdoc/>
+        public virtual List<SyncDataType> SupportedDataTypes => new() { SyncDataType.Glucose };
+
         public abstract Task<bool> AuthenticateAsync();
         public abstract Task<IEnumerable<Entry>> FetchGlucoseDataAsync(DateTime? since = null);
+
+        /// <inheritdoc/>
+        public virtual async Task<SyncResult> SyncDataAsync(
+            SyncRequest request,
+            TConfig config,
+            CancellationToken cancellationToken
+        )
+        {
+            return await PerformSyncInternalAsync(request, config, cancellationToken);
+        }
+
+        /// <summary>
+        /// Core synchronization logic that processes data types in parallel.
+        /// Shared between manual and background sync flows.
+        /// </summary>
+        protected virtual async Task<SyncResult> PerformSyncInternalAsync(
+            SyncRequest request,
+            TConfig config,
+            CancellationToken cancellationToken
+        )
+        {
+            var result = new SyncResult
+            {
+                StartTime = DateTimeOffset.UtcNow,
+                Success = true
+            };
+
+            if (request.DataTypes == null || !request.DataTypes.Any())
+            {
+                request.DataTypes = SupportedDataTypes;
+            }
+
+            var tasks = request.DataTypes
+                .Where(type => SupportedDataTypes.Contains(type))
+                .Select(async type =>
+                {
+                    try
+                    {
+                        int count = 0;
+                        DateTime? lastTime = null;
+
+                        switch (type)
+                        {
+                            case SyncDataType.Glucose:
+                                var entries = await FetchGlucoseDataRangeAsync(request.From, request.To);
+                                var entryList = entries.ToList();
+                                count = entryList.Count;
+                                if (count > 0)
+                                {
+                                    lastTime = entryList.Max(e => e.Date);
+                                }
+                                await PublishGlucoseDataInBatchesAsync(
+                                    entryList,
+                                    config,
+                                    cancellationToken
+                                );
+                                break;
+
+                            case SyncDataType.Treatments:
+                                var treatments = await FetchTreatmentsAsync(request.From, request.To);
+                                var treatmentList = treatments.ToList();
+                                count = treatmentList.Count;
+                                if (count > 0)
+                                {
+                                    lastTime = treatmentList
+                                        .Select(t => DateTime.TryParse(t.CreatedAt, out var dt) ? dt : (DateTime?)null)
+                                        .Where(dt => dt.HasValue)
+                                        .Max();
+                                }
+                                await PublishTreatmentDataInBatchesAsync(
+                                    treatmentList,
+                                    config,
+                                    cancellationToken
+                                );
+                                break;
+
+                            case SyncDataType.Profiles:
+                                var profiles = await FetchProfilesAsync(request.From, request.To);
+                                var profileList = profiles.ToList();
+                                count = profileList.Count;
+                                if (count > 0)
+                                {
+                                    lastTime = profileList
+                                        .Select(p => DateTime.TryParse(p.StartDate, out var dt) ? dt : (DateTime?)null)
+                                        .Where(dt => dt.HasValue)
+                                        .Max();
+                                }
+                                await PublishProfileDataAsync(profileList, config, cancellationToken);
+                                break;
+
+                            case SyncDataType.DeviceStatus:
+                                var statuses = await FetchDeviceStatusAsync(request.From, request.To);
+                                var statusList = statuses.ToList();
+                                count = statusList.Count;
+                                if (count > 0)
+                                {
+                                    lastTime = statusList
+                                        .Select(s => DateTime.TryParse(s.CreatedAt, out var dt) ? dt : (DateTime?)null)
+                                        .Where(dt => dt.HasValue)
+                                        .Max();
+                                }
+                                await PublishDeviceStatusAsync(statusList, config, cancellationToken);
+                                break;
+
+                            case SyncDataType.Activity:
+                                var activities = await FetchActivitiesAsync(request.From, request.To);
+                                var activityList = activities.ToList();
+                                count = activityList.Count;
+                                if (count > 0)
+                                {
+                                    lastTime = activityList
+                                        .Select(a => DateTime.TryParse(a.CreatedAt, out var dt) ? dt : (DateTime?)null)
+                                        .Where(dt => dt.HasValue)
+                                        .Max();
+                                }
+                                await PublishActivityDataAsync(activityList, config, cancellationToken);
+                                break;
+
+                            case SyncDataType.Food:
+                                var foods = await FetchFoodsAsync(request.From, request.To);
+                                var foodList = foods.ToList();
+                                count = foodList.Count;
+                                // Food items generally don't have a timestamp in the model, skipping lastTime update
+                                await PublishFoodDataAsync(foodList, config, cancellationToken);
+                                break;
+                        }
+
+                        lock (result)
+                        {
+                            result.ItemsSynced[type] = count;
+                            result.LastEntryTimes[type] = lastTime;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        lock (result)
+                        {
+                            result.Success = false;
+                            result.Errors.Add($"Failed to sync {type}: {ex.Message}");
+                        }
+                        _logger?.LogError(
+                            ex,
+                            "Failed to sync {DataType} for {Connector}",
+                            type,
+                            ConnectorSource
+                        );
+                    }
+                });
+
+            await Task.WhenAll(tasks);
+
+            result.EndTime = DateTimeOffset.UtcNow;
+            return result;
+        }
+
+        protected virtual Task<IEnumerable<Entry>> FetchGlucoseDataRangeAsync(
+            DateTime? from,
+            DateTime? to
+        )
+        {
+            return FetchGlucoseDataAsync(from);
+        }
+
+        protected virtual Task<IEnumerable<Treatment>> FetchTreatmentsAsync(
+            DateTime? from,
+            DateTime? to
+        )
+        {
+            return Task.FromResult(Enumerable.Empty<Treatment>());
+        }
+
+        protected virtual Task<IEnumerable<Profile>> FetchProfilesAsync(
+            DateTime? from,
+            DateTime? to
+        )
+        {
+            return Task.FromResult(Enumerable.Empty<Profile>());
+        }
+
+        protected virtual Task<IEnumerable<DeviceStatus>> FetchDeviceStatusAsync(
+            DateTime? from,
+            DateTime? to
+        )
+        {
+            return Task.FromResult(Enumerable.Empty<DeviceStatus>());
+        }
+
+        protected virtual Task<IEnumerable<Activity>> FetchActivitiesAsync(
+            DateTime? from,
+            DateTime? to
+        )
+        {
+            return Task.FromResult(Enumerable.Empty<Activity>());
+        }
+
+        protected virtual Task<IEnumerable<Food>> FetchFoodsAsync(DateTime? from, DateTime? to)
+        {
+            return Task.FromResult(Enumerable.Empty<Food>());
+        }
 
         /// <summary>
         /// Helper method to track metrics for any data type
         /// </summary>
         protected void TrackMetrics<T>(IEnumerable<T> items)
         {
-            if (_metricsTracker == null) return;
+            if (_metricsTracker == null)
+                return;
 
             // To avoid multiple enumerations if not a collection
             var itemList = items as ICollection<T> ?? items.ToList();
             var count = itemList.Count;
 
-            if (count == 0) return;
+            if (count == 0)
+                return;
 
             DateTime? latestTime = null;
 
@@ -165,11 +513,13 @@ namespace Nocturne.Connectors.Core.Services
 
                 // Look for common timestamp properties
                 var timeProp = properties.FirstOrDefault(p =>
-                    p.Name.Equals("CreatedAt", StringComparison.OrdinalIgnoreCase) ||
-                    p.Name.Equals("EventTime", StringComparison.OrdinalIgnoreCase) ||
-                    p.Name.Equals("Timestamp", StringComparison.OrdinalIgnoreCase) ||
-                    p.Name.Equals("StartDate", StringComparison.OrdinalIgnoreCase) || // For Profile
-                    p.Name.Equals("Date", StringComparison.OrdinalIgnoreCase));
+                    p.Name.Equals("CreatedAt", StringComparison.OrdinalIgnoreCase)
+                    || p.Name.Equals("EventTime", StringComparison.OrdinalIgnoreCase)
+                    || p.Name.Equals("Timestamp", StringComparison.OrdinalIgnoreCase)
+                    || p.Name.Equals("StartDate", StringComparison.OrdinalIgnoreCase)
+                    || // For Profile
+                    p.Name.Equals("Date", StringComparison.OrdinalIgnoreCase)
+                );
 
                 if (timeProp != null)
                 {
@@ -184,7 +534,7 @@ namespace Nocturne.Connectors.Core.Services
                         else if (val is string s && DateTime.TryParse(s, out var parsed))
                             dt = parsed.ToUniversalTime();
                         else if (val is long l)
-                             dt = DateTimeOffset.FromUnixTimeMilliseconds(l).UtcDateTime;
+                            dt = DateTimeOffset.FromUnixTimeMilliseconds(l).UtcDateTime;
 
                         if (dt.HasValue)
                         {
@@ -492,57 +842,6 @@ namespace Nocturne.Connectors.Core.Services
             }
         }
 
-        /// <summary>
-        /// Submits health data (comprehensive data from sources like Glooko)
-        /// Currently only submits blood glucose readings as entries
-        /// </summary>
-        protected virtual async Task<bool> PublishHealthDataAsync(
-            Entry[] bloodGlucoseReadings,
-            object[] bloodPressureReadings,
-            object[] weightReadings,
-            object[] sleepReadings,
-            TConfig config,
-            CancellationToken cancellationToken = default
-        )
-        {
-            if (_apiDataSubmitter == null)
-            {
-                _logger?.LogWarning("API data submitter not available for health data submission");
-                return false;
-            }
-
-            // Submit blood glucose readings as entries
-            if (bloodGlucoseReadings != null && bloodGlucoseReadings.Length > 0)
-            {
-                try
-                {
-                    var success = await _apiDataSubmitter.SubmitEntriesAsync(
-                        bloodGlucoseReadings,
-                        ConnectorSource,
-                        cancellationToken
-                    );
-
-                    if (success)
-                    {
-                        _logger?.LogInformation(
-                            "Successfully submitted {Count} blood glucose readings from health data",
-                            bloodGlucoseReadings.Length
-                        );
-                        TrackMetrics(bloodGlucoseReadings);
-                    }
-
-                    return success;
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "Failed to submit health data");
-                    return false;
-                }
-            }
-
-            _logger?.LogInformation("No blood glucose readings in health data to submit");
-            return true;
-        }
 
         /// <summary>
         /// Publishes messages in batches to optimize throughput
@@ -588,7 +887,7 @@ namespace Nocturne.Connectors.Core.Services
                 // Small delay between batches to avoid overwhelming the message bus
                 if (batchNumber > 1)
                 {
-                    await Task.Delay(100, cancellationToken);
+                    await Task.Delay(10, cancellationToken);
                 }
             }
 
@@ -631,7 +930,10 @@ namespace Nocturne.Connectors.Core.Services
                 if (!success)
                 {
                     allSuccessful = false;
-                    _logger?.LogWarning("Failed to publish treatment batch {BatchNumber}", batchNumber);
+                    _logger?.LogWarning(
+                        "Failed to publish treatment batch {BatchNumber}",
+                        batchNumber
+                    );
                 }
 
                 batchNumber++;
@@ -639,7 +941,7 @@ namespace Nocturne.Connectors.Core.Services
                 // Small delay between batches to avoid overwhelming the message bus
                 if (batchNumber > 1)
                 {
-                    await Task.Delay(100, cancellationToken);
+                    await Task.Delay(10, cancellationToken);
                 }
             }
 
@@ -649,153 +951,73 @@ namespace Nocturne.Connectors.Core.Services
         /// <summary>
         /// Main sync method that handles data synchronization based on connector mode
         /// </summary>
+        /// <summary>
+        /// Main sync method for background synchronization.
+        /// Uses PerformSyncInternalAsync for parallelized processing.
+        /// </summary>
         public virtual async Task<bool> SyncDataAsync(
             TConfig config,
             CancellationToken cancellationToken = default,
             DateTime? since = null
         )
         {
-            _logger.LogInformation("Starting data sync for {ConnectorSource}", ConnectorSource);
+            _logger.LogInformation("Starting background data sync for {ConnectorSource}", ConnectorSource);
             _stateService?.SetState(ConnectorState.Syncing, "Syncing data...");
 
             try
             {
-                // In Nocturne mode, only use message bus (no fallback to direct API)
-                if (config.Mode == ConnectorMode.Nocturne)
+                // Authenticate if needed
+                if (!await AuthenticateAsync())
                 {
-                    if (_apiDataSubmitter == null)
-                    {
-                        _logger?.LogError(
-                            "API data submitter is required for Nocturne mode but is not available"
-                        );
-                        _stateService?.SetState(ConnectorState.Error, "Configuration error: API submitter missing");
-                        return false;
-                    }
-
-                    try
-                    {
-                        _logger?.LogInformation(
-                            "Using API data submitter for data synchronization from {ConnectorSource} in Nocturne mode",
-                            ConnectorSource
-                        );
-
-                        // Fetch glucose data (use default since for Nocturne mode as no Nightscout lookup available)
-                        var sinceTimestamp = since ?? DateTime.UtcNow.AddHours(-24);
-                        var entries = await FetchGlucoseDataAsync(sinceTimestamp);
-
-                        // Submit via API with batching
-                        var success = await PublishGlucoseDataInBatchesAsync(
-                            entries,
-                            config,
-                            cancellationToken
-                        );
-
-                        if (success)
-                        {
-                            _logger?.LogInformation(
-                                "Successfully submitted data via API in Nocturne mode"
-                            );
-                            _stateService?.SetState(ConnectorState.Idle, "Sync completed successfully");
-                            return true;
-                        }
-                        else
-                        {
-                            _logger?.LogError("API data submission failed in Nocturne mode");
-                            _stateService?.SetState(ConnectorState.Error, "Data submission failed");
-                            return false;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogError(ex, "API data submission failed in Nocturne mode");
-                        _stateService?.SetState(ConnectorState.Error, $"Error: {ex.Message}");
-                        return false;
-                    }
+                    _logger.LogError("Authentication failed for {ConnectorSource}", ConnectorSource);
+                    _stateService?.SetState(ConnectorState.Error, "Authentication failed");
+                    return false;
                 }
 
-                // Standalone mode - prefer API submitter when available, fallback to direct API
-                if (_apiDataSubmitter != null)
+                // Determine catch-up timestamp
+                var sinceTimestamp = since ?? await CalculateSinceTimestampAsync(config);
+
+                var request = new SyncRequest
                 {
-                    try
+                    From = sinceTimestamp,
+                    To = null, // Open-ended for background sync
+                    DataTypes = SupportedDataTypes
+                };
+
+                var result = await PerformSyncInternalAsync(request, config, cancellationToken);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Background sync completed successfully for {ConnectorSource}", ConnectorSource);
+
+                    // Log details of what was synced
+                    foreach (var type in result.ItemsSynced.Keys)
                     {
-                        _logger?.LogInformation(
-                            "Using API data submitter for data synchronization from {ConnectorSource} in Standalone mode",
-                            ConnectorSource
-                        );
-
-                        // Fetch glucose data
-                        var sinceTimestamp = await CalculateSinceTimestampAsync(config, since);
-                        var entries = await FetchGlucoseDataAsync(sinceTimestamp);
-
-                        // Publish via message bus with batching
-                        var success = await PublishGlucoseDataInBatchesAsync(
-                            entries,
-                            config,
-                            cancellationToken
-                        );
-
-                        if (success)
+                        if (result.ItemsSynced[type] > 0)
                         {
-                            _logger?.LogInformation("Successfully published data via message bus");
-                            _stateService?.SetState(ConnectorState.Idle, "Sync completed successfully");
-                            return true;
-                        }
-                        else if (config.FallbackToDirectApi)
-                        {
-                            _logger?.LogWarning(
-                                "Message publishing failed, falling back to direct API upload"
-                            );
-                            var result = await UploadToNightscoutAsync(entries, config);
-                            if (result) _stateService?.SetState(ConnectorState.Idle, "Sync completed (fallback used)");
-                            else _stateService?.SetState(ConnectorState.Error, "Sync failed (fallback also failed)");
-                            return result;
-                        }
-                        else
-                        {
-                            _logger?.LogError("Message publishing failed and fallback disabled");
-                            _stateService?.SetState(ConnectorState.Error, "Message publishing failed");
-                            return false;
+                            _logger.LogInformation("Synced {Count} {Type} items", result.ItemsSynced[type], type);
                         }
                     }
-                    catch (Exception ex) when (config.FallbackToDirectApi)
-                    {
-                        _logger?.LogWarning(
-                            ex,
-                            "Message bus processing failed, falling back to direct API"
-                        );
-                        var sinceTimestamp = await CalculateSinceTimestampAsync(config, since);
-                        var entries = await FetchGlucoseDataAsync(sinceTimestamp);
-                        var result = await UploadToNightscoutAsync(entries, config);
-                        if (result) _stateService?.SetState(ConnectorState.Idle, "Sync completed (fallback used)");
-                        else _stateService?.SetState(ConnectorState.Error, "Sync failed (fallback also failed)");
-                        return result;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogError(ex, "Message bus processing failed and fallback disabled");
-                        _stateService?.SetState(ConnectorState.Error, $"Error: {ex.Message}");
-                        return false;
-                    }
+
+                    _stateService?.SetState(ConnectorState.Idle, "Sync completed successfully");
+                    return true;
                 }
                 else
                 {
-                    _logger?.LogInformation(
-                        "Message bus not available, using direct API processing for {ConnectorSource} in Standalone mode",
-                        ConnectorSource
+                    _logger.LogError(
+                        "Background sync for {ConnectorSource} failed or had errors: {Errors}",
+                        ConnectorSource,
+                        string.Join("; ", result.Errors)
                     );
-                    var sinceTimestamp = await CalculateSinceTimestampAsync(config, since);
-                    var entries = await FetchGlucoseDataAsync(sinceTimestamp);
-                    var result = await UploadToNightscoutAsync(entries, config);
-                    if (result) _stateService?.SetState(ConnectorState.Idle, "Sync completed");
-                    else _stateService?.SetState(ConnectorState.Error, "Sync failed");
-                    return result;
+                    _stateService?.SetState(ConnectorState.Error, "Sync completed with errors");
+                    return false;
                 }
             }
             catch (Exception ex)
             {
-                 _logger?.LogError(ex, "Unexpected error in SyncDataAsync");
-                 _stateService?.SetState(ConnectorState.Error, $"Unexpected error: {ex.Message}");
-                 return false;
+                _logger.LogError(ex, "Unexpected error in background SyncDataAsync for {ConnectorSource}", ConnectorSource);
+                _stateService?.SetState(ConnectorState.Error, $"Unexpected error: {ex.Message}");
+                return false;
             }
         }
 
@@ -929,229 +1151,6 @@ namespace Nocturne.Connectors.Core.Services
             return results;
         }
 
-        /// <summary>
-        /// Upload glucose entries to Nightscout using the entries API
-        /// </summary>
-        public virtual async Task<bool> UploadToNightscoutAsync(
-            IEnumerable<Entry> entries,
-            TConfig config
-        )
-        {
-            try
-            {
-                // In Nocturne mode, direct upload should not be used
-                if (config.Mode == ConnectorMode.Nocturne)
-                {
-                    _logger?.LogWarning(
-                        "Direct Nightscout upload attempted in Nocturne mode - this should use message bus instead"
-                    );
-                    return false;
-                }
-
-                var nightscoutUrl = config.NightscoutUrl.TrimEnd('/');
-                var apiSecret = !string.IsNullOrEmpty(config.NightscoutApiSecret)
-                    ? config.NightscoutApiSecret
-                    : config.ApiSecret;
-
-                if (string.IsNullOrEmpty(nightscoutUrl))
-                {
-                    throw new ArgumentException("Nightscout URL is required for direct upload");
-                }
-
-                if (string.IsNullOrEmpty(apiSecret))
-                {
-                    throw new ArgumentException("API Secret is required for Nightscout upload");
-                }
-                var entriesArray = new List<object>();
-                foreach (var entry in entries)
-                {
-                    entriesArray.Add(entry);
-                }
-
-                if (entriesArray.Count == 0)
-                {
-                    Console.WriteLine("No entries to upload");
-                    return true;
-                }
-
-                // Split into batches of 100 entries each to avoid large requests
-                const int batchSize = 100;
-                var batches = entriesArray
-                    .Select((entry, index) => new { entry, index })
-                    .GroupBy(x => x.index / batchSize)
-                    .Select(g => g.Select(x => x.entry).ToList())
-                    .ToList();
-
-                bool allSuccessful = true;
-
-                foreach (var batch in batches)
-                {
-                    var success = await UploadBatchToNightscoutAsync(
-                        batch,
-                        nightscoutUrl,
-                        apiSecret
-                    );
-                    if (!success)
-                    {
-                        allSuccessful = false;
-                    }
-                }
-
-                if (allSuccessful)
-                {
-                    TrackMetrics(entries);
-                }
-
-                return allSuccessful;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error uploading to Nightscout: {ex.Message}");
-                return false;
-            }
-        }
-
-        private async Task<bool> UploadBatchToNightscoutAsync(
-            List<object> batch,
-            string nightscoutUrl,
-            string apiSecret
-        )
-        {
-            const int maxRetries = 3;
-            var retryDelays = new[]
-            {
-                TimeSpan.FromSeconds(1),
-                TimeSpan.FromSeconds(5),
-                TimeSpan.FromSeconds(15),
-            };
-
-            for (int attempt = 0; attempt <= maxRetries; attempt++)
-            {
-                try
-                {
-                    var json = JsonSerializer.Serialize(batch);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                    // Hash the API secret to match Nightscout's expected format
-                    var hashedApiSecret = HashApiSecret(apiSecret);
-
-                    var request = new HttpRequestMessage(
-                        HttpMethod.Post,
-                        $"{nightscoutUrl}/api/v1/entries"
-                    );
-                    request.Content = content;
-                    request.Headers.Add("API-SECRET", hashedApiSecret);
-                    request.Headers.Add("User-Agent", "Nocturne-Connect/1.0");
-
-                    Console.WriteLine(
-                        $"Uploading batch of {batch.Count} entries to {nightscoutUrl} (attempt {attempt + 1})"
-                    );
-
-                    var response = await _httpClient.SendAsync(request);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        Console.WriteLine($"Successfully uploaded batch of {batch.Count} entries");
-                        return true;
-                    }
-                    else if (IsRetryableStatusCode(response.StatusCode) && attempt < maxRetries)
-                    {
-                        // Retryable error - wait and retry
-                        Console.WriteLine(
-                            $"Retryable error {response.StatusCode}, waiting {retryDelays[attempt].TotalSeconds} seconds before retry"
-                        );
-                        await Task.Delay(retryDelays[attempt]);
-                        continue;
-                    }
-                    else
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        Console.WriteLine(
-                            $"Failed to upload batch: {response.StatusCode} - {errorContent}"
-                        );
-                        return false;
-                    }
-                }
-                catch (HttpRequestException ex) when (attempt < maxRetries)
-                {
-                    Console.WriteLine(
-                        $"HTTP error on attempt {attempt + 1}: {ex.Message}, retrying..."
-                    );
-                    await Task.Delay(retryDelays[attempt]);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error uploading batch to Nightscout: {ex.Message}");
-                    return false;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Upload treatments to Nightscout using the treatments API
-        /// </summary>
-        public virtual async Task<bool> UploadTreatmentsToNightscoutAsync(
-            IEnumerable<Treatment> treatments,
-            TConfig config
-        )
-        {
-            try
-            {
-                var nightscoutUrl = config.NightscoutUrl.TrimEnd('/');
-                var apiSecret = config.NightscoutApiSecret ?? config.ApiSecret;
-
-                if (string.IsNullOrEmpty(apiSecret))
-                {
-                    throw new ArgumentException("API Secret is required for Nightscout upload");
-                }
-
-                var treatmentsArray = treatments.ToList();
-
-                if (treatmentsArray.Count == 0)
-                {
-                    Console.WriteLine("No treatments to upload");
-                    return true;
-                }
-                var json = JsonSerializer.Serialize(treatmentsArray);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                // Hash the API secret to match Nightscout's expected format
-                var hashedApiSecret = HashApiSecret(apiSecret);
-
-                var request = new HttpRequestMessage(
-                    HttpMethod.Post,
-                    $"{nightscoutUrl}/api/v1/treatments"
-                );
-                request.Content = content;
-                request.Headers.Add("API-SECRET", hashedApiSecret);
-                request.Headers.Add("User-Agent", "Nocturne-Connect/1.0");
-
-                Console.WriteLine(
-                    $"Uploading {treatmentsArray.Count} treatments to {nightscoutUrl}"
-                );
-
-                var response = await _httpClient.SendAsync(request);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    Console.WriteLine($"Successfully uploaded {treatmentsArray.Count} treatments");
-                    return true;
-                }
-                else
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine(
-                        $"Failed to upload treatments: {response.StatusCode} - {errorContent}"
-                    );
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error uploading treatments to Nightscout: {ex.Message}");
-                return false;
-            }
-        }
 
         /// <summary>
         /// Optional method for connectors to implement file-based data loading/saving for debugging
@@ -1552,15 +1551,6 @@ namespace Nocturne.Connectors.Core.Services
             }
         }
 
-        private static bool IsRetryableStatusCode(HttpStatusCode statusCode)
-        {
-            return statusCode == HttpStatusCode.InternalServerError
-                || statusCode == HttpStatusCode.BadGateway
-                || statusCode == HttpStatusCode.ServiceUnavailable
-                || statusCode == HttpStatusCode.GatewayTimeout
-                || statusCode == HttpStatusCode.TooManyRequests
-                || statusCode == HttpStatusCode.RequestTimeout;
-        }
 
         protected virtual void Dispose(bool disposing)
         {

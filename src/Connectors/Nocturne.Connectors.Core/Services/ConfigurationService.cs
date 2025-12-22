@@ -101,12 +101,6 @@ namespace Nocturne.Connectors.Core.Services
                 ? useAsync
                 : true;
 
-            config.FallbackToDirectApi = bool.TryParse(
-                Environment.GetEnvironmentVariable("CONNECT_FALLBACK_TO_DIRECT_API"),
-                out var fallback
-            )
-                ? fallback
-                : true;
 
             config.MaxRetryAttempts = int.TryParse(
                 Environment.GetEnvironmentVariable("CONNECT_MAX_RETRY_ATTEMPTS"),

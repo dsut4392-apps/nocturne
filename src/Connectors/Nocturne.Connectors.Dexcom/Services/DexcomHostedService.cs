@@ -51,7 +51,7 @@ public class DexcomHostedService : BackgroundService
 
                     _logger.LogDebug("Starting Dexcom data sync cycle");
 
-                    var success = await connectorService.SyncDexcomDataAsync(
+                    var success = await connectorService.SyncDataAsync(
                         _config,
                         stoppingToken
                     );

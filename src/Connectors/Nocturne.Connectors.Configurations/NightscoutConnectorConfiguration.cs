@@ -28,6 +28,7 @@ namespace Nocturne.Connectors.Configurations
         public NightscoutConnectorConfiguration()
         {
             ConnectSource = ConnectSource.Nightscout;
+            BatchSize = 500;
         }
 
         /// <summary>
@@ -44,6 +45,9 @@ namespace Nocturne.Connectors.Configurations
         [EnvironmentVariable("CONNECT_NS_API_SECRET")]
         [AspireParameter("nightscout-source-secret", "SourceApiSecret", secret: true, description: "Source Nightscout API Secret", defaultValue: "")]
         public string? SourceApiSecret { get; set; }
+
+        [AspireParameter("nightscout-source-subject-token", "SubjectToken", secret: true, description: "Nightscout Subject Token for JWT Authentication", defaultValue: "")]
+        public string? SubjectToken { get; set; }
 
         protected override void ValidateSourceSpecificConfiguration()
         {

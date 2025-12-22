@@ -25,16 +25,20 @@ public class MyFitnessPalSyncService : BackgroundService
     private readonly TimeSpan _syncInterval;
     private readonly string? _username;
 
+    private readonly MyFitnessPalConnectorConfiguration _config;
+
     public MyFitnessPalSyncService(
         ILogger<MyFitnessPalSyncService> logger,
         IServiceProvider serviceProvider,
-        IConfiguration configuration
+        IConfiguration configuration,
+        MyFitnessPalConnectorConfiguration config
     )
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _serviceProvider =
             serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _config = config ?? throw new ArgumentNullException(nameof(config));
 
         // Get configuration values
         _username = _configuration[ServiceNames.ConfigKeys.MyFitnessPalUsername];
@@ -129,61 +133,16 @@ public class MyFitnessPalSyncService : BackgroundService
             var connectorService =
                 scope.ServiceProvider.GetRequiredService<MyFitnessPalConnectorService>();
 
-            // Get the date range for sync - sync last 7 days by default
-            var syncDays = _configuration.GetValue<int>("MyFitnessPal:SyncDays", 7);
-            var fromDate = DateTime.Today.AddDays(-syncDays);
-            var toDate = DateTime.Today;
+            // Perform sync using the background overload
+            var success = await connectorService.SyncDataAsync(_config, cancellationToken);
 
-            // Fetch diary data from MyFitnessPal
-            var diaryResponse = await connectorService.FetchDiaryAsync(
-                _username!,
-                fromDate,
-                toDate
-            );
-
-            if (diaryResponse?.Any() == true)
+            if (success)
             {
-                // Convert to Nightscout foods
-                var foods = connectorService.ConvertToNightscoutFoods(diaryResponse);
-                if (foods.Any())
-                {
-                    // Upload to Nightscout (this would need to be implemented)
-                    var config = new MyFitnessPalConnectorConfiguration
-                    {
-                        NightscoutUrl =
-                            _configuration[ServiceNames.ConfigKeys.MyFitnessPalNightscoutUrl]
-                            ?? _configuration[ServiceNames.ConfigKeys.NightscoutUrl]
-                            ?? _configuration[ServiceNames.ConfigKeys.NightscoutTargetUrl]
-                            ?? string.Empty,
-                    };
-
-                    var uploadSuccess = await connectorService.UploadFoodToNightscoutAsync(
-                        foods,
-                        config
-                    );
-
-                    if (uploadSuccess)
-                    {
-                        _logger.LogInformation(
-                            "Successfully synced {FoodCount} food entries from MyFitnessPal",
-                            foods.Count()
-                        );
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to upload food entries to Nightscout");
-                    }
-                }
-                else
-                {
-                    _logger.LogInformation(
-                        "No food entries found in MyFitnessPal diary for sync period"
-                    );
-                }
+                _logger.LogInformation("MyFitnessPal sync completed successfully");
             }
             else
             {
-                _logger.LogInformation("No diary data found in MyFitnessPal for sync period");
+                _logger.LogWarning("MyFitnessPal sync failed");
             }
         }
         catch (Exception ex)
@@ -193,32 +152,5 @@ public class MyFitnessPalSyncService : BackgroundService
         }
     }
 
-    /// <summary>
-    /// Triggers a manual sync (can be called from an API endpoint)
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if sync was successful</returns>
-    public async Task<bool> TriggerManualSyncAsync(CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(_username))
-        {
-            _logger.LogWarning("Cannot trigger manual sync - MyFitnessPal username not configured");
-            return false;
-        }
 
-        try
-        {
-            _logger.LogInformation(
-                "Manual MyFitnessPal sync triggered for user: {Username}",
-                _username
-            );
-            await PerformSyncAsync(cancellationToken);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during manual MyFitnessPal sync");
-            return false;
-        }
-    }
 }

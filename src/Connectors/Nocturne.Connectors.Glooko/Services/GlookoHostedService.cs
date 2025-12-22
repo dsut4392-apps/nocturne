@@ -45,34 +45,19 @@ public class GlookoHostedService : BackgroundService
 
                     _logger.LogDebug("Starting Glooko data sync cycle");
 
-                    var success = await connectorService.SyncGlookoHealthDataAsync(
-                        _config,
-                        stoppingToken
-                    );
+                    var request = new SyncRequest
+                    {
+                        DataTypes = connectorService.SupportedDataTypes
+                    };
+                    var result = await connectorService.SyncDataAsync(request, _config, stoppingToken);
 
-                    if (success)
+                    if (result.Success)
                     {
                         _logger.LogInformation("Glooko data sync completed successfully");
                     }
                     else
                     {
-                        _logger.LogWarning("Glooko health data sync failed");
-                    }
-
-                    // Also sync treatments (boluses, carbs, etc.)
-                    var treatmentsSuccess = await connectorService.FetchAndUploadTreatmentsAsync(
-                        config: _config
-                    );
-
-                    if (treatmentsSuccess)
-                    {
-                        _logger.LogInformation("Glooko treatments sync completed successfully");
-                    }
-                    else
-                    {
-                        _logger.LogWarning(
-                            "Glooko treatments sync failed (or no treatments found)"
-                        );
+                        _logger.LogWarning("Glooko data sync failed");
                     }
                 }
                 catch (Exception ex)

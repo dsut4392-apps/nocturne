@@ -8,9 +8,10 @@ using Nocturne.Connectors.Core.Extensions;
 using Nocturne.Connectors.Core.Health;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
-using Nocturne.Connectors.Core.Services;
 using Nocturne.Connectors.MyFitnessPal.Models;
 using Nocturne.Connectors.MyFitnessPal.Services;
+using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace Nocturne.Connectors.MyFitnessPal;
 
@@ -36,6 +37,7 @@ public class Program
         builder.Services.AddSingleton<IOptions<MyFitnessPalConnectorConfiguration>>(
             new OptionsWrapper<MyFitnessPalConnectorConfiguration>(mfpConfig)
         );
+        builder.Services.AddSingleton(mfpConfig);
 
         builder.Services.AddHttpClient<MyFitnessPalConnectorService>()
             .ConfigureMyFitnessPalClient();
@@ -43,24 +45,8 @@ public class Program
 
 
         // Configure API data submitter for HTTP-based data submission
-        var apiUrl = builder.Configuration["NocturneApiUrl"];
-        var apiSecret = builder.Configuration["ApiSecret"];
+        builder.Services.AddConnectorApiDataSubmitter(builder.Configuration);
 
-        builder.Services.AddSingleton<IApiDataSubmitter>(sp =>
-        {
-            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateClient("NocturneApi");
-            var logger = sp.GetRequiredService<ILogger<ApiDataSubmitter>>();
-            if (string.IsNullOrEmpty(apiUrl))
-            {
-                throw new InvalidOperationException("NocturneApiUrl configuration is missing.");
-            }
-            return new ApiDataSubmitter(httpClient, apiUrl, apiSecret, logger);
-        });
-        builder.Services.AddSingleton<
-            IMyFitnessPalManualSyncService,
-            MyFitnessPalManualSyncService
-        >();
         builder.Services.AddHostedService<MyFitnessPalSyncService>();
 
         // Add health checks
@@ -73,93 +59,8 @@ public class Program
         // Map default endpoints (includes health checks in development)
         app.MapDefaultEndpoints();
 
-        // Configure manual sync endpoint
-        app.MapPost(
-            "/sync",
-            async (
-                int? days,
-                IServiceProvider serviceProvider,
-                CancellationToken cancellationToken
-            ) =>
-            {
-                var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
-
-                try
-                {
-                    var manualSyncService =
-                        serviceProvider.GetRequiredService<IMyFitnessPalManualSyncService>();
-
-                    logger.LogInformation(
-                        "Manual sync triggered for MyFitnessPal connector with lookback: {Days} days",
-                        days
-                    );
-                    var success = await manualSyncService.TriggerManualSyncAsync(
-                        days,
-                        cancellationToken
-                    );
-
-                    return Results.Ok(
-                        new
-                        {
-                            success,
-                            message = success ? "Sync completed successfully" : "Sync failed",
-                        }
-                    );
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error during manual sync");
-                    return Results.Problem("Sync failed with error: " + ex.Message);
-                }
-            }
-        );
-
-        // Configure health data endpoint
-        app.MapGet(
-            "/health/data",
-            (IServiceProvider serviceProvider) =>
-            {
-                var metricsTracker = serviceProvider.GetService<IConnectorMetricsTracker>();
-                var config = serviceProvider
-                    .GetRequiredService<IOptionsSnapshot<MyFitnessPalConnectorConfiguration>>()
-                    .Value;
-
-                if (metricsTracker == null)
-                {
-                    return Results.Ok(
-                        new
-                        {
-                            connectorName = "MyFitnessPal Connector",
-                            status = "running",
-                            message = "Metrics tracking not available",
-                        }
-                    );
-                }
-
-                var recentTimestamps = metricsTracker.GetRecentEntryTimestamps(10);
-
-                return Results.Ok(
-                    new
-                    {
-                        connectorName = "MyFitnessPal Connector",
-                        status = "running",
-                        metrics = new
-                        {
-                            totalEntries = metricsTracker.TotalEntries,
-                            lastEntryTime = metricsTracker.LastEntryTime,
-                            entriesLast24Hours = metricsTracker.EntriesLast24Hours,
-                            lastSyncTime = metricsTracker.LastSyncTime,
-                        },
-                        recentEntries = recentTimestamps.Select(t => new { timestamp = t }).ToArray(),
-                        configuration = new
-                        {
-                            syncIntervalMinutes = config.SyncIntervalMinutes,
-                            connectSource = config.ConnectSource,
-                        },
-                    }
-                );
-            }
-        );
+        // Configure standard connector endpoints (Sync, Capabilities, Health/Data)
+        app.MapConnectorEndpoints<MyFitnessPalConnectorService, MyFitnessPalConnectorConfiguration>("MyFitnessPal Connector");
 
         // Configure graceful shutdown
         var logger = app.Services.GetRequiredService<ILogger<Program>>();

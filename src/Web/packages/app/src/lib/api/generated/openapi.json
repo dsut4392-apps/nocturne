@@ -4836,32 +4836,150 @@
         }
       }
     },
-    "/api/v4/services/manual-sync": {
+    "/api/v4/services/connectors/{id}/sync": {
       "post": {
         "tags": [
           "Services"
         ],
-        "summary": "Trigger a manual sync of all enabled connectors.\nThis will sync data for the configured lookback period for all enabled connectors.\nOnly available if BackfillDays is configured in appsettings.",
-        "operationId": "Services_TriggerManualSync",
+        "summary": "Trigger a manual sync for a specific connector with granular control.",
+        "operationId": "Services_TriggerConnectorSync",
         "parameters": [
           {
-            "name": "days",
-            "in": "query",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Connector ID",
             "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
+              "type": "string"
             },
             "x-position": 1
           }
         ],
+        "requestBody": {
+          "x-name": "request",
+          "description": "Sync request parameters",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
         "responses": {
           "200": {
             "description": "Result of the manual sync operation",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ManualSyncResult"
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v4/services/connectors/{id}/capabilities": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Get the supported sync capabilities for a specific connector.",
+        "operationId": "Services_GetConnectorCapabilities",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Connector ID",
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of supported data types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SyncDataType"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v4/services/connectors/{id}/sync-status": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Get sync status for a specific connector, including latest timestamps and connector state.\nUsed by connectors on startup to determine where to resume syncing from.",
+        "operationId": "Services_GetConnectorSyncStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The connector ID (e.g., \"dexcom\", \"libre\", \"glooko\")",
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete sync status including timestamps for entries, treatments, and connector state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorSyncStatus"
                 }
               }
             }
@@ -16866,9 +16984,6 @@
           },
           "apiEndpoint": {
             "$ref": "#/components/schemas/ApiEndpointInfo"
-          },
-          "manualSyncEnabled": {
-            "type": "boolean"
           }
         }
       },
@@ -17164,30 +17279,15 @@
           }
         }
       },
-      "ManualSyncResult": {
+      "SyncResult": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
           "success": {
             "type": "boolean"
           },
-          "totalConnectors": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "successfulConnectors": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "failedConnectors": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "connectorResults": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ConnectorSyncResult"
-            }
+          "message": {
+            "type": "string"
           },
           "startTime": {
             "type": "string",
@@ -17197,38 +17297,139 @@
             "type": "string",
             "format": "date-time"
           },
-          "duration": {
-            "type": "string",
-            "format": "duration"
+          "itemsSynced": {
+            "type": "object",
+            "x-dictionaryKey": {
+              "$ref": "#/components/schemas/SyncDataType"
+            },
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
-          "errorMessage": {
-            "type": "string",
-            "nullable": true
+          "lastEntryTimes": {
+            "type": "object",
+            "x-dictionaryKey": {
+              "$ref": "#/components/schemas/SyncDataType"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
-      "ConnectorSyncResult": {
+      "SyncDataType": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Glucose",
+          "Treatments",
+          "Profiles",
+          "DeviceStatus",
+          "Activity",
+          "Food"
+        ],
+        "enum": [
+          "Glucose",
+          "Treatments",
+          "Profiles",
+          "DeviceStatus",
+          "Activity",
+          "Food"
+        ]
+      },
+      "SyncRequest": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "connectorName": {
-            "type": "string"
-          },
-          "success": {
-            "type": "boolean"
-          },
-          "errorMessage": {
+          "from": {
             "type": "string",
+            "format": "date-time",
             "nullable": true
           },
-          "duration": {
+          "to": {
             "type": "string",
-            "format": "duration"
-          },
-          "recordsSynced": {
-            "type": "integer",
-            "format": "int32",
+            "format": "date-time",
             "nullable": true
+          },
+          "dataTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncDataType"
+            }
+          }
+        }
+      },
+      "ConnectorSyncStatus": {
+        "type": "object",
+        "description": "Response model for connector sync status",
+        "additionalProperties": false,
+        "properties": {
+          "connectorId": {
+            "type": "string",
+            "description": "The connector ID (e.g., \"dexcom\", \"libre\")"
+          },
+          "dataSource": {
+            "type": "string",
+            "description": "The data source name used in the database (e.g., \"dexcom-connector\")"
+          },
+          "latestEntryTimestamp": {
+            "type": "string",
+            "description": "The timestamp of the latest entry, or null if no entries exist",
+            "format": "date-time",
+            "nullable": true
+          },
+          "oldestEntryTimestamp": {
+            "type": "string",
+            "description": "The timestamp of the oldest entry, or null if no entries exist",
+            "format": "date-time",
+            "nullable": true
+          },
+          "latestTreatmentTimestamp": {
+            "type": "string",
+            "description": "The timestamp of the latest treatment, or null if no treatments exist",
+            "format": "date-time",
+            "nullable": true
+          },
+          "oldestTreatmentTimestamp": {
+            "type": "string",
+            "description": "The timestamp of the oldest treatment, or null if no treatments exist",
+            "format": "date-time",
+            "nullable": true
+          },
+          "hasEntries": {
+            "type": "boolean",
+            "description": "Whether any entries exist for this connector"
+          },
+          "hasTreatments": {
+            "type": "boolean",
+            "description": "Whether any treatments exist for this connector"
+          },
+          "state": {
+            "type": "string",
+            "description": "Current connector state (Idle, Syncing, BackingOff, Error)"
+          },
+          "stateMessage": {
+            "type": "string",
+            "description": "Optional message describing the current state",
+            "nullable": true
+          },
+          "isHealthy": {
+            "type": "boolean",
+            "description": "Whether the connector is healthy"
+          },
+          "queriedAt": {
+            "type": "string",
+            "description": "When this status was queried",
+            "format": "date-time"
           }
         }
       },

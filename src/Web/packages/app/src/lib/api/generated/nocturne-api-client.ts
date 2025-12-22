@@ -6095,20 +6095,82 @@ export class ServicesClient {
     }
 
     /**
-     * Trigger a manual sync of all enabled connectors.
-    This will sync data for the configured lookback period for all enabled connectors.
-    Only available if BackfillDays is configured in appsettings.
-     * @param days (optional) 
+     * Trigger a manual sync for a specific connector with granular control.
+     * @param id Connector ID
+     * @param request Sync request parameters
      * @return Result of the manual sync operation
      */
-    triggerManualSync(days?: number | null | undefined, signal?: AbortSignal): Promise<ManualSyncResult> {
-        let url_ = this.baseUrl + "/api/v4/services/manual-sync?";
-        if (days !== undefined && days !== null)
-            url_ += "days=" + encodeURIComponent("" + days) + "&";
+    triggerConnectorSync(id: string, request: SyncRequest, signal?: AbortSignal): Promise<SyncResult> {
+        let url_ = this.baseUrl + "/api/v4/services/connectors/{id}/sync";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTriggerConnectorSync(_response);
+        });
+    }
+
+    protected processTriggerConnectorSync(response: Response): Promise<SyncResult> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as SyncResult;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SyncResult>(null as any);
+    }
+
+    /**
+     * Get the supported sync capabilities for a specific connector.
+     * @param id Connector ID
+     * @return List of supported data types
+     */
+    getConnectorCapabilities(id: string, signal?: AbortSignal): Promise<SyncDataType[]> {
+        let url_ = this.baseUrl + "/api/v4/services/connectors/{id}/capabilities";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
-            method: "POST",
+            method: "GET",
             signal,
             headers: {
                 "Accept": "application/json"
@@ -6116,17 +6178,70 @@ export class ServicesClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processTriggerManualSync(_response);
+            return this.processGetConnectorCapabilities(_response);
         });
     }
 
-    protected processTriggerManualSync(response: Response): Promise<ManualSyncResult> {
+    protected processGetConnectorCapabilities(response: Response): Promise<SyncDataType[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
             return response.text().then((_responseText) => {
             let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ManualSyncResult;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as SyncDataType[];
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SyncDataType[]>(null as any);
+    }
+
+    /**
+     * Get sync status for a specific connector, including latest timestamps and connector state.
+    Used by connectors on startup to determine where to resume syncing from.
+     * @param id The connector ID (e.g., "dexcom", "libre", "glooko")
+     * @return Complete sync status including timestamps for entries, treatments, and connector state
+     */
+    getConnectorSyncStatus(id: string, signal?: AbortSignal): Promise<ConnectorSyncStatus> {
+        let url_ = this.baseUrl + "/api/v4/services/connectors/{id}/sync-status";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetConnectorSyncStatus(_response);
+        });
+    }
+
+    protected processGetConnectorSyncStatus(response: Response): Promise<ConnectorSyncStatus> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ConnectorSyncStatus;
             return result200;
             });
         } else if (status === 400) {
@@ -6144,7 +6259,7 @@ export class ServicesClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<ManualSyncResult>(null as any);
+        return Promise.resolve<ConnectorSyncStatus>(null as any);
     }
 }
 
@@ -14852,7 +14967,6 @@ export interface ServicesOverview {
     availableConnectors?: AvailableConnector[];
     uploaderApps?: UploaderApp[];
     apiEndpoint?: ApiEndpointInfo;
-    manualSyncEnabled?: boolean;
 }
 
 export interface DataSourceInfo {
@@ -14956,24 +15070,57 @@ export interface DataSourceDeleteResult {
     error?: string | undefined;
 }
 
-export interface ManualSyncResult {
+export interface SyncResult {
     success?: boolean;
-    totalConnectors?: number;
-    successfulConnectors?: number;
-    failedConnectors?: number;
-    connectorResults?: ConnectorSyncResult[];
+    message?: string;
     startTime?: Date;
     endTime?: Date;
-    duration?: string;
-    errorMessage?: string | undefined;
+    itemsSynced?: { [key in keyof typeof SyncDataType]?: number; };
+    lastEntryTimes?: { [key in keyof typeof SyncDataType]?: Date; };
+    errors?: string[];
 }
 
-export interface ConnectorSyncResult {
-    connectorName?: string;
-    success?: boolean;
-    errorMessage?: string | undefined;
-    duration?: string;
-    recordsSynced?: number | undefined;
+export enum SyncDataType {
+    Glucose = "Glucose",
+    Treatments = "Treatments",
+    Profiles = "Profiles",
+    DeviceStatus = "DeviceStatus",
+    Activity = "Activity",
+    Food = "Food",
+}
+
+export interface SyncRequest {
+    from?: Date | undefined;
+    to?: Date | undefined;
+    dataTypes?: SyncDataType[];
+}
+
+/** Response model for connector sync status */
+export interface ConnectorSyncStatus {
+    /** The connector ID (e.g., "dexcom", "libre") */
+    connectorId?: string;
+    /** The data source name used in the database (e.g., "dexcom-connector") */
+    dataSource?: string;
+    /** The timestamp of the latest entry, or null if no entries exist */
+    latestEntryTimestamp?: Date | undefined;
+    /** The timestamp of the oldest entry, or null if no entries exist */
+    oldestEntryTimestamp?: Date | undefined;
+    /** The timestamp of the latest treatment, or null if no treatments exist */
+    latestTreatmentTimestamp?: Date | undefined;
+    /** The timestamp of the oldest treatment, or null if no treatments exist */
+    oldestTreatmentTimestamp?: Date | undefined;
+    /** Whether any entries exist for this connector */
+    hasEntries?: boolean;
+    /** Whether any treatments exist for this connector */
+    hasTreatments?: boolean;
+    /** Current connector state (Idle, Syncing, BackingOff, Error) */
+    state?: string;
+    /** Optional message describing the current state */
+    stateMessage?: string | undefined;
+    /** Whether the connector is healthy */
+    isHealthy?: boolean;
+    /** When this status was queried */
+    queriedAt?: Date;
 }
 
 export interface StatusResponse {

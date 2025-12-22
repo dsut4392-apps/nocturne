@@ -449,6 +449,7 @@
         yDomain={[0, glucoseYMax]}
         padding={{ left: 48, bottom: 30, top: 8, right: 48 }}
         tooltip={{ mode: "quadtree-x" }}
+        brush
       >
         {#snippet children({ context })}
           <Svg>

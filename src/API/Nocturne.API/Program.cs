@@ -88,6 +88,7 @@ builder.Services.AddPostgreSqlInfrastructure(
 );
 
 builder.Services.AddDiscrepancyAnalysisRepository();
+builder.Services.AddAlertRepositories();
 builder.Services.AddScoped<ICompatibilityReportService, CompatibilityReportService>();
 
 // Add compatibility proxy services
@@ -231,13 +232,10 @@ builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 // Data source service for services/connectors management
 builder.Services.AddScoped<IDataSourceService, DataSourceService>();
 
-// Configure manual sync settings
-builder.Services.Configure<ManualSyncSettings>(
-    builder.Configuration.GetSection(ManualSyncSettings.SectionName)
-);
 
-// Manual sync service for triggering connector syncs
-builder.Services.AddScoped<IManualSyncService, ManualSyncService>();
+
+// Connector sync service for triggering granular syncs
+builder.Services.AddScoped<IConnectorSyncService, ConnectorSyncService>();
 
 // Device age tracking services
 builder.Services.AddScoped<ICannulaAgeService, CannulaAgeService>();
@@ -329,6 +327,13 @@ builder.Services.Configure<DeviceHealthOptions>(
 // Register device health services
 builder.Services.AddScoped<IDeviceRegistryService, DeviceRegistryService>();
 builder.Services.AddScoped<IDeviceHealthAnalysisService, DeviceHealthAnalysisService>();
+// Configure alert monitoring settings
+builder.Services.Configure<AlertMonitoringOptions>(
+    builder.Configuration.GetSection(AlertMonitoringOptions.SectionName)
+);
+
+// Register alert engines
+builder.Services.AddScoped<IAlertRulesEngine, AlertRulesEngine>();
 builder.Services.AddScoped<IDeviceAlertEngine, DeviceAlertEngine>();
 
 // Register device health monitoring background service
@@ -346,8 +351,6 @@ builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddHttpClient(ConnectorHealthService.HttpClientName)
     .AddServiceDiscovery();
 builder.Services.AddScoped<IConnectorHealthService, ConnectorHealthService>();
-
-// Connector configurations are dynamically resolved by ManualSyncService
 
 
 var app = builder.Build();

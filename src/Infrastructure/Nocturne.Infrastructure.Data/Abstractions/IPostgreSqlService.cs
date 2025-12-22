@@ -23,6 +23,25 @@ public interface IPostgreSqlService
     Task<Entry?> GetCurrentEntryAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get the latest entry timestamp for a specific data source
+    /// </summary>
+    /// <param name="dataSource">The data source name</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The latest timestamp, or null if no entries exist</returns>
+    Task<DateTime?> GetLatestEntryTimestampBySourceAsync(string dataSource, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get the oldest entry timestamp for a specific data source
+    /// </summary>
+    /// <param name="dataSource">The data source name</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The oldest timestamp, or null if no entries exist</returns>
+    Task<DateTime?> GetOldestEntryTimestampBySourceAsync(
+        string dataSource,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Get an entry by its ID
     /// </summary>
     /// <param name="id">The entry ID</param>
@@ -155,6 +174,28 @@ public interface IPostgreSqlService
     /// <returns>The treatment if found, null otherwise</returns>
     Task<Treatment?> GetTreatmentByIdAsync(
         string id,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Get the latest treatment timestamp for a specific data source
+    /// </summary>
+    /// <param name="dataSource">The data source name</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The latest timestamp, or null if no treatments exist</returns>
+    Task<DateTime?> GetLatestTreatmentTimestampBySourceAsync(
+        string dataSource,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Get the oldest treatment timestamp for a specific data source
+    /// </summary>
+    /// <param name="dataSource">The data source name</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The oldest timestamp, or null if no treatments exist</returns>
+    Task<DateTime?> GetOldestTreatmentTimestampBySourceAsync(
+        string dataSource,
         CancellationToken cancellationToken = default
     );
 
@@ -800,4 +841,6 @@ public interface IPostgreSqlService
         string? findQuery = null,
         CancellationToken cancellationToken = default
     );
+
+
 }

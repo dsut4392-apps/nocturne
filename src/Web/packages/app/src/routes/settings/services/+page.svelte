@@ -13,8 +13,9 @@
     UploaderApp,
     UploaderSetupResponse,
     DataSourceInfo,
-    ManualSyncResult,
     ConnectorStatusDto,
+    SyncRequest,
+    SyncResult,
   } from "$lib/api/generated/nocturne-api-client";
   import {
     Card,
@@ -88,9 +89,31 @@
   } | null>(null);
 
   // Manual sync state
+  interface BatchSyncResult {
+    success: boolean;
+    errorMessage?: string;
+    totalConnectors: number;
+    successfulConnectors: number;
+    failedConnectors: number;
+    startTime: Date;
+    endTime: Date;
+    connectorResults: {
+      connectorName: string;
+      success: boolean;
+      errorMessage?: string;
+      duration?: string;
+    }[];
+  }
+
   let isManualSyncing = $state(false);
   let showManualSyncDialog = $state(false);
-  let manualSyncResult = $state<ManualSyncResult | null>(null);
+  let manualSyncResult = $state<BatchSyncResult | null>(null);
+
+  // Granular sync state for individual connector dialog
+  let granularSyncFrom = $state("");
+  let granularSyncTo = $state("");
+  let isGranularSyncing = $state(false);
+  let granularSyncResult = $state<SyncResult | null>(null);
 
   // Connector heartbeat metrics state
   let connectorStatuses = $state<ConnectorStatusDto[]>([]);
@@ -256,11 +279,68 @@
     isManualSyncing = true;
     manualSyncResult = null;
     showManualSyncDialog = true;
+
+    const startTime = new Date();
+    const connectorsToSync = connectorStatuses.filter(
+      (c) => c.isHealthy && c.state !== "Unreachable"
+    );
+    const results: BatchSyncResult["connectorResults"] = [];
+    let successes = 0;
+
+    // Default lookback 30 days
+    const to = new Date();
+    const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const request: SyncRequest = {
+      from: from,
+      to: to,
+    };
+
     try {
       const apiClient = getApiClient();
-      const result = await apiClient.services.triggerManualSync();
-      manualSyncResult = result;
-      if (result.success) {
+
+      // Execute sequentially to avoid overwhelming sidecars/backend
+      for (const connector of connectorsToSync) {
+        if (!connector.id) continue;
+
+        const start = performance.now();
+        let success = false;
+        let errorMsg = undefined;
+
+        try {
+          const result = await apiClient.services.triggerConnectorSync(
+            connector.id,
+            request
+          );
+          success = result.success ?? false;
+          if (!success) errorMsg = result.message || "Unknown error";
+        } catch (e) {
+          success = false;
+          errorMsg = e instanceof Error ? e.message : "Request failed";
+        }
+
+        const durationMs = performance.now() - start;
+        results.push({
+          connectorName: connector.name || connector.id,
+          success,
+          errorMessage: errorMsg,
+          duration: `${Math.round(durationMs)}ms`,
+        });
+
+        if (success) successes++;
+      }
+
+      const endTime = new Date();
+      manualSyncResult = {
+        success: successes > 0, // Consider partial success as success for the batch
+        totalConnectors: connectorsToSync.length,
+        successfulConnectors: successes,
+        failedConnectors: connectorsToSync.length - successes,
+        startTime,
+        endTime,
+        connectorResults: results,
+      };
+
+      if (successes > 0) {
         await loadServices();
       }
     } catch (e) {
@@ -277,6 +357,40 @@
       };
     } finally {
       isManualSyncing = false;
+    }
+  }
+
+  async function triggerGranularSync() {
+    if (!selectedConnector?.id) return;
+
+    isGranularSyncing = true;
+    granularSyncResult = null;
+
+    try {
+      const apiClient = getApiClient();
+      const request: SyncRequest = {
+        from: new Date(granularSyncFrom),
+        to: new Date(granularSyncTo),
+      };
+
+      granularSyncResult = await apiClient.services.triggerConnectorSync(
+        selectedConnector.id,
+        request
+      );
+
+      if (granularSyncResult.success) {
+        // Refresh stats after a delay
+        setTimeout(loadConnectorStatuses, 2000);
+      }
+    } catch (e) {
+      granularSyncResult = {
+        success: false,
+        message: e instanceof Error ? e.message : "Failed to trigger sync",
+        errors: [],
+        itemsSynced: {},
+      };
+    } finally {
+      isGranularSyncing = false;
     }
   }
 
@@ -825,6 +939,21 @@
                 class="flex items-center gap-4 p-4 rounded-lg border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left group border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-950/20"
                 onclick={() => {
                   selectedConnector = connectorStatus;
+                  // Initialize granular sync dates
+                  const now = new Date();
+                  const thirtyDaysAgo = new Date(
+                    now.getTime() - 30 * 24 * 60 * 60 * 1000
+                  );
+                  // format for datetime-local: YYYY-MM-DDThh:mm
+                  const toIso = now.toISOString();
+                  const fromIso = thirtyDaysAgo.toISOString();
+                  granularSyncTo = toIso.substring(0, toIso.lastIndexOf(":"));
+                  granularSyncFrom = fromIso.substring(
+                    0,
+                    fromIso.lastIndexOf(":")
+                  );
+                  granularSyncResult = null;
+
                   showConnectorDialog = true;
                 }}
               >
@@ -1635,6 +1764,80 @@
         {/if}
 
         {#if selectedConnector.status !== "Unreachable"}
+          <Separator />
+
+          <div class="space-y-3">
+            <div class="flex items-center gap-2">
+              <Download class="h-4 w-4" />
+              <h4 class="font-medium text-sm">Manual Sync</h4>
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Select a date range to re-sync specific data.
+            </p>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div class="space-y-1">
+                <label for="granular-sync-from" class="text-xs font-medium">
+                  From
+                </label>
+                <input
+                  type="datetime-local"
+                  id="granular-sync-from"
+                  bind:value={granularSyncFrom}
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+              <div class="space-y-1">
+                <label for="granular-sync-to" class="text-xs font-medium">
+                  To
+                </label>
+                <input
+                  type="datetime-local"
+                  id="granular-sync-to"
+                  bind:value={granularSyncTo}
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+            </div>
+
+            {#if granularSyncResult}
+              <div
+                class="text-xs p-2 rounded {granularSyncResult.success
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200'
+                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200'}"
+              >
+                {#if granularSyncResult.success}
+                  <CheckCircle class="inline h-3 w-3 mr-1" />
+                  Sync initiated successfully
+                  {#if granularSyncResult.itemsSynced}
+                    ({Object.values(
+                      granularSyncResult.itemsSynced || {}
+                    ).reduce((a, b) => (a || 0) + (b || 0), 0)} items)
+                  {/if}
+                {:else}
+                  <AlertCircle class="inline h-3 w-3 mr-1" />
+                  {granularSyncResult.message || "Sync failed"}
+                {/if}
+              </div>
+            {/if}
+
+            <Button
+              size="sm"
+              variant="outline"
+              class="w-full gap-2"
+              onclick={triggerGranularSync}
+              disabled={isGranularSyncing}
+            >
+              {#if isGranularSyncing}
+                <Loader2 class="h-3 w-3 animate-spin" />
+                Syncing...
+              {:else}
+                <RefreshCw class="h-3 w-3" />
+                Sync Now
+              {/if}
+            </Button>
+          </div>
+
           <Separator />
 
           <div

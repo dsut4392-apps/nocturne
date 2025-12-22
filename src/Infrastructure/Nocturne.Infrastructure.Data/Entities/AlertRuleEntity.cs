@@ -103,6 +103,22 @@ public class AlertRuleEntity
     public int MaxSnoozeMinutes { get; set; } = 120;
 
     /// <summary>
+    /// Cooldown period in minutes after an alert is resolved before it can trigger again.
+    /// </summary>
+    [Column("cooldown_minutes")]
+    public int CooldownMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// Lead time in minutes for forecast alerts.
+    /// </summary>
+    [Column("forecast_lead_time_minutes")]
+    public int? ForecastLeadTimeMinutes { get; set; }
+
+    /// <summary> Full JSON configuration from the client (audio, visual, etc) </summary>
+    [Column("client_configuration", TypeName = "jsonb")]
+    public string? ClientConfiguration { get; set; }
+
+    /// <summary>
     /// When this alert rule was created
     /// </summary>
     [Column("created_at")]

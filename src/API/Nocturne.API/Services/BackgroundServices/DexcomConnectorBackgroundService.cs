@@ -23,6 +23,6 @@ public class DexcomConnectorBackgroundService : ConnectorBackgroundService<Dexco
         using var scope = ServiceProvider.CreateScope();
         var connectorService = scope.ServiceProvider.GetRequiredService<DexcomConnectorService>();
 
-        return await connectorService.SyncDexcomDataAsync(Config, cancellationToken);
+        return await connectorService.SyncDataAsync(Config, cancellationToken);
     }
 }

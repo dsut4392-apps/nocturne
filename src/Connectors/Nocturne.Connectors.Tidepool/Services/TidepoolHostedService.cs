@@ -45,7 +45,7 @@ public class TidepoolHostedService : BackgroundService
 
                 _logger.LogInformation("Starting scheduled Tidepool data sync");
 
-                var success = await connectorService.SyncTidepoolDataAsync(
+                var success = await connectorService.SyncDataAsync(
                     _config,
                     stoppingToken
                 );

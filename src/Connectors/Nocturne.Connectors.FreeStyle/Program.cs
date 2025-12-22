@@ -11,6 +11,8 @@ using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
 using Nocturne.Connectors.FreeStyle.Constants;
 using Nocturne.Connectors.FreeStyle.Services;
+using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace Nocturne.Connectors.FreeStyle;
 
@@ -36,6 +38,7 @@ public class Program
         builder.Services.AddSingleton<IOptions<LibreLinkUpConnectorConfiguration>>(
             new OptionsWrapper<LibreLinkUpConnectorConfiguration>(libreConfig)
         );
+        builder.Services.AddSingleton(libreConfig);
 
         // Map region to server endpoint
         var region =
@@ -61,20 +64,7 @@ public class Program
 
 
         // Configure API data submitter for HTTP-based data submission
-        var apiUrl = builder.Configuration["NocturneApiUrl"];
-        var apiSecret = builder.Configuration["ApiSecret"];
-
-        builder.Services.AddSingleton<IApiDataSubmitter>(sp =>
-        {
-            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateClient("NocturneApi");
-            var logger = sp.GetRequiredService<ILogger<ApiDataSubmitter>>();
-            if (string.IsNullOrEmpty(apiUrl))
-            {
-                throw new InvalidOperationException("NocturneApiUrl configuration is missing.");
-            }
-            return new ApiDataSubmitter(httpClient, apiUrl, apiSecret, logger);
-        });
+        builder.Services.AddConnectorApiDataSubmitter(builder.Configuration);
         builder.Services.AddHostedService<FreeStyleHostedService>();
 
         // Add health checks
@@ -87,100 +77,8 @@ public class Program
         // Map default endpoints (includes health checks in development)
         app.MapDefaultEndpoints();
 
-        // Configure manual sync endpoint
-        app.MapPost(
-            "/sync",
-            async (
-                int? days,
-                IServiceProvider serviceProvider,
-                CancellationToken cancellationToken
-            ) =>
-            {
-                var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
-                var config = serviceProvider
-                    .GetRequiredService<IOptionsSnapshot<LibreLinkUpConnectorConfiguration>>()
-                    .Value;
-
-                try
-                {
-                    using var scope = serviceProvider.CreateScope();
-                    var connectorService =
-                        scope.ServiceProvider.GetRequiredService<LibreConnectorService>();
-
-                    DateTime? since = days.HasValue ? DateTime.UtcNow.AddDays(-days.Value) : null;
-                    logger.LogInformation(
-                        "Manual sync triggered for FreeStyle connector with lookback: {Days} days",
-                        days
-                    );
-
-                    var success = await connectorService.SyncLibreDataAsync(
-                        config,
-                        cancellationToken,
-                        since
-                    );
-
-                    return Results.Ok(
-                        new
-                        {
-                            success,
-                            message = success ? "Sync completed successfully" : "Sync failed",
-                        }
-                    );
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error during manual sync");
-                    return Results.Problem("Sync failed with error: " + ex.Message);
-                }
-            }
-        );
-
-        // Configure health data endpoint
-        app.MapGet(
-            "/health/data",
-            (IServiceProvider serviceProvider) =>
-            {
-                var metricsTracker = serviceProvider.GetService<IConnectorMetricsTracker>();
-                var config = serviceProvider
-                    .GetRequiredService<IOptionsSnapshot<LibreLinkUpConnectorConfiguration>>()
-                    .Value;
-
-                if (metricsTracker == null)
-                {
-                    return Results.Ok(
-                        new
-                        {
-                            connectorName = "FreeStyle Connector",
-                            status = "running",
-                            message = "Metrics tracking not available",
-                        }
-                    );
-                }
-
-                var recentTimestamps = metricsTracker.GetRecentEntryTimestamps(10);
-
-                return Results.Ok(
-                    new
-                    {
-                        connectorName = "FreeStyle Connector",
-                        status = "running",
-                        metrics = new
-                        {
-                            totalEntries = metricsTracker.TotalEntries,
-                            lastEntryTime = metricsTracker.LastEntryTime,
-                            entriesLast24Hours = metricsTracker.EntriesLast24Hours,
-                            lastSyncTime = metricsTracker.LastSyncTime,
-                        },
-                        recentEntries = recentTimestamps.Select(t => new { timestamp = t }).ToArray(),
-                        configuration = new
-                        {
-                            syncIntervalMinutes = config.SyncIntervalMinutes,
-                            connectSource = config.ConnectSource,
-                        },
-                    }
-                );
-            }
-        );
+        // Configure standard connector endpoints (Sync, Capabilities, Health/Data)
+        app.MapConnectorEndpoints<LibreConnectorService, LibreLinkUpConnectorConfiguration>("FreeStyle Connector");
 
         // Configure graceful shutdown
         var logger = app.Services.GetRequiredService<ILogger<Program>>();

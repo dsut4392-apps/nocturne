@@ -49,7 +49,13 @@ public class AlarmProfileConfiguration
     /// For range alarms, the upper bound (threshold is lower bound)
     /// </summary>
     [JsonPropertyName("thresholdHigh")]
-    public int? ThresholdHigh { get; set; }
+    public double? ThresholdHigh { get; set; }
+
+    /// <summary>
+    /// Lead time in minutes for forecast alerts.
+    /// </summary>
+    [JsonPropertyName("forecastLeadTimeMinutes")]
+    public int? ForecastLeadTimeMinutes { get; set; }
 
     /// <summary>
     /// Delayed raise - only trigger if above/below threshold for this many minutes
@@ -157,6 +163,9 @@ public enum AlarmTriggerType
 
     /// <summary>No data received for a period</summary>
     StaleData,
+
+    /// <summary>Forecasted low glucose</summary>
+    ForecastLow,
 
     /// <summary>Custom - uses thresholdHigh for range</summary>
     Custom,

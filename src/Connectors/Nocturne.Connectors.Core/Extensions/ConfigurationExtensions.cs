@@ -130,10 +130,6 @@ namespace Nocturne.Connectors.Core.Extensions
                 config.UseAsyncProcessing = useAsyncProcessing;
             }
 
-            if (bool.TryParse(configuration["FallbackToDirectApi"], out var fallbackToDirectApi))
-            {
-                config.FallbackToDirectApi = fallbackToDirectApi;
-            }
 
             if (int.TryParse(configuration["BatchSize"], out var batchSize))
             {

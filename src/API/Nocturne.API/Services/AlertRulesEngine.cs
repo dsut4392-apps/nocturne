@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Nocturne.API.Controllers.V4;
 using Nocturne.Core.Models;
 using Nocturne.Infrastructure.Data.Entities;
 using Nocturne.Infrastructure.Data.Repositories;
@@ -14,6 +15,7 @@ public class AlertRulesEngine : IAlertRulesEngine
     private readonly AlertRuleRepository _alertRuleRepository;
     private readonly AlertHistoryRepository _alertHistoryRepository;
     private readonly NotificationPreferencesRepository _notificationPreferencesRepository;
+    private readonly IPredictionService _predictionService;
     private readonly AlertMonitoringOptions _options;
     private readonly ILogger<AlertRulesEngine> _logger;
 
@@ -21,6 +23,7 @@ public class AlertRulesEngine : IAlertRulesEngine
         AlertRuleRepository alertRuleRepository,
         AlertHistoryRepository alertHistoryRepository,
         NotificationPreferencesRepository notificationPreferencesRepository,
+        IPredictionService predictionService,
         IOptions<AlertMonitoringOptions> options,
         ILogger<AlertRulesEngine> logger
     )
@@ -28,6 +31,7 @@ public class AlertRulesEngine : IAlertRulesEngine
         _alertRuleRepository = alertRuleRepository;
         _alertHistoryRepository = alertHistoryRepository;
         _notificationPreferencesRepository = notificationPreferencesRepository;
+        _predictionService = predictionService;
         _options = options.Value;
         _logger = logger;
     }
@@ -82,6 +86,31 @@ public class AlertRulesEngine : IAlertRulesEngine
                 return alertEvents;
             }
 
+            // Get predictions if potentially needed
+            GlucosePredictionResponse? predictions = null;
+            if (
+                activeRules.Any(r =>
+                    r.ForecastLeadTimeMinutes.HasValue && r.ForecastLeadTimeMinutes > 0
+                )
+            )
+            {
+                try
+                {
+                    predictions = await _predictionService.GetPredictionsAsync(
+                        null,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Failed to get predictions for alert evaluation for user {UserId}",
+                        userId
+                    );
+                }
+            }
+
             // Evaluate each rule
             foreach (var rule in activeRules)
             {
@@ -99,12 +128,20 @@ public class AlertRulesEngine : IAlertRulesEngine
                     }
 
                     // Check alert conditions
-                    if (await IsAlertConditionMet(glucoseReading, rule, cancellationToken))
+                    if (
+                        await IsAlertConditionMet(
+                            glucoseReading,
+                            rule,
+                            cancellationToken,
+                            predictions
+                        )
+                    )
                     {
                         var alertEvent = await CreateAlertEvent(
                             glucoseReading,
                             rule,
-                            cancellationToken
+                            cancellationToken,
+                            predictions
                         );
                         if (alertEvent != null)
                         {
@@ -146,35 +183,82 @@ public class AlertRulesEngine : IAlertRulesEngine
         return await _alertRuleRepository.GetActiveRulesForUserAsync(userId, cancellationToken);
     }
 
-    /// <inheritdoc />
+    // Overload for interface compatibility if strictly required, otherwise this replaces the implementation
+    // Ideally we update the interface too. Assuming IAlertRulesEngine is in same assembly or I can update it.
+    // For now, I'll update the logic here.
     public async Task<bool> IsAlertConditionMet(
         Entry glucoseReading,
         AlertRuleEntity rule,
         CancellationToken cancellationToken
     )
     {
+        return await IsAlertConditionMet(glucoseReading, rule, cancellationToken, null);
+    }
+
+    public async Task<bool> IsAlertConditionMet(
+        Entry glucoseReading,
+        AlertRuleEntity rule,
+        CancellationToken cancellationToken,
+        GlucosePredictionResponse? predictions
+    )
+    {
         var glucoseValue = (decimal)(glucoseReading.Sgv ?? glucoseReading.Mgdl);
 
         // Check each threshold type
-        var alertTypes = new[]
+        // Tuple: (AlertType, Threshold, IsForecast)
+        var alertTypes = new List<(AlertType Type, decimal? Threshold, bool IsForecast)>
         {
-            (AlertType.UrgentLow, rule.UrgentLowThreshold),
-            (AlertType.UrgentHigh, rule.UrgentHighThreshold),
-            (AlertType.Low, rule.LowThreshold),
-            (AlertType.High, rule.HighThreshold),
+            (AlertType.UrgentLow, rule.UrgentLowThreshold, false),
+            (AlertType.UrgentHigh, rule.UrgentHighThreshold, false),
+            (AlertType.Low, rule.LowThreshold, false),
+            (AlertType.High, rule.HighThreshold, false),
         };
 
-        foreach (var (alertType, threshold) in alertTypes)
+        if (
+            rule.ForecastLeadTimeMinutes.HasValue
+            && rule.ForecastLeadTimeMinutes > 0
+            && rule.LowThreshold.HasValue
+        )
         {
-            if (!threshold.HasValue)
+            alertTypes.Add((AlertType.ForecastLow, rule.LowThreshold, true));
+        }
+
+        foreach (var check in alertTypes)
+        {
+            if (!check.Threshold.HasValue)
                 continue;
 
-            var isConditionMet = alertType switch
+            var thresholdValue = check.Threshold.Value;
+            var isConditionMet = false;
+
+            if (check.IsForecast && check.Type == AlertType.ForecastLow)
             {
-                AlertType.Low or AlertType.UrgentLow => glucoseValue <= threshold.Value,
-                AlertType.High or AlertType.UrgentHigh => glucoseValue >= threshold.Value,
-                _ => false,
-            };
+                if (
+                    predictions?.Predictions?.Default != null
+                    && rule.ForecastLeadTimeMinutes.HasValue
+                )
+                {
+                    // Calculate index for lead time (5 min intervals)
+                    // Index 0 = NOW (T+0), index 1 = T+5min, index 2 = T+10min, etc.
+                    // So 30 minutes = index 6 (30/5 = 6)
+                    var targetIndex = rule.ForecastLeadTimeMinutes.Value / 5;
+
+                    if (targetIndex < predictions.Predictions.Default.Count)
+                    {
+                        var predictedValue = (decimal)predictions.Predictions.Default[targetIndex];
+                        isConditionMet = predictedValue <= thresholdValue;
+                    }
+                }
+            }
+            else
+            {
+                isConditionMet = check.Type switch
+                {
+                    AlertType.Low or AlertType.UrgentLow => glucoseValue <= thresholdValue,
+                    AlertType.High or AlertType.UrgentHigh => glucoseValue >= thresholdValue,
+                    _ => false,
+                };
+            }
 
             if (isConditionMet)
             {
@@ -182,7 +266,7 @@ public class AlertRulesEngine : IAlertRulesEngine
                 var existingAlert = await _alertHistoryRepository.GetActiveAlertForRuleAndTypeAsync(
                     rule.UserId,
                     rule.Id,
-                    alertType.ToString(),
+                    check.Type.ToString(),
                     cancellationToken
                 );
 
@@ -194,7 +278,7 @@ public class AlertRulesEngine : IAlertRulesEngine
                     {
                         _logger.LogDebug(
                             "Alert cooldown active for {AlertType} alert for user {UserId}",
-                            alertType,
+                            check.Type,
                             rule.UserId
                         );
                         continue;
@@ -202,17 +286,31 @@ public class AlertRulesEngine : IAlertRulesEngine
                 }
 
                 // Apply hysteresis to prevent oscillating alerts
+                var valueToCheck = glucoseValue;
+                if (
+                    check.Type == AlertType.ForecastLow
+                    && predictions?.Predictions?.Default != null
+                    && rule.ForecastLeadTimeMinutes.HasValue
+                )
+                {
+                    var targetIndex = rule.ForecastLeadTimeMinutes.Value / 5;
+                    if (targetIndex < predictions.Predictions.Default.Count)
+                    {
+                        valueToCheck = (decimal)predictions.Predictions.Default[targetIndex];
+                    }
+                }
+
                 if (
                     existingAlert != null
-                    && ShouldApplyHysteresis(glucoseValue, threshold.Value, alertType)
+                    && ShouldApplyHysteresis(valueToCheck, thresholdValue, check.Type)
                 )
                 {
                     _logger.LogDebug(
-                        "Hysteresis prevents {AlertType} alert for user {UserId} (glucose: {GlucoseValue}, threshold: {Threshold})",
-                        alertType,
+                        "Hysteresis prevents {AlertType} alert for user {UserId} (value: {Value}, threshold: {Threshold})",
+                        check.Type,
                         rule.UserId,
-                        glucoseValue,
-                        threshold.Value
+                        valueToCheck,
+                        thresholdValue
                     );
                     continue;
                 }
@@ -279,13 +377,18 @@ public class AlertRulesEngine : IAlertRulesEngine
     private async Task<AlertEvent?> CreateAlertEvent(
         Entry glucoseReading,
         AlertRuleEntity rule,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        GlucosePredictionResponse? predictions
     )
     {
         var glucoseValue = (decimal)(glucoseReading.Sgv ?? glucoseReading.Mgdl);
 
         // Determine alert type and threshold
-        var (alertType, threshold) = DetermineAlertTypeAndThreshold(glucoseValue, rule);
+        var (alertType, threshold) = DetermineAlertTypeAndThreshold(
+            glucoseValue,
+            rule,
+            predictions
+        );
         if (!threshold.HasValue)
             return null;
 
@@ -320,13 +423,15 @@ public class AlertRulesEngine : IAlertRulesEngine
                 { "EntryId", glucoseReading.Id ?? string.Empty },
                 { "Direction", glucoseReading.Direction ?? string.Empty },
                 { "Delta", glucoseReading.Delta ?? 0 },
+                { "IsForecast", alertType == AlertType.ForecastLow },
             },
         };
     }
 
     private (AlertType alertType, decimal? threshold) DetermineAlertTypeAndThreshold(
         decimal glucoseValue,
-        AlertRuleEntity rule
+        AlertRuleEntity rule,
+        GlucosePredictionResponse? predictions
     )
     {
         // Check urgent thresholds first (highest priority)
@@ -351,6 +456,25 @@ public class AlertRulesEngine : IAlertRulesEngine
             return (AlertType.High, rule.HighThreshold.Value);
         }
 
+        // Check Forecast Low
+        if (
+            rule.ForecastLeadTimeMinutes.HasValue
+            && rule.ForecastLeadTimeMinutes > 0
+            && rule.LowThreshold.HasValue
+            && predictions?.Predictions?.Default != null
+        )
+        {
+            var targetIndex = rule.ForecastLeadTimeMinutes.Value / 5;
+            if (targetIndex < predictions.Predictions.Default.Count)
+            {
+                var predictedValue = (decimal)predictions.Predictions.Default[targetIndex];
+                if (predictedValue <= rule.LowThreshold.Value)
+                {
+                    return (AlertType.ForecastLow, rule.LowThreshold.Value);
+                }
+            }
+        }
+
         return (AlertType.Low, null); // No threshold met
     }
 
@@ -360,7 +484,8 @@ public class AlertRulesEngine : IAlertRulesEngine
 
         return alertType switch
         {
-            AlertType.Low or AlertType.UrgentLow => currentValue > (threshold + hysteresisAmount),
+            AlertType.Low or AlertType.UrgentLow or AlertType.ForecastLow => currentValue
+                > (threshold + hysteresisAmount),
             AlertType.High or AlertType.UrgentHigh => currentValue < (threshold - hysteresisAmount),
             _ => false,
         };

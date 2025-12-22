@@ -320,12 +320,6 @@ public class ServicesOverview
     /// </summary>
     [JsonPropertyName("apiEndpoint")]
     public ApiEndpointInfo ApiEndpoint { get; set; } = new();
-
-    /// <summary>
-    /// Whether manual sync is enabled and available
-    /// </summary>
-    [JsonPropertyName("manualSyncEnabled")]
-    public bool ManualSyncEnabled { get; set; }
 }
 
 /// <summary>

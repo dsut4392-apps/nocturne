@@ -25,6 +25,6 @@ public class GlookoConnectorBackgroundService
         using var scope = ServiceProvider.CreateScope();
         var connectorService = scope.ServiceProvider.GetRequiredService<GlookoConnectorService>();
 
-        return await connectorService.SyncGlookoHealthDataAsync(Config, cancellationToken);
+        return await connectorService.SyncDataAsync(Config, cancellationToken);
     }
 }

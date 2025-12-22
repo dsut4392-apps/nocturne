@@ -80,6 +80,8 @@ namespace Nocturne.Connectors.Dexcom.Services
 
         public override string ServiceName => "Dexcom Share";
 
+        public override List<SyncDataType> SupportedDataTypes => new() { SyncDataType.Glucose };
+
         public DexcomConnectorService(
             HttpClient httpClient,
             IOptions<DexcomConnectorConfiguration> config,
@@ -576,45 +578,6 @@ namespace Nocturne.Connectors.Dexcom.Services
             return null;
         }
 
-        /// <summary>
-        /// Syncs Dexcom data using message publishing when available, with fallback to direct API
-        /// </summary>
-        /// <param name="config">Connector configuration</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>True if sync was successful</returns>
-        public async Task<bool> SyncDexcomDataAsync(
-            DexcomConnectorConfiguration config,
-            CancellationToken cancellationToken = default,
-            DateTime? since = null
-        )
-        {
-            try
-            {
-                _logger.LogInformation(
-                    "Starting Dexcom data sync using {Mode} mode",
-                    config.UseAsyncProcessing ? "asynchronous" : "direct API"
-                );
-
-                // Use the hybrid sync method from BaseConnectorService
-                var success = await SyncDataAsync(config, cancellationToken, since);
-
-                if (success)
-                {
-                    _logger.LogInformation("Dexcom data sync completed successfully");
-                }
-                else
-                {
-                    _logger.LogWarning("Dexcom data sync failed");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during Dexcom data sync");
-                return false;
-            }
-        }
 
         private Entry ConvertDexcomEntry(DexcomEntry dexcomEntry)
         {

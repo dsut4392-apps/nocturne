@@ -1150,4 +1150,124 @@ public class PostgreSqlService : IPostgreSqlService
     }
 
     #endregion
+
+    #region Connector Sync Operations
+
+    /// <inheritdoc />
+    public async Task<DateTime?> GetLatestEntryTimestampBySourceAsync(
+        string dataSource,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("Getting latest entry timestamp for data source: {DataSource}", dataSource);
+
+        var latestEntry = await _context.Entries
+            .Where(e => e.DataSource == dataSource)
+            .OrderByDescending(e => e.Mills)
+            .Select(e => new { e.Mills })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (latestEntry == null)
+        {
+            _logger.LogDebug("No entries found for data source: {DataSource}", dataSource);
+            return null;
+        }
+
+        var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(latestEntry.Mills).UtcDateTime;
+        _logger.LogDebug(
+            "Latest entry timestamp for data source {DataSource}: {Timestamp}",
+            dataSource,
+            timestamp
+        );
+        return timestamp;
+    }
+
+    /// <inheritdoc />
+    public async Task<DateTime?> GetOldestEntryTimestampBySourceAsync(
+        string dataSource,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("Getting oldest entry timestamp for data source: {DataSource}", dataSource);
+
+        var oldestEntry = await _context.Entries
+            .Where(e => e.DataSource == dataSource)
+            .OrderBy(e => e.Mills)
+            .Select(e => new { e.Mills })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (oldestEntry == null)
+        {
+            _logger.LogDebug("No entries found for data source: {DataSource}", dataSource);
+            return null;
+        }
+
+        var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(oldestEntry.Mills).UtcDateTime;
+        _logger.LogDebug(
+            "Oldest entry timestamp for data source {DataSource}: {Timestamp}",
+            dataSource,
+            timestamp
+        );
+        return timestamp;
+    }
+
+    /// <inheritdoc />
+    public async Task<DateTime?> GetLatestTreatmentTimestampBySourceAsync(
+        string dataSource,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("Getting latest treatment timestamp for data source: {DataSource}", dataSource);
+
+        var latestTreatment = await _context.Treatments
+            .Where(t => t.DataSource == dataSource)
+            .OrderByDescending(t => t.Mills)
+            .Select(t => new { t.Mills })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (latestTreatment == null)
+        {
+            _logger.LogDebug("No treatments found for data source: {DataSource}", dataSource);
+            return null;
+        }
+
+        var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(latestTreatment.Mills).UtcDateTime;
+        _logger.LogDebug(
+            "Latest treatment timestamp for data source {DataSource}: {Timestamp}",
+            dataSource,
+            timestamp
+        );
+        return timestamp;
+    }
+
+    /// <inheritdoc />
+    public async Task<DateTime?> GetOldestTreatmentTimestampBySourceAsync(
+        string dataSource,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("Getting oldest treatment timestamp for data source: {DataSource}", dataSource);
+
+        var oldestTreatment = await _context.Treatments
+            .Where(t => t.DataSource == dataSource)
+            .OrderBy(t => t.Mills)
+            .Select(t => new { t.Mills })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (oldestTreatment == null)
+        {
+            _logger.LogDebug("No treatments found for data source: {DataSource}", dataSource);
+            return null;
+        }
+
+        var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(oldestTreatment.Mills).UtcDateTime;
+        _logger.LogDebug(
+            "Oldest treatment timestamp for data source {DataSource}: {Timestamp}",
+            dataSource,
+            timestamp
+        );
+        return timestamp;
+    }
+
+    #endregion
 }

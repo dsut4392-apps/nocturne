@@ -44,7 +44,7 @@ public class FreeStyleHostedService : BackgroundService
 
                     _logger.LogDebug("Starting FreeStyle data sync cycle");
 
-                    var success = await connectorService.SyncLibreDataAsync(_config, stoppingToken);
+                    var success = await connectorService.SyncDataAsync(_config, stoppingToken);
 
                     if (success)
                     {

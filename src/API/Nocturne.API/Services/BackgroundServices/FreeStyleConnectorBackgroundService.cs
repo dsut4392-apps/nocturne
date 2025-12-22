@@ -24,6 +24,6 @@ public class FreeStyleConnectorBackgroundService
         using var scope = ServiceProvider.CreateScope();
         var connectorService = scope.ServiceProvider.GetRequiredService<LibreConnectorService>();
 
-        return await connectorService.SyncLibreDataAsync(Config, cancellationToken);
+        return await connectorService.SyncDataAsync(Config, cancellationToken);
     }
 }

@@ -16,19 +16,19 @@ public class DataSourceService : IDataSourceService
 {
     private readonly NocturneDbContext _context;
     private readonly IPostgreSqlService _postgreSqlService;
-    private readonly IManualSyncService _manualSyncService;
+    private readonly IConnectorSyncService _connectorSyncService;
     private readonly ILogger<DataSourceService> _logger;
 
     public DataSourceService(
         NocturneDbContext context,
         IPostgreSqlService postgreSqlService,
-        IManualSyncService manualSyncService,
+        IConnectorSyncService connectorSyncService,
         ILogger<DataSourceService> logger
     )
     {
         _context = context;
         _postgreSqlService = postgreSqlService;
-        _manualSyncService = manualSyncService;
+        _connectorSyncService = connectorSyncService;
         _logger = logger;
     }
 
@@ -328,7 +328,7 @@ public class DataSourceService : IDataSourceService
 
         foreach (var connector in connectors)
         {
-            connector.IsConfigured = _manualSyncService.IsConnectorConfigured(connector.Id);
+            connector.IsConfigured = _connectorSyncService.IsConnectorConfigured(connector.Id);
         }
 
         return connectors;
@@ -632,10 +632,7 @@ public class DataSourceService : IDataSourceService
     {
         var dataSources = await GetActiveDataSourcesAsync(cancellationToken);
 
-        // Check if manual sync is enabled and if there are any active connectors
-        // improved: check configuration instead of just active data sources
-        var hasEnabledConnectors = _manualSyncService.HasEnabledConnectors();
-        var manualSyncEnabled = _manualSyncService.IsEnabled() && hasEnabledConnectors;
+        var hasEnabledConnectors = _connectorSyncService.HasEnabledConnectors();
 
         return new ServicesOverview
         {
@@ -651,7 +648,6 @@ public class DataSourceService : IDataSourceService
                 TreatmentsEndpoint = "/api/v1/treatments",
                 DeviceStatusEndpoint = "/api/v1/devicestatus",
             },
-            ManualSyncEnabled = manualSyncEnabled,
         };
     }
 

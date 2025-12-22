@@ -152,6 +152,8 @@ export interface AlarmProfileConfiguration {
   threshold: number;
   /** For range alarms, the upper bound (threshold is lower bound) */
   thresholdHigh?: number;
+  /** Lead time in minutes for forecast alerts (ForecastLow) */
+  forecastLeadTimeMinutes?: number;
   /** Delayed raise - only trigger if above/below threshold for this many minutes */
   persistenceMinutes: number;
   /** Audio configuration for this alarm */
@@ -333,8 +335,8 @@ export function createDefaultAlarmProfile(
     alarmType: type,
     threshold: defaults.threshold,
     thresholdHigh: undefined,
+    forecastLeadTimeMinutes: defaults.forecastLeadTimeMinutes,
     persistenceMinutes: 0,
-    forecastLeadTimeMinutes: undefined, // Added this line
     audio: {
       enabled: true,
       soundId: defaults.soundId,
@@ -401,6 +403,7 @@ function getDefaultsForType(type: AlarmTriggerType): {
   snoozeDefault: number;
   reraiseMinutes: number;
   priority: AlarmPriority;
+  forecastLeadTimeMinutes?: number;
 } {
   switch (type) {
     case "UrgentHigh":
@@ -490,6 +493,7 @@ function getDefaultsForType(type: AlarmTriggerType): {
         snoozeDefault: 15,
         reraiseMinutes: 10,
         priority: "High",
+        forecastLeadTimeMinutes: 30,
       };
     case "Custom":
       return {

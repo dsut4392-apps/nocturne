@@ -67,6 +67,13 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
 
     public override string ServiceName => "Tidepool";
 
+    public override List<SyncDataType> SupportedDataTypes => new()
+    {
+        SyncDataType.Glucose,
+        SyncDataType.Treatments,
+        SyncDataType.Activity
+    };
+
     public TidepoolConnectorService(
         HttpClient httpClient,
         IOptions<TidepoolConnectorConfiguration> config,
@@ -258,7 +265,7 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
             || DateTime.UtcNow >= _sessionExpiresAt;
     }
 
-    public override async Task<IEnumerable<Entry>> FetchGlucoseDataAsync(DateTime? since = null)
+    protected override async Task<IEnumerable<Entry>> FetchGlucoseDataRangeAsync(DateTime? from, DateTime? to)
     {
         try
         {
@@ -279,7 +286,7 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
             // Apply rate limiting
             await _rateLimitingStrategy.ApplyDelayAsync(0);
 
-            var bgValues = await FetchBgValuesAsync(since);
+            var bgValues = await FetchBgValuesAsync(from, to);
             var entries = TransformBgValuesToEntries(bgValues);
 
             _logger.LogInformation(
@@ -302,7 +309,12 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
         }
     }
 
-    private async Task<List<TidepoolBgValue>> FetchBgValuesAsync(DateTime? since = null)
+    public override Task<IEnumerable<Entry>> FetchGlucoseDataAsync(DateTime? since = null)
+    {
+        return FetchGlucoseDataRangeAsync(since, null);
+    }
+
+    private async Task<List<TidepoolBgValue>> FetchBgValuesAsync(DateTime? start = null, DateTime? end = null)
     {
         var results = new List<TidepoolBgValue>();
         const int maxRetries = 3;
@@ -311,14 +323,14 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
         {
             try
             {
-                var start = since ?? DateTime.UtcNow.AddDays(-1);
-                var end = DateTime.UtcNow;
+                var startDate = start ?? DateTime.UtcNow.AddDays(-1);
+                var endDate = end ?? DateTime.UtcNow;
 
                 // Fetch both CGM and SMBG readings
                 var types = $"{TidepoolConstants.DataTypes.Cbg},{TidepoolConstants.DataTypes.Smbg}";
 
                 var url =
-                    $"{string.Format(TidepoolConstants.Endpoints.DataFormat, _userId)}?type={types}&startDate={start:o}&endDate={end:o}";
+                    $"{string.Format(TidepoolConstants.Endpoints.DataFormat, _userId)}?type={types}&startDate={startDate:o}&endDate={endDate:o}";
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
                 request.Headers.Add(TidepoolConstants.Headers.SessionToken, _sessionToken);
@@ -438,34 +450,44 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
     /// <summary>
     /// Fetch bolus data from Tidepool
     /// </summary>
-    public async Task<List<TidepoolBolus>> FetchBolusDataAsync(DateTime? since = null)
+    /// <summary>
+    /// Fetch bolus data from Tidepool
+    /// </summary>
+    public async Task<List<TidepoolBolus>> FetchBolusDataAsync(DateTime? start, DateTime? end)
     {
         if (IsSessionExpired() && !await AuthenticateAsync())
         {
             return new List<TidepoolBolus>();
         }
 
-        return await FetchDataAsync<TidepoolBolus>(TidepoolConstants.DataTypes.Bolus, since);
+        return await FetchDataAsync<TidepoolBolus>(TidepoolConstants.DataTypes.Bolus, start, end);
     }
 
     /// <summary>
     /// Fetch food/carb data from Tidepool
     /// </summary>
-    public async Task<List<TidepoolFood>> FetchFoodDataAsync(DateTime? since = null)
+    /// <summary>
+    /// Fetch food/carb data from Tidepool
+    /// </summary>
+    public async Task<List<TidepoolFood>> FetchFoodDataAsync(DateTime? start, DateTime? end)
     {
         if (IsSessionExpired() && !await AuthenticateAsync())
         {
             return new List<TidepoolFood>();
         }
 
-        return await FetchDataAsync<TidepoolFood>(TidepoolConstants.DataTypes.Food, since);
+        return await FetchDataAsync<TidepoolFood>(TidepoolConstants.DataTypes.Food, start, end);
     }
 
     /// <summary>
     /// Fetch physical activity data from Tidepool
     /// </summary>
+    /// <summary>
+    /// Fetch physical activity data from Tidepool
+    /// </summary>
     public async Task<List<TidepoolPhysicalActivity>> FetchPhysicalActivityAsync(
-        DateTime? since = null
+        DateTime? start,
+        DateTime? end
     )
     {
         if (IsSessionExpired() && !await AuthenticateAsync())
@@ -475,21 +497,22 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
 
         return await FetchDataAsync<TidepoolPhysicalActivity>(
             TidepoolConstants.DataTypes.PhysicalActivity,
-            since
+            start,
+            end
         );
     }
 
-    private async Task<List<T>> FetchDataAsync<T>(string dataType, DateTime? since = null)
+    private async Task<List<T>> FetchDataAsync<T>(string dataType, DateTime? start = null, DateTime? end = null)
     {
         var results = new List<T>();
 
         try
         {
-            var start = since ?? DateTime.UtcNow.AddDays(-1);
-            var end = DateTime.UtcNow;
+            var startDate = start ?? DateTime.UtcNow.AddDays(-1);
+            var endDate = end ?? DateTime.UtcNow;
 
             var url =
-                $"{string.Format(TidepoolConstants.Endpoints.DataFormat, _userId)}?type={dataType}&startDate={start:o}&endDate={end:o}";
+                $"{string.Format(TidepoolConstants.Endpoints.DataFormat, _userId)}?type={dataType}&startDate={startDate:o}&endDate={endDate:o}";
 
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Add(TidepoolConstants.Headers.SessionToken, _sessionToken);
@@ -522,174 +545,89 @@ public class TidepoolConnectorService : BaseConnectorService<TidepoolConnectorCo
         return results;
     }
 
-    /// <summary>
-    /// Syncs Tidepool data including treatments
-    /// </summary>
-    public async Task<bool> SyncTidepoolDataAsync(
-        TidepoolConnectorConfiguration config,
-        CancellationToken cancellationToken = default,
-        DateTime? since = null
-    )
+    protected override async Task<IEnumerable<Treatment>> FetchTreatmentsAsync(DateTime? from, DateTime? to)
     {
-        try
+        var treatments = new List<Treatment>();
+
+        // Fetch bolus data
+        var boluses = await FetchBolusDataAsync(from, to);
+        foreach (var bolus in boluses.Where(b => b.Time.HasValue))
         {
-            _logger.LogInformation("Starting Tidepool data sync");
-
-            // Sync glucose data using base class
-            var success = await SyncDataAsync(config, cancellationToken, since);
-
-            // Optionally sync treatments
-            if (success && config.SyncTreatments)
-            {
-                await SyncTreatmentsAsync(cancellationToken, since);
-            }
-
-            if (success)
-            {
-                _logger.LogInformation("Tidepool data sync completed successfully");
-            }
-            else
-            {
-                _logger.LogWarning("Tidepool data sync failed");
-            }
-
-            return success;
+            treatments.Add(
+                new Treatment
+                {
+                    Created_at = bolus.Time!.Value.ToString("o"),
+                    EventType = "Bolus",
+                    Insulin = bolus.TotalInsulin,
+                    Duration = bolus.Duration?.TotalMinutes,
+                    EnteredBy = "Tidepool",
+                }
+            );
         }
-        catch (Exception ex)
+
+        // Fetch food data
+        var foods = await FetchFoodDataAsync(from, to);
+        foreach (var food in foods.Where(f => f.Time.HasValue))
         {
-            _logger.LogError(ex, "Error during Tidepool data sync");
-            return false;
-        }
-    }
-
-    private async Task SyncTreatmentsAsync(
-        CancellationToken cancellationToken,
-        DateTime? since = null
-    )
-    {
-        try
-        {
-            _stateService?.SetState(ConnectorState.Syncing, "Downloading treatments...");
-            since ??= DateTime.UtcNow.AddDays(-1);
-
-            // Fetch bolus data
-            var boluses = await FetchBolusDataAsync(since);
-            var treatments = new List<Treatment>();
-
-            foreach (var bolus in boluses.Where(b => b.Time.HasValue))
+            var carbs = food.Nutrition?.Carbohydrate?.Net;
+            if (carbs.HasValue && carbs > 0)
             {
                 treatments.Add(
                     new Treatment
                     {
-                        Created_at = bolus.Time!.Value.ToString("o"),
-                        EventType = "Bolus",
-                        Insulin = bolus.TotalInsulin,
-                        Duration = bolus.Duration?.TotalMinutes,
+                        Created_at = food.Time!.Value.ToString("o"),
+                        EventType = "Meal Bolus",
+                        Carbs = carbs,
                         EnteredBy = "Tidepool",
                     }
                 );
             }
-
-            // Fetch food data
-            var foods = await FetchFoodDataAsync(since);
-            foreach (var food in foods.Where(f => f.Time.HasValue))
-            {
-                var carbs = food.Nutrition?.Carbohydrate?.Net;
-                if (carbs.HasValue && carbs > 0)
-                {
-                    treatments.Add(
-                        new Treatment
-                        {
-                            Created_at = food.Time!.Value.ToString("o"),
-                            EventType = "Meal Bolus",
-                            Carbs = carbs,
-                            EnteredBy = "Tidepool",
-                        }
-                    );
-                }
-            }
-
-            if (treatments.Count > 0)
-            {
-                _stateService?.SetState(ConnectorState.Syncing, "Uploading treatments...");
-                await PublishTreatmentDataAsync(treatments, _config, cancellationToken);
-                _logger.LogInformation("Synced {Count} treatments from Tidepool", treatments.Count);
-            }
-            else
-            {
-                _stateService?.SetState(ConnectorState.Syncing, "No new treatments found");
-            }
-
-            // Fetch and sync physical activity data to Activity table
-            await SyncPhysicalActivityAsync(since.Value, cancellationToken);
-
-            _stateService?.SetState(ConnectorState.Idle, "Tidepool sync complete");
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error syncing treatments from Tidepool");
-            _stateService?.SetState(ConnectorState.Error, "Error syncing treatments");
-        }
+
+        return treatments.OrderBy(t => t.Created_at);
     }
 
-    private async Task SyncPhysicalActivityAsync(
-        DateTime since,
-        CancellationToken cancellationToken
-    )
+    protected override async Task<IEnumerable<Activity>> FetchActivitiesAsync(DateTime? from, DateTime? to)
     {
-        try
+        var physicalActivities = await FetchPhysicalActivityAsync(from, to);
+        var activities = new List<Activity>();
+
+        foreach (var pa in physicalActivities.Where(a => a.Time.HasValue))
         {
-            _stateService?.SetState(ConnectorState.Syncing, "Downloading physical activity...");
-            var physicalActivities = await FetchPhysicalActivityAsync(since);
-            var activities = new List<Activity>();
-
-            foreach (var pa in physicalActivities.Where(a => a.Time.HasValue))
+            var activity = new Activity
             {
-                var activity = new Activity
-                {
-                    CreatedAt = pa.Time!.Value.ToString("o"),
-                    Mills = new DateTimeOffset(pa.Time.Value).ToUnixTimeMilliseconds(),
-                    Name = pa.Name,
-                    Type = "physicalActivity",
-                    Description = pa.Name,
-                    EnteredBy = "Tidepool",
-                };
+                CreatedAt = pa.Time!.Value.ToString("o"),
+                Mills = new DateTimeOffset(pa.Time.Value).ToUnixTimeMilliseconds(),
+                Name = pa.Name,
+                Type = "physicalActivity",
+                Description = pa.Name,
+                EnteredBy = "Tidepool",
+            };
 
-                // Convert duration from milliseconds to minutes
-                if (pa.Duration?.Value.HasValue == true)
-                {
-                    activity.Duration = pa.Duration.Value / 60000;
-                }
-
-                // Add distance if available
-                if (pa.Distance?.Value.HasValue == true)
-                {
-                    activity.Distance = pa.Distance.Value;
-                    activity.DistanceUnits = pa.Distance.Units;
-                }
-
-                // Add energy if available
-                if (pa.Energy?.Value.HasValue == true)
-                {
-                    activity.Energy = pa.Energy.Value;
-                    activity.EnergyUnits = pa.Energy.Units;
-                }
-
-                activities.Add(activity);
+            // Convert duration from milliseconds to minutes
+            if (pa.Duration?.Value.HasValue == true)
+            {
+                activity.Duration = pa.Duration.Value / 60000;
             }
 
-            if (activities.Count > 0)
+            // Add distance if available
+            if (pa.Distance?.Value.HasValue == true)
             {
-                await PublishActivityDataAsync(activities, _config, cancellationToken);
-                _logger.LogInformation(
-                    "Synced {Count} physical activities from Tidepool",
-                    activities.Count
-                );
+                activity.Distance = pa.Distance.Value;
+                activity.DistanceUnits = pa.Distance.Units;
             }
+
+            // Add energy if available
+            if (pa.Energy?.Value.HasValue == true)
+            {
+                activity.Energy = pa.Energy.Value;
+                activity.EnergyUnits = pa.Energy.Units;
+            }
+
+            activities.Add(activity);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error syncing physical activities from Tidepool");
-        }
+
+        return activities.OrderBy(a => a.CreatedAt);
     }
+
 }

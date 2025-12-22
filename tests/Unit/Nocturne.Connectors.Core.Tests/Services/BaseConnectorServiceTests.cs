@@ -33,6 +33,7 @@ public class BaseConnectorServiceTests
         public string NightscoutApiSecret { get; set; } = "";
         public string ApiSecret { get; set; } = "";
         public int SyncIntervalMinutes { get; set; } = 5;
+        public bool Enabled { get; set; } = true;
         public bool LoadFromFile { get; set; }
         public string? LoadFilePath { get; set; }
         public bool SaveRawData { get; set; }

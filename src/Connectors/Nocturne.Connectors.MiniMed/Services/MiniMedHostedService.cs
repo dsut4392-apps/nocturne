@@ -44,10 +44,7 @@ public class MiniMedHostedService : BackgroundService
 
                     _logger.LogDebug("Starting MiniMed data sync cycle");
 
-                    var success = await connectorService.SyncCareLinkDataAsync(
-                        _config,
-                        stoppingToken
-                    );
+                    var success = await connectorService.SyncDataAsync(_config, stoppingToken);
 
                     if (success)
                     {

@@ -19,5 +19,25 @@ namespace Nocturne.Connectors.Core.Extensions
 
             return services;
         }
+
+        public static IServiceCollection AddConnectorApiDataSubmitter(this IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration configuration)
+        {
+            var apiUrl = configuration["NocturneApiUrl"];
+            var apiSecret = configuration["ApiSecret"];
+
+            services.AddSingleton<IApiDataSubmitter>(sp =>
+            {
+                var httpClientFactory = sp.GetRequiredService<System.Net.Http.IHttpClientFactory>();
+                var httpClient = httpClientFactory.CreateClient("NocturneApi");
+                var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ApiDataSubmitter>>();
+                if (string.IsNullOrEmpty(apiUrl))
+                {
+                    throw new InvalidOperationException("NocturneApiUrl configuration is missing.");
+                }
+                return new ApiDataSubmitter(httpClient, apiUrl, apiSecret, logger);
+            });
+
+            return services;
+        }
     }
 }

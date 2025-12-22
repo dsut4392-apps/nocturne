@@ -44,8 +44,8 @@ public class NightscoutHostedService : BackgroundService
 
                     _logger.LogDebug("Starting Nightscout data sync cycle");
 
-                    // Use the new SyncNightscoutDataAsync method which uploads to Nocturne API
-                    var success = await connectorService.SyncNightscoutDataAsync(
+                    // Use the common SyncDataAsync method which is now parallelized and simplified
+                    var success = await connectorService.SyncDataAsync(
                         _config,
                         stoppingToken
                     );

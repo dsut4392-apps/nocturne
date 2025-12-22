@@ -50,10 +50,6 @@ namespace Nocturne.Connectors.Core.Interfaces
         /// </summary>
         bool UseAsyncProcessing { get; set; }
 
-        /// <summary>
-        /// Whether to fallback to direct API if message processing fails
-        /// </summary>
-        bool FallbackToDirectApi { get; set; }
 
         /// <summary>
         /// Timeout for message processing

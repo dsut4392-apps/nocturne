@@ -107,6 +107,8 @@ public class AlertRuleRepository
         existingRule.MaxEscalations = updatedRule.MaxEscalations;
         existingRule.DefaultSnoozeMinutes = updatedRule.DefaultSnoozeMinutes;
         existingRule.MaxSnoozeMinutes = updatedRule.MaxSnoozeMinutes;
+        existingRule.ForecastLeadTimeMinutes = updatedRule.ForecastLeadTimeMinutes;
+        existingRule.ClientConfiguration = updatedRule.ClientConfiguration;
         existingRule.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);

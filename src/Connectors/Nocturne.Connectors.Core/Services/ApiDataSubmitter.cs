@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Core.Models;
@@ -499,6 +500,96 @@ public class ApiDataSubmitter : IApiDataSubmitter
         );
     }
 
+    /// <inheritdoc />
+    public async Task<DateTime?> GetLatestEntryTimestampAsync(
+        string source,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var connectorId = MapSourceToConnectorId(source);
+        var syncStatus = await GetSyncStatusAsync(connectorId, cancellationToken);
+        return syncStatus?.LatestEntryTimestamp;
+    }
+
+    /// <inheritdoc />
+    public async Task<DateTime?> GetLatestTreatmentTimestampAsync(
+        string source,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var connectorId = MapSourceToConnectorId(source);
+        var syncStatus = await GetSyncStatusAsync(connectorId, cancellationToken);
+        return syncStatus?.LatestTreatmentTimestamp;
+    }
+
+    /// <summary>
+    /// Gets the full sync status for a connector from the API
+    /// </summary>
+    private async Task<SyncStatusResponse?> GetSyncStatusAsync(
+        string connectorId,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            var url = $"{_baseUrl}/api/v4/services/connectors/{connectorId}/sync-status";
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            AddAuthenticationHeader(request);
+
+            _logger?.LogDebug("Fetching sync status from {Url}", url);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger?.LogWarning(
+                    "Failed to get sync status for {ConnectorId}. Status: {StatusCode}",
+                    connectorId,
+                    response.StatusCode
+                );
+                return null;
+            }
+
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                Converters = { new JsonStringEnumConverter() }
+            };
+
+            var syncStatus = await response.Content.ReadFromJsonAsync<SyncStatusResponse>(
+                jsonOptions,
+                cancellationToken
+            );
+
+            _logger?.LogDebug(
+                "Sync status for {ConnectorId}: LatestEntry={LatestEntry}, LatestTreatment={LatestTreatment}",
+                connectorId,
+                syncStatus?.LatestEntryTimestamp,
+                syncStatus?.LatestTreatmentTimestamp
+            );
+
+            return syncStatus;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Error fetching sync status for {ConnectorId}", connectorId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Maps a data source name (e.g., "dexcom-connector") to a connector ID (e.g., "dexcom")
+    /// </summary>
+    private static string MapSourceToConnectorId(string source)
+    {
+        // Remove "-connector" suffix if present
+        if (source.EndsWith("-connector", StringComparison.OrdinalIgnoreCase))
+        {
+            return source[..^"-connector".Length].ToLowerInvariant();
+        }
+        return source.ToLowerInvariant();
+    }
+
     private void AddAuthenticationHeader(HttpRequestMessage request)
     {
         if (!string.IsNullOrEmpty(_apiSecretHash))
@@ -515,5 +606,22 @@ public class ApiDataSubmitter : IApiDataSubmitter
         var bytes = Encoding.UTF8.GetBytes(input);
         var hash = SHA1.HashData(bytes);
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Response model for sync status API endpoint
+    /// </summary>
+    private class SyncStatusResponse
+    {
+        public string ConnectorId { get; set; } = string.Empty;
+        public string DataSource { get; set; } = string.Empty;
+        public DateTime? LatestEntryTimestamp { get; set; }
+        public DateTime? LatestTreatmentTimestamp { get; set; }
+        public bool HasEntries { get; set; }
+        public bool HasTreatments { get; set; }
+        public ConnectorState State { get; set; } = ConnectorState.Unknown;
+        public string? StateMessage { get; set; }
+        public bool IsHealthy { get; set; }
+        public DateTime QueriedAt { get; set; }
     }
 }

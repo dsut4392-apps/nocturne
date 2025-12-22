@@ -394,6 +394,26 @@
                   </div>
                 </div>
               {/if}
+
+              {#if editedProfile.alarmType === "ForecastLow"}
+                <div class="space-y-2">
+                  <Label>Lead Time</Label>
+                  <div class="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      bind:value={editedProfile.forecastLeadTimeMinutes}
+                      class="w-24"
+                      min="5"
+                      max="60"
+                      step="5"
+                    />
+                    <span class="text-sm text-muted-foreground">minutes</span>
+                  </div>
+                  <p class="text-xs text-muted-foreground">
+                    How far ahead to predict (5-60 min). Alarm triggers if glucose is forecast to drop below threshold within this time.
+                  </p>
+                </div>
+              {/if}
             </div>
 
             <div class="space-y-2">

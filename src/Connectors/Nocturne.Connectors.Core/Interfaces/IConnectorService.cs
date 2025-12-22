@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using Nocturne.Connectors.Core.Models;
 using Nocturne.Core.Models;
 
 namespace Nocturne.Connectors.Core.Interfaces
@@ -24,13 +26,18 @@ namespace Nocturne.Connectors.Core.Interfaces
         Task<IEnumerable<Entry>> FetchGlucoseDataAsync(DateTime? since = null);
 
         /// <summary>
-        /// Upload Entry models to Nightscout
-        /// </summary>
-        Task<bool> UploadToNightscoutAsync(IEnumerable<Entry> entries, TConfig config);
-
-        /// <summary>
         /// Get the name of this connector service
         /// </summary>
         string ServiceName { get; }
+
+        /// <summary>
+        /// Perform a granular sync operation
+        /// </summary>
+        Task<SyncResult> SyncDataAsync(SyncRequest request, TConfig config, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Gets the list of data types supported by this connector
+        /// </summary>
+        List<SyncDataType> SupportedDataTypes { get; }
     }
 }

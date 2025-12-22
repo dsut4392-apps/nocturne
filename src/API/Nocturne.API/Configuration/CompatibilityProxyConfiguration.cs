@@ -21,6 +21,11 @@ public class CompatibilityProxyConfiguration
     public string NightscoutApiSecret { get; set; } = string.Empty;
 
     /// <summary>
+    /// Subject Token for JWT authentication (optional, prefers V3 API if present)
+    /// </summary>
+    public string NightscoutSubjectToken { get; set; } = string.Empty;
+
+    /// <summary>
     /// Request timeout in seconds
     /// </summary>
     public int TimeoutSeconds { get; set; } = 30;

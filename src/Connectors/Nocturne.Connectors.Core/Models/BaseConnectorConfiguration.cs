@@ -51,13 +51,11 @@ namespace Nocturne.Connectors.Core.Models
 
         public bool UseAsyncProcessing { get; set; } = true;
 
-        public bool FallbackToDirectApi { get; set; } = true;
-
         public TimeSpan MessageTimeout { get; set; } = TimeSpan.FromMinutes(5);
 
         public int MaxRetryAttempts { get; set; } = 3;
 
-        public int BatchSize { get; set; } = 50;
+        public int BatchSize { get; set; } = 250;
 
         /// <summary>
         /// Timezone offset in hours (default 0).

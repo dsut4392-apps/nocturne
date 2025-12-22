@@ -45,60 +45,13 @@ public class MyFitnessPalConnectorBackgroundService
         var connectorService =
             scope.ServiceProvider.GetRequiredService<MyFitnessPalConnectorService>();
 
-        try
-        {
-            // Get the date range for sync - sync last 7 days by default
-            var syncDays = _configuration.GetValue<int>(
-                "Connectors:MyFitnessPal:SyncDays",
-                Config.SyncDays
-            );
-            var fromDate = DateTime.Today.AddDays(-syncDays);
-            var toDate = DateTime.Today;
+        // Get the date range for sync - sync last 7 days by default
+        var syncDays = _configuration.GetValue<int>(
+            "Connectors:MyFitnessPal:SyncDays",
+            Config.SyncDays
+        );
+        var fromDate = DateTime.Today.AddDays(-syncDays);
 
-            // Fetch diary data from MyFitnessPal
-            var diaryResponse = await connectorService.FetchDiaryAsync(
-                _username!,
-                fromDate,
-                toDate
-            );
-
-            if (diaryResponse?.Any() != true)
-            {
-                Logger.LogInformation("No diary data found in MyFitnessPal for sync period");
-                return true;
-            }
-
-            // Convert to Nightscout foods
-            var foods = connectorService.ConvertToNightscoutFoods(diaryResponse);
-            if (!foods.Any())
-            {
-                Logger.LogInformation(
-                    "No food entries found in MyFitnessPal diary for sync period"
-                );
-                return true;
-            }
-
-            // Upload to Nightscout
-            var uploadSuccess = await connectorService.UploadFoodToNightscoutAsync(foods, Config);
-
-            if (uploadSuccess)
-            {
-                Logger.LogInformation(
-                    "Successfully synced {FoodCount} food entries from MyFitnessPal",
-                    foods.Count()
-                );
-            }
-            else
-            {
-                Logger.LogWarning("Failed to upload food entries to Nightscout");
-            }
-
-            return uploadSuccess;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error syncing MyFitnessPal data");
-            return false;
-        }
+        return await connectorService.SyncDataAsync(Config, cancellationToken, fromDate);
     }
 }

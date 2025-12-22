@@ -81,6 +81,8 @@ namespace Nocturne.Connectors.MiniMed.Services
         /// </summary>
         public override string ConnectorSource => DataSources.MiniMedConnector;
 
+        public override List<SyncDataType> SupportedDataTypes => new() { SyncDataType.Glucose };
+
         public CareLinkConnectorService(
             HttpClient httpClient,
             IOptions<CareLinkConnectorConfiguration> config,
@@ -721,51 +723,7 @@ namespace Nocturne.Connectors.MiniMed.Services
             return entries.OrderBy(e => e.Date);
         }
 
-        /// <summary>
-        /// Syncs MiniMed CareLink data using message publishing when available, with fallback to direct API
-        /// This includes glucose data, pump data, and device status
-        /// </summary>
-        /// <param name="config">Connector configuration</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>True if sync was successful</returns>
-        public async Task<bool> SyncCareLinkDataAsync(
-            CareLinkConnectorConfiguration config,
-            CancellationToken cancellationToken = default,
-            DateTime? since = null
-        )
-        {
-            try
-            {
-                _logger.LogInformation(
-                    "Starting MiniMed CareLink data sync using {Mode} mode",
-                    config.UseAsyncProcessing ? "asynchronous" : "direct API"
-                );
 
-                // Use the hybrid sync method from BaseConnectorService for glucose data
-                var success = await SyncDataAsync(config, cancellationToken, since);
-
-                if (success)
-                {
-                    _logger.LogInformation("MiniMed CareLink data sync completed successfully");
-
-                    // TODO: Future enhancement - add device status publishing for pump data
-                    // This would include insulin delivery data, pump alarms, basal rates, etc.
-                    // var deviceStatuses = await FetchDeviceStatusAsync();
-                    // await PublishDeviceStatusAsync(deviceStatuses, config, cancellationToken);
-                }
-                else
-                {
-                    _logger.LogWarning("MiniMed CareLink data sync failed");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during MiniMed CareLink data sync");
-                return false;
-            }
-        }
 
         private class CarelinkLoginFlow
         {

@@ -7,7 +7,8 @@ namespace Nocturne.Connectors.Core.Interfaces
         Idle,
         Syncing,
         BackingOff,
-        Error
+        Error,
+        Unknown,
     }
 
     public interface IConnectorStateService

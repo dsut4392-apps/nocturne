@@ -14,6 +14,11 @@
   import { Label } from "$lib/components/ui/label";
   import * as Select from "$lib/components/ui/select";
   import { Textarea } from "$lib/components/ui/textarea";
+  import { DurationInput } from "$lib/components/ui/duration-input";
+  import {
+    TrackerNotificationEditor,
+    type TrackerNotification,
+  } from "$lib/components/trackers";
   import {
     Timer,
     Plus,
@@ -34,13 +39,14 @@
   } from "lucide-svelte";
   import { cn } from "$lib/utils";
   import * as trackersRemote from "$lib/data/trackers.remote";
-  import type {
-    TrackerDefinitionDto,
-    TrackerInstanceDto,
-    TrackerPresetDto,
+  import {
+    NotificationUrgency,
     TrackerCategory,
     CompletionReason,
-  } from "$lib/api/generated/nocturne-api-client";
+    type TrackerDefinitionDto,
+    type TrackerInstanceDto,
+    type TrackerPresetDto,
+  } from "$api";
 
   // State
   let activeTab = $state("active");
@@ -60,66 +66,197 @@
   // Form state for definition
   let formName = $state("");
   let formDescription = $state("");
-  let formCategory = $state<TrackerCategory>(0); // Consumable
+  let formCategory = $state<TrackerCategory>(TrackerCategory.Consumable);
   let formIcon = $state("activity");
   let formLifespanHours = $state<number | undefined>(undefined);
-  let formInfoHours = $state<number | undefined>(undefined);
-  let formWarnHours = $state<number | undefined>(undefined);
-  let formHazardHours = $state<number | undefined>(undefined);
-  let formUrgentHours = $state<number | undefined>(undefined);
+  let formNotifications = $state<TrackerNotification[]>([]);
   let formIsFavorite = $state(false);
 
+  // Helper to convert API format to notifications array
+  function definitionToNotifications(
+    def: TrackerDefinitionDto
+  ): TrackerNotification[] {
+    const notifications: TrackerNotification[] = [];
+    if (def.infoHours !== undefined && def.infoHours !== null) {
+      notifications.push({
+        urgency: NotificationUrgency.Info,
+        hours: def.infoHours,
+        description: "",
+      });
+    }
+    if (def.warnHours !== undefined && def.warnHours !== null) {
+      notifications.push({
+        urgency: NotificationUrgency.Warn,
+        hours: def.warnHours,
+        description: "",
+      });
+    }
+    if (def.hazardHours !== undefined && def.hazardHours !== null) {
+      notifications.push({
+        urgency: NotificationUrgency.Hazard,
+        hours: def.hazardHours,
+        description: "",
+      });
+    }
+    if (def.urgentHours !== undefined && def.urgentHours !== null) {
+      notifications.push({
+        urgency: NotificationUrgency.Urgent,
+        hours: def.urgentHours,
+        description: "",
+      });
+    }
+
+    // New format: use notificationThresholds array if available
+    if (def.notificationThresholds && def.notificationThresholds.length > 0) {
+      return def.notificationThresholds.map((t, i) => ({
+        id: t.id,
+        urgency: t.urgency ?? NotificationUrgency.Info,
+        hours: t.hours,
+        description: t.description ?? "",
+        displayOrder: t.displayOrder ?? i,
+      }));
+    }
+
+    return notifications;
+  }
+
+  // Helper to convert notifications array to API format
+  function notificationsToApiFormat(notifications: TrackerNotification[]) {
+    return notifications
+      .filter((n) => n.hours !== undefined)
+      .map((n, i) => ({
+        urgency: n.urgency,
+        hours: n.hours!,
+        description: n.description || undefined,
+        displayOrder: n.displayOrder ?? i,
+      }));
+  }
+
   // Start instance dialog
+  // Start instance
   let isStartDialogOpen = $state(false);
   let startDefinitionId = $state<string | null>(null);
   let startNotes = $state("");
+  let startedAtString = $state(""); // YYYY-MM-DDTHH:mm
+
+  // Initialize dialog with current local time
+  function openStartDialog(definitionId: string) {
+    startDefinitionId = definitionId;
+    startNotes = "";
+
+    // Default to now, formatted for datetime-local
+    const now = new Date();
+    // Offset for local timezone
+    const offset = now.getTimezoneOffset() * 60000;
+    const localIso = new Date(now.getTime() - offset)
+      .toISOString()
+      .slice(0, 16);
+    startedAtString = localIso;
+
+    isStartDialogOpen = true;
+  }
+
+  async function startInstanceHandler() {
+    if (!startDefinitionId) return;
+    try {
+      const startedAt = startedAtString ? new Date(startedAtString) : undefined;
+      await trackersRemote.startInstance({
+        definitionId: startDefinitionId,
+        startNotes: startNotes || undefined,
+        startedAt: startedAt,
+      });
+      isStartDialogOpen = false;
+      await loadData();
+    } catch (err) {
+      console.error("Failed to start instance:", err);
+    }
+  }
+
+  // Derived for Start Dialog
+  const startDefinition = $derived(
+    definitions.find((d) => d.id === startDefinitionId)
+  );
+
+  const startPreview = $derived.by(() => {
+    if (
+      !startDefinition ||
+      !startDefinition.notificationThresholds ||
+      !startedAtString
+    )
+      return [];
+
+    const start = new Date(startedAtString);
+    const now = new Date();
+
+    // Safety check for invalid date
+    if (isNaN(start.getTime())) return [];
+
+    return startDefinition.notificationThresholds
+      .filter((n) => n.hours !== undefined)
+      .map((n) => {
+        const triggerTime = new Date(
+          start.getTime() + n.hours! * 60 * 60 * 1000
+        );
+        const timeUntil = triggerTime.getTime() - now.getTime();
+        const hoursUntil = timeUntil / (1000 * 60 * 60);
+
+        return {
+          ...n,
+          triggerTime,
+          isPast: timeUntil < 0,
+          relativeTime:
+            Math.abs(hoursUntil) < 1
+              ? `${Math.abs(Math.round(hoursUntil * 60))} mins`
+              : `${Math.abs(hoursUntil).toFixed(1)} hours`,
+        };
+      })
+      .sort((a, b) => (a.hours ?? 0) - (b.hours ?? 0));
+  });
 
   // Complete instance dialog
   let isCompleteDialogOpen = $state(false);
   let completingInstanceId = $state<string | null>(null);
-  let completionReason = $state<CompletionReason>(0); // Completed
+  let completionReason = $state<CompletionReason>(CompletionReason.Completed);
   let completionNotes = $state("");
 
   // Derived counts
   const activeCount = $derived(activeInstances.length);
 
   // Category labels
-  const categoryLabels: Record<number, string> = {
-    0: "Consumable",
-    1: "Reservoir",
-    2: "Appointment",
-    3: "Reminder",
-    4: "Custom",
+  const categoryLabels: Record<TrackerCategory, string> = {
+    [TrackerCategory.Consumable]: "Consumable",
+    [TrackerCategory.Reservoir]: "Reservoir",
+    [TrackerCategory.Appointment]: "Appointment",
+    [TrackerCategory.Reminder]: "Reminder",
+    [TrackerCategory.Custom]: "Custom",
   };
 
   // Completion reason labels
-  const completionReasonLabels: Record<number, string> = {
-    0: "Completed",
-    1: "Expired",
-    2: "Failed",
-    3: "Fell Off",
-    4: "Replaced Early",
-    5: "Empty",
-    6: "Refilled",
-    7: "Attended",
-    8: "Rescheduled",
-    9: "Cancelled",
-    10: "Missed",
-    11: "Acknowledged",
-    12: "Snoozed",
-    13: "Other",
+  const completionReasonLabels: Record<CompletionReason, string> = {
+    [CompletionReason.Completed]: "Completed",
+    [CompletionReason.Expired]: "Expired",
+    [CompletionReason.Other]: "Other",
+    [CompletionReason.Failed]: "Failed",
+    [CompletionReason.FellOff]: "Fell Off",
+    [CompletionReason.ReplacedEarly]: "Replaced Early",
+    [CompletionReason.Empty]: "Empty",
+    [CompletionReason.Refilled]: "Refilled",
+    [CompletionReason.Attended]: "Attended",
+    [CompletionReason.Rescheduled]: "Rescheduled",
+    [CompletionReason.Cancelled]: "Cancelled",
+    [CompletionReason.Missed]: "Missed",
   };
 
   // Category icons and colors
   const categoryConfig: Record<
-    number,
+    TrackerCategory,
     { icon: typeof Activity; color: string }
   > = {
-    0: { icon: Syringe, color: "text-blue-500" },
-    1: { icon: Beaker, color: "text-purple-500" },
-    2: { icon: Calendar, color: "text-green-500" },
-    3: { icon: Clock, color: "text-orange-500" },
-    4: { icon: Activity, color: "text-gray-500" },
+    [TrackerCategory.Consumable]: { icon: Syringe, color: "text-blue-500" },
+    [TrackerCategory.Reservoir]: { icon: Beaker, color: "text-purple-500" },
+    [TrackerCategory.Appointment]: { icon: Calendar, color: "text-green-500" },
+    [TrackerCategory.Reminder]: { icon: Clock, color: "text-orange-500" },
+    [TrackerCategory.Custom]: { icon: Activity, color: "text-gray-500" },
   };
 
   // Load data
@@ -128,9 +265,9 @@
     error = null;
     try {
       const [defs, active, history, prsts] = await Promise.all([
-        trackersRemote.getDefinitions(),
+        trackersRemote.getDefinitions(undefined),
         trackersRemote.getActiveInstances(),
-        trackersRemote.getInstanceHistory(),
+        trackersRemote.getInstanceHistory(undefined),
         trackersRemote.getPresets(),
       ]);
       definitions = defs || [];
@@ -173,28 +310,30 @@
   // Get notification level for instance
   function getInstanceLevel(
     instance: TrackerInstanceDto
-  ): "info" | "warn" | "hazard" | "urgent" | null {
+  ): NotificationUrgency | null {
     const def = definitions.find((d) => d.id === instance.definitionId);
     if (!def || !instance.ageHours) return null;
     if (def.urgentHours && instance.ageHours >= def.urgentHours)
-      return "urgent";
+      return NotificationUrgency.Urgent;
     if (def.hazardHours && instance.ageHours >= def.hazardHours)
-      return "hazard";
-    if (def.warnHours && instance.ageHours >= def.warnHours) return "warn";
-    if (def.infoHours && instance.ageHours >= def.infoHours) return "info";
+      return NotificationUrgency.Hazard;
+    if (def.warnHours && instance.ageHours >= def.warnHours)
+      return NotificationUrgency.Warn;
+    if (def.infoHours && instance.ageHours >= def.infoHours)
+      return NotificationUrgency.Info;
     return null;
   }
 
   // Level styling
-  function getLevelStyle(level: string | null): string {
+  function getLevelStyle(level: NotificationUrgency | null): string {
     switch (level) {
-      case "urgent":
+      case NotificationUrgency.Urgent:
         return "border-red-500 bg-red-500/10";
-      case "hazard":
+      case NotificationUrgency.Hazard:
         return "border-orange-500 bg-orange-500/10";
-      case "warn":
+      case NotificationUrgency.Warn:
         return "border-yellow-500 bg-yellow-500/10";
-      case "info":
+      case NotificationUrgency.Info:
         return "border-blue-500 bg-blue-500/10";
       default:
         return "";
@@ -207,13 +346,10 @@
     editingDefinition = null;
     formName = "";
     formDescription = "";
-    formCategory = 0;
+    formCategory = TrackerCategory.Consumable;
     formIcon = "activity";
     formLifespanHours = undefined;
-    formInfoHours = undefined;
-    formWarnHours = undefined;
-    formHazardHours = undefined;
-    formUrgentHours = undefined;
+    formNotifications = [];
     formIsFavorite = false;
     isDefinitionDialogOpen = true;
   }
@@ -223,13 +359,10 @@
     editingDefinition = def;
     formName = def.name || "";
     formDescription = def.description || "";
-    formCategory = def.category ?? 0;
+    formCategory = def.category ?? TrackerCategory.Consumable;
     formIcon = def.icon || "activity";
     formLifespanHours = def.lifespanHours;
-    formInfoHours = def.infoHours;
-    formWarnHours = def.warnHours;
-    formHazardHours = def.hazardHours;
-    formUrgentHours = def.urgentHours;
+    formNotifications = definitionToNotifications(def);
     formIsFavorite = def.isFavorite ?? false;
     isDefinitionDialogOpen = true;
   }
@@ -237,16 +370,15 @@
   // Save definition
   async function saveDefinition() {
     try {
+      const notificationThresholds =
+        notificationsToApiFormat(formNotifications);
       const data = {
         name: formName,
         description: formDescription || undefined,
         category: formCategory,
         icon: formIcon,
         lifespanHours: formLifespanHours,
-        infoHours: formInfoHours,
-        warnHours: formWarnHours,
-        hazardHours: formHazardHours,
-        urgentHours: formUrgentHours,
+        notificationThresholds: notificationThresholds,
         isFavorite: formIsFavorite,
       };
 
@@ -277,30 +409,11 @@
   }
 
   // Start instance
-  function openStartDialog(definitionId: string) {
-    startDefinitionId = definitionId;
-    startNotes = "";
-    isStartDialogOpen = true;
-  }
-
-  async function startInstanceHandler() {
-    if (!startDefinitionId) return;
-    try {
-      await trackersRemote.startInstance({
-        definitionId: startDefinitionId,
-        startNotes: startNotes || undefined,
-      });
-      isStartDialogOpen = false;
-      await loadData();
-    } catch (err) {
-      console.error("Failed to start instance:", err);
-    }
-  }
 
   // Complete instance
   function openCompleteDialog(instanceId: string) {
     completingInstanceId = instanceId;
-    completionReason = 0;
+    completionReason = CompletionReason.Completed;
     completionNotes = "";
     isCompleteDialogOpen = true;
   }
@@ -509,7 +622,10 @@
                       <div class="font-medium">{instance.definitionName}</div>
                       <div class="text-sm text-muted-foreground">
                         {formatAge(instance.ageHours ?? 0)} ·
-                        {completionReasonLabels[instance.completionReason ?? 0]}
+                        {completionReasonLabels[
+                          instance.completionReason ??
+                            CompletionReason.Completed
+                        ]}
                         {#if instance.completionNotes}
                           · {instance.completionNotes}
                         {/if}
@@ -554,7 +670,8 @@
               <div class="space-y-3">
                 {#each definitions as def}
                   {@const Cat =
-                    categoryConfig[def.category ?? 0]?.icon || Activity}
+                    categoryConfig[def.category ?? TrackerCategory.Consumable]
+                      ?.icon || Activity}
                   <div
                     class="flex items-center justify-between p-4 rounded-lg border"
                   >
@@ -562,7 +679,9 @@
                       <div
                         class={cn(
                           "p-2 rounded-lg bg-muted",
-                          categoryConfig[def.category ?? 0]?.color
+                          categoryConfig[
+                            def.category ?? TrackerCategory.Consumable
+                          ]?.color
                         )}
                       >
                         <Cat class="h-5 w-5" />
@@ -575,7 +694,9 @@
                           {/if}
                         </div>
                         <div class="text-sm text-muted-foreground">
-                          {categoryLabels[def.category ?? 0]}
+                          {categoryLabels[
+                            def.category ?? TrackerCategory.Consumable
+                          ]}
                           {#if def.lifespanHours}
                             · {def.lifespanHours}h lifespan
                           {/if}
@@ -663,17 +784,46 @@
 
 <!-- Definition Dialog -->
 <Dialog.Root bind:open={isDefinitionDialogOpen}>
-  <Dialog.Content class="max-w-lg">
+  <Dialog.Content class="max-w-2xl max-h-[90vh] overflow-y-auto">
     <Dialog.Header>
       <Dialog.Title>
         {isNewDefinition ? "New Tracker Definition" : "Edit Definition"}
       </Dialog.Title>
     </Dialog.Header>
-    <div class="space-y-4 py-4">
-      <div class="space-y-2">
-        <Label for="name">Name</Label>
-        <Input id="name" bind:value={formName} placeholder="e.g., G7 Sensor" />
+    <div class="space-y-6 py-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-2">
+          <Label for="name">Name</Label>
+          <Input
+            id="name"
+            bind:value={formName}
+            placeholder="e.g., G7 Sensor"
+          />
+        </div>
+        <div class="space-y-2">
+          <Label for="category">Category</Label>
+          <Select.Root type="single" bind:value={formCategory}>
+            <Select.Trigger>{categoryLabels[formCategory]}</Select.Trigger>
+            <Select.Content>
+              <Select.Item
+                value={TrackerCategory.Consumable}
+                label="Consumable"
+              />
+              <Select.Item
+                value={TrackerCategory.Reservoir}
+                label="Reservoir"
+              />
+              <Select.Item
+                value={TrackerCategory.Appointment}
+                label="Appointment"
+              />
+              <Select.Item value={TrackerCategory.Reminder} label="Reminder" />
+              <Select.Item value={TrackerCategory.Custom} label="Custom" />
+            </Select.Content>
+          </Select.Root>
+        </div>
       </div>
+
       <div class="space-y-2">
         <Label for="description">Description (optional)</Label>
         <Input
@@ -682,60 +832,19 @@
           placeholder="Optional description"
         />
       </div>
+
       <div class="space-y-2">
-        <Label for="category">Category</Label>
-        <Select.Root type="single" bind:value={formCategory}>
-          <Select.Trigger>{categoryLabels[formCategory]}</Select.Trigger>
-          <Select.Content>
-            <Select.Item value={0} label="Consumable" />
-            <Select.Item value={1} label="Reservoir" />
-            <Select.Item value={2} label="Appointment" />
-            <Select.Item value={3} label="Reminder" />
-            <Select.Item value={4} label="Custom" />
-          </Select.Content>
-        </Select.Root>
+        <Label for="lifespan">Expected Lifespan</Label>
+        <DurationInput
+          id="lifespan"
+          bind:value={formLifespanHours}
+          placeholder="e.g., 10x24 or 10d"
+        />
       </div>
-      <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-2">
-          <Label for="lifespan">Expected Lifespan (hours)</Label>
-          <Input
-            id="lifespan"
-            type="number"
-            bind:value={formLifespanHours}
-            placeholder="e.g., 240"
-          />
-        </div>
-        <div class="space-y-2">
-          <Label for="warn">Warn at (hours)</Label>
-          <Input
-            id="warn"
-            type="number"
-            bind:value={formWarnHours}
-            placeholder="e.g., 192"
-          />
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-2">
-          <Label for="hazard">Hazard at (hours)</Label>
-          <Input
-            id="hazard"
-            type="number"
-            bind:value={formHazardHours}
-            placeholder="optional"
-          />
-        </div>
-        <div class="space-y-2">
-          <Label for="urgent">Urgent at (hours)</Label>
-          <Input
-            id="urgent"
-            type="number"
-            bind:value={formUrgentHours}
-            placeholder="optional"
-          />
-        </div>
-      </div>
+
+      <TrackerNotificationEditor bind:notifications={formNotifications} />
     </div>
+
     <Dialog.Footer>
       <Button
         variant="outline"
@@ -750,11 +859,26 @@
 
 <!-- Start Instance Dialog -->
 <Dialog.Root bind:open={isStartDialogOpen}>
-  <Dialog.Content>
+  <Dialog.Content class="sm:max-w-[425px]">
     <Dialog.Header>
       <Dialog.Title>Start Tracker</Dialog.Title>
+      <Dialog.Description>
+        Begin tracking {startDefinition?.name ?? "tracker"}.
+      </Dialog.Description>
     </Dialog.Header>
-    <div class="space-y-4 py-4">
+    <div class="grid gap-4 py-4">
+      <div class="space-y-2">
+        <Label for="startedAt">Start Time</Label>
+        <Input
+          type="datetime-local"
+          id="startedAt"
+          bind:value={startedAtString}
+        />
+        <p class="text-[10px] text-muted-foreground">
+          Adjust if you started this earlier.
+        </p>
+      </div>
+
       <div class="space-y-2">
         <Label for="startNotes">Notes (optional)</Label>
         <Input
@@ -763,6 +887,52 @@
           placeholder="e.g., Left arm, Lot #12345"
         />
       </div>
+
+      {#if startPreview.length > 0}
+        <div class="rounded-lg border bg-muted/50 p-3 mt-2">
+          <Label class="text-xs mb-2 block font-medium">
+            Notification Schedule (Adjusted)
+          </Label>
+          <div class="space-y-2">
+            {#each startPreview as preview}
+              {@const isPast = preview.isPast}
+              {@const urgencyLower = String(preview.urgency).toLowerCase()}
+              <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2">
+                  <div
+                    class={cn(
+                      "w-2 h-2 rounded-full",
+                      (urgencyLower === "info" || urgencyLower === "0") &&
+                        "bg-blue-500",
+                      (urgencyLower === "warn" || urgencyLower === "1") &&
+                        "bg-yellow-500",
+                      (urgencyLower === "hazard" || urgencyLower === "2") &&
+                        "bg-orange-500",
+                      (urgencyLower === "urgent" || urgencyLower === "3") &&
+                        "bg-red-500"
+                    )}
+                  ></div>
+                  <span>{preview.hours}h</span>
+                </div>
+                <div
+                  class={cn(
+                    "flex flex-col items-end",
+                    isPast ? "text-destructive" : "text-muted-foreground"
+                  )}
+                >
+                  <span>
+                    {isPast ? "Triggered" : "Triggering in"}
+                    {preview.relativeTime}
+                  </span>
+                  <span class="text-[10px] opacity-70">
+                    {preview.triggerTime.toLocaleTimeString()}
+                  </span>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
     <Dialog.Footer>
       <Button variant="outline" onclick={() => (isStartDialogOpen = false)}>
@@ -790,18 +960,24 @@
             {completionReasonLabels[completionReason]}
           </Select.Trigger>
           <Select.Content>
-            <Select.Item value={0} label="Completed" />
-            <Select.Item value={1} label="Expired" />
-            <Select.Item value={2} label="Failed" />
-            <Select.Item value={3} label="Fell Off" />
-            <Select.Item value={4} label="Replaced Early" />
-            <Select.Item value={5} label="Empty" />
-            <Select.Item value={6} label="Refilled" />
-            <Select.Item value={7} label="Attended" />
-            <Select.Item value={8} label="Rescheduled" />
-            <Select.Item value={9} label="Cancelled" />
-            <Select.Item value={10} label="Missed" />
-            <Select.Item value={13} label="Other" />
+            <Select.Item value={CompletionReason.Completed} label="Completed" />
+            <Select.Item value={CompletionReason.Expired} label="Expired" />
+            <Select.Item value={CompletionReason.Failed} label="Failed" />
+            <Select.Item value={CompletionReason.FellOff} label="Fell Off" />
+            <Select.Item
+              value={CompletionReason.ReplacedEarly}
+              label="Replaced Early"
+            />
+            <Select.Item value={CompletionReason.Empty} label="Empty" />
+            <Select.Item value={CompletionReason.Refilled} label="Refilled" />
+            <Select.Item value={CompletionReason.Attended} label="Attended" />
+            <Select.Item
+              value={CompletionReason.Rescheduled}
+              label="Rescheduled"
+            />
+            <Select.Item value={CompletionReason.Cancelled} label="Cancelled" />
+            <Select.Item value={CompletionReason.Missed} label="Missed" />
+            <Select.Item value={CompletionReason.Other} label="Other" />
           </Select.Content>
         </Select.Root>
       </div>

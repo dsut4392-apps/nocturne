@@ -27,7 +27,9 @@ public class TrackerRepository
     )
     {
         return await _context
-            .TrackerDefinitions.Where(d => d.UserId == userId)
+            .TrackerDefinitions
+            .Include(d => d.NotificationThresholds)
+            .Where(d => d.UserId == userId)
             .OrderBy(d => d.Name)
             .ToArrayAsync(cancellationToken);
     }
@@ -42,7 +44,9 @@ public class TrackerRepository
     )
     {
         return await _context
-            .TrackerDefinitions.Where(d => d.UserId == userId && d.Category == category)
+            .TrackerDefinitions
+            .Include(d => d.NotificationThresholds)
+            .Where(d => d.UserId == userId && d.Category == category)
             .OrderBy(d => d.Name)
             .ToArrayAsync(cancellationToken);
     }
@@ -69,10 +73,10 @@ public class TrackerRepository
         CancellationToken cancellationToken = default
     )
     {
-        return await _context.TrackerDefinitions.FirstOrDefaultAsync(
-            d => d.Id == id,
-            cancellationToken
-        );
+        return await _context
+            .TrackerDefinitions
+            .Include(d => d.NotificationThresholds)
+            .FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
     }
 
     /// <summary>
@@ -116,10 +120,6 @@ public class TrackerRepository
         existing.TriggerEventTypes = updated.TriggerEventTypes;
         existing.TriggerNotesContains = updated.TriggerNotesContains;
         existing.LifespanHours = updated.LifespanHours;
-        existing.InfoHours = updated.InfoHours;
-        existing.WarnHours = updated.WarnHours;
-        existing.HazardHours = updated.HazardHours;
-        existing.UrgentHours = updated.UrgentHours;
         existing.IsFavorite = updated.IsFavorite;
         existing.UpdatedAt = DateTime.UtcNow;
 
@@ -146,6 +146,33 @@ public class TrackerRepository
         _context.TrackerDefinitions.Remove(definition);
         var result = await _context.SaveChangesAsync(cancellationToken);
         return result > 0;
+    }
+
+    /// <summary>
+    /// Update notification thresholds for a definition (replaces all existing)
+    /// </summary>
+    public virtual async Task UpdateNotificationThresholdsAsync(
+        Guid definitionId,
+        List<TrackerNotificationThresholdEntity> thresholds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Remove existing thresholds
+        var existing = await _context.TrackerNotificationThresholds
+            .Where(t => t.TrackerDefinitionId == definitionId)
+            .ToListAsync(cancellationToken);
+
+        _context.TrackerNotificationThresholds.RemoveRange(existing);
+
+        // Add new thresholds
+        foreach (var threshold in thresholds)
+        {
+            threshold.Id = Guid.CreateVersion7();
+            threshold.TrackerDefinitionId = definitionId;
+            _context.TrackerNotificationThresholds.Add(threshold);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     #endregion
@@ -233,6 +260,7 @@ public class TrackerRepository
         string userId,
         string? startNotes = null,
         string? startTreatmentId = null,
+        DateTime? startedAt = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -241,7 +269,7 @@ public class TrackerRepository
             Id = Guid.CreateVersion7(),
             UserId = userId,
             DefinitionId = definitionId,
-            StartedAt = DateTime.UtcNow,
+            StartedAt = startedAt ?? DateTime.UtcNow,
             StartNotes = startNotes,
             StartTreatmentId = startTreatmentId,
         };
@@ -254,6 +282,7 @@ public class TrackerRepository
 
         return instance;
     }
+
 
     /// <summary>
     /// Complete a tracker instance with reason and notes

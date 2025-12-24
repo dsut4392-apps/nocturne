@@ -92,12 +92,6 @@ export class ApiClient {
     const apiBaseUrl = baseUrl;
     this.baseUrl = apiBaseUrl;
 
-    if (!apiBaseUrl) {
-      throw new Error(
-        "API base URL is not defined. Please set it in your environment variables."
-      );
-    }
-
     // Initialize all client instances with the custom fetch function
     this.client = new Client(apiBaseUrl, http);
     this.authentication = new AuthenticationClient(apiBaseUrl, http);

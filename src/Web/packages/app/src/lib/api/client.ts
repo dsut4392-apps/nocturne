@@ -1,6 +1,5 @@
 import { ApiClient } from "./api-client";
 import { browser } from "$app/environment";
-import { env as publicEnv } from "$env/dynamic/public";
 
 /**
  * Client-side API client instance This should be used in the browser when you
@@ -20,8 +19,19 @@ export function getApiClient(): ApiClient {
   }
 
   if (!clientApiClient) {
-    const apiBaseUrl = publicEnv.PUBLIC_API_URL || "http://localhost:1612";
-    const httpClient = { fetch: window.fetch.bind(window) };
+    // Use empty base URL - requests will go to same origin (SvelteKit server)
+    // which proxies /api/* requests to the backend via hooks.server.ts
+    // This avoids cross-origin issues since cookies are sent with same-origin requests
+    const apiBaseUrl = "";
+    // Wrap fetch to include credentials for cookie support
+    const httpClient = {
+      fetch: (url: RequestInfo, init?: RequestInit): Promise<Response> => {
+        return window.fetch(url, {
+          ...init,
+          credentials: 'include',
+        });
+      }
+    };
     clientApiClient = new ApiClient(apiBaseUrl, httpClient);
   }
 

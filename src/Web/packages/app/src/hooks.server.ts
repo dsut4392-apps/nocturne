@@ -31,7 +31,7 @@ function getHashedApiSecret(): string | null {
 function createServerApiClient(
   baseUrl: string,
   fetchFn: typeof fetch,
-  options?: { accessToken?: string; hashedSecret?: string | null }
+  options?: { accessToken?: string; refreshToken?: string; hashedSecret?: string | null }
 ): ApiClient {
   const httpClient = {
     fetch: async (url: RequestInfo, init?: RequestInit): Promise<Response> => {
@@ -42,9 +42,16 @@ function createServerApiClient(
         headers.set("api-secret", options.hashedSecret);
       }
 
-      // Forward access token cookie if provided
+      // Forward auth cookies if provided (both access and refresh for token refresh flow)
+      const cookies: string[] = [];
       if (options?.accessToken) {
-        headers.set("Cookie", `${AUTH_COOKIE_NAMES.accessToken}=${options.accessToken}`);
+        cookies.push(`${AUTH_COOKIE_NAMES.accessToken}=${options.accessToken}`);
+      }
+      if (options?.refreshToken) {
+        cookies.push(`${AUTH_COOKIE_NAMES.refreshToken}=${options.refreshToken}`);
+      }
+      if (cookies.length > 0) {
+        headers.set("Cookie", cookies.join("; "));
       }
 
       return fetchFn(url, {
@@ -81,9 +88,11 @@ const authHandle: Handle = async ({ event, resolve }) => {
   }
 
   try {
-    // Create a temporary API client with the access token for session validation
+    // Create a temporary API client with auth tokens for session validation
+    const refreshToken = event.cookies.get(AUTH_COOKIE_NAMES.refreshToken);
     const apiClient = createServerApiClient(apiBaseUrl, fetch, {
       accessToken,
+      refreshToken,
       hashedSecret: getHashedApiSecret(),
     });
 
@@ -133,6 +142,31 @@ const proxyHandle: Handle = async ({ event, resolve }) => {
       headers.set("api-secret", hashedSecret);
     }
 
+    // Debug: Log all cookies SvelteKit sees
+    const allCookies = event.request.headers.get("cookie");
+    console.log(`[PROXY] Request to ${event.url.pathname}`);
+    console.log(`[PROXY] All cookies from request: ${allCookies || "(none)"}`);
+
+    // Forward both access and refresh tokens for authentication and token refresh
+    const accessToken = event.cookies.get(AUTH_COOKIE_NAMES.accessToken);
+    const refreshToken = event.cookies.get(AUTH_COOKIE_NAMES.refreshToken);
+    console.log(`[PROXY] Access token: ${accessToken ? accessToken.substring(0, 20) + "..." : "(not found)"}`);
+    console.log(`[PROXY] Refresh token: ${refreshToken ? refreshToken.substring(0, 20) + "..." : "(not found)"}`);
+
+    const cookies: string[] = [];
+    if (accessToken) {
+      cookies.push(`${AUTH_COOKIE_NAMES.accessToken}=${accessToken}`);
+    }
+    if (refreshToken) {
+      cookies.push(`${AUTH_COOKIE_NAMES.refreshToken}=${refreshToken}`);
+    }
+    if (cookies.length > 0) {
+      headers.set("Cookie", cookies.join("; "));
+      console.log(`[PROXY] Forwarding ${cookies.length} auth cookie(s) to backend`);
+    } else {
+      console.log(`[PROXY] No auth cookies to forward`);
+    }
+
     const proxyResponse = await fetch(targetUrl.toString(), {
       method: event.request.method,
       headers,
@@ -140,6 +174,8 @@ const proxyHandle: Handle = async ({ event, resolve }) => {
         ? await event.request.arrayBuffer()
         : undefined,
     });
+
+    console.log(`[PROXY] Response status: ${proxyResponse.status}`);
 
     // Return the proxied response
     return new Response(proxyResponse.body, {
@@ -160,8 +196,21 @@ const apiClientHandle: Handle = async ({ event, resolve }) => {
     );
   }
 
-  // Create API client with SvelteKit's fetch and auth headers
+  // Get auth tokens from cookies to forward to the backend
+  const accessToken = event.cookies.get(AUTH_COOKIE_NAMES.accessToken);
+  const refreshToken = event.cookies.get(AUTH_COOKIE_NAMES.refreshToken);
+
+  // Debug: Log cookie status
+  const allCookies = event.request.headers.get("cookie");
+  console.log(`[API_CLIENT] Creating API client for ${event.url.pathname}`);
+  console.log(`[API_CLIENT] All cookies in request: ${allCookies || "(none)"}`);
+  console.log(`[API_CLIENT] Access token cookie: ${accessToken ? accessToken.substring(0, 20) + "..." : "(not found)"}`);
+  console.log(`[API_CLIENT] Refresh token cookie: ${refreshToken ? refreshToken.substring(0, 20) + "..." : "(not found)"}`);
+
+  // Create API client with SvelteKit's fetch, auth headers, and both tokens
   event.locals.apiClient = createServerApiClient(apiBaseUrl, event.fetch, {
+    accessToken,
+    refreshToken,
     hashedSecret: getHashedApiSecret(),
   });
 

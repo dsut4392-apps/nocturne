@@ -15615,21 +15615,33 @@ export interface TrackerDefinitionDto {
     triggerEventTypes?: string[];
     triggerNotesContains?: string | undefined;
     lifespanHours?: number | undefined;
-    infoHours?: number | undefined;
-    warnHours?: number | undefined;
-    hazardHours?: number | undefined;
-    urgentHours?: number | undefined;
+    notificationThresholds?: NotificationThresholdDto[];
     isFavorite?: boolean;
     createdAt?: Date;
     updatedAt?: Date | undefined;
 }
 
 export enum TrackerCategory {
-    Consumable = 0,
-    Reservoir = 1,
-    Appointment = 2,
-    Reminder = 3,
-    Custom = 4,
+    Consumable = "Consumable",
+    Reservoir = "Reservoir",
+    Appointment = "Appointment",
+    Reminder = "Reminder",
+    Custom = "Custom",
+}
+
+export interface NotificationThresholdDto {
+    id?: string | undefined;
+    urgency?: NotificationUrgency;
+    hours?: number;
+    description?: string | undefined;
+    displayOrder?: number;
+}
+
+export enum NotificationUrgency {
+    Info = "Info",
+    Warn = "Warn",
+    Hazard = "Hazard",
+    Urgent = "Urgent",
 }
 
 export interface CreateTrackerDefinitionRequest {
@@ -15640,11 +15652,15 @@ export interface CreateTrackerDefinitionRequest {
     triggerEventTypes?: string[] | undefined;
     triggerNotesContains?: string | undefined;
     lifespanHours?: number | undefined;
-    infoHours?: number | undefined;
-    warnHours?: number | undefined;
-    hazardHours?: number | undefined;
-    urgentHours?: number | undefined;
+    notificationThresholds?: CreateNotificationThresholdRequest[] | undefined;
     isFavorite?: boolean;
+}
+
+export interface CreateNotificationThresholdRequest {
+    urgency?: NotificationUrgency;
+    hours?: number;
+    description?: string | undefined;
+    displayOrder?: number;
 }
 
 export interface UpdateTrackerDefinitionRequest {
@@ -15655,10 +15671,7 @@ export interface UpdateTrackerDefinitionRequest {
     triggerEventTypes?: string[] | undefined;
     triggerNotesContains?: string | undefined;
     lifespanHours?: number | undefined;
-    infoHours?: number | undefined;
-    warnHours?: number | undefined;
-    hazardHours?: number | undefined;
-    urgentHours?: number | undefined;
+    notificationThresholds?: CreateNotificationThresholdRequest[] | undefined;
     isFavorite?: boolean | undefined;
 }
 
@@ -15681,24 +15694,26 @@ export interface TrackerInstanceDto {
 }
 
 export enum CompletionReason {
-    Completed = 0,
-    Expired = 1,
-    Other = 2,
-    Failed = 3,
-    FellOff = 4,
-    ReplacedEarly = 5,
-    Empty = 6,
-    Refilled = 7,
-    Attended = 8,
-    Rescheduled = 9,
-    Cancelled = 10,
-    Missed = 11,
+    Completed = "Completed",
+    Expired = "Expired",
+    Other = "Other",
+    Failed = "Failed",
+    FellOff = "FellOff",
+    ReplacedEarly = "ReplacedEarly",
+    Empty = "Empty",
+    Refilled = "Refilled",
+    Attended = "Attended",
+    Rescheduled = "Rescheduled",
+    Cancelled = "Cancelled",
+    Missed = "Missed",
 }
 
 export interface StartTrackerInstanceRequest {
     definitionId: string;
     startNotes?: string | undefined;
     startTreatmentId?: string | undefined;
+    /** Optional custom start time for backdating. Defaults to now if not provided. */
+    startedAt?: Date | undefined;
 }
 
 export interface CompleteTrackerInstanceRequest {

@@ -4,15 +4,17 @@
 import { getRequestEvent, query, command } from '$app/server';
 import { z } from 'zod';
 import { error } from '@sveltejs/kit';
-import type {
+import {
 	TrackerCategory,
-	CreateTrackerDefinitionRequest,
-	UpdateTrackerDefinitionRequest,
-	StartTrackerInstanceRequest,
-	CompleteTrackerInstanceRequest,
-	AckTrackerRequest,
-	ApplyPresetRequest,
-} from '$lib/api/generated/nocturne-api-client';
+	CompletionReason,
+	NotificationUrgency,
+	type CreateTrackerDefinitionRequest,
+	type UpdateTrackerDefinitionRequest,
+	type StartTrackerInstanceRequest,
+	type CompleteTrackerInstanceRequest,
+	type AckTrackerRequest,
+	type ApplyPresetRequest,
+} from '$api';
 
 /**
  * Get all tracker definitions
@@ -20,13 +22,13 @@ import type {
 export const getDefinitions = query(
 	z
 		.object({
-			category: z.number().optional(),
+			category: z.nativeEnum(TrackerCategory).optional(),
 		})
 		.optional(),
 	async (params) => {
 		const { locals } = getRequestEvent();
 		const { apiClient } = locals;
-		const category: TrackerCategory | undefined = params?.category;
+		const category = params?.category;
 		try {
 			return await apiClient.trackers.getDefinitions(category);
 		} catch (err) {
@@ -58,15 +60,17 @@ export const createDefinition = command(
 	z.object({
 		name: z.string(),
 		description: z.string().optional(),
-		category: z.number().optional(),
+		category: z.nativeEnum(TrackerCategory).optional(),
 		icon: z.string().optional(),
 		triggerEventTypes: z.array(z.string()).optional(),
 		triggerNotesContains: z.string().optional(),
 		lifespanHours: z.number().optional(),
-		infoHours: z.number().optional(),
-		warnHours: z.number().optional(),
-		hazardHours: z.number().optional(),
-		urgentHours: z.number().optional(),
+		notificationThresholds: z.array(z.object({
+			urgency: z.nativeEnum(NotificationUrgency).optional(),
+			hours: z.number().optional(),
+			description: z.string().optional(),
+			displayOrder: z.number().optional(),
+		})).optional(),
 		isFavorite: z.boolean().optional(),
 	}),
 	async (request: CreateTrackerDefinitionRequest) => {
@@ -90,15 +94,17 @@ export const updateDefinition = command(
 		request: z.object({
 			name: z.string().optional(),
 			description: z.string().optional(),
-			category: z.number().optional(),
+			category: z.nativeEnum(TrackerCategory).optional(),
 			icon: z.string().optional(),
 			triggerEventTypes: z.array(z.string()).optional(),
 			triggerNotesContains: z.string().optional(),
 			lifespanHours: z.number().optional(),
-			infoHours: z.number().optional(),
-			warnHours: z.number().optional(),
-			hazardHours: z.number().optional(),
-			urgentHours: z.number().optional(),
+			notificationThresholds: z.array(z.object({
+				urgency: z.nativeEnum(NotificationUrgency).optional(),
+				hours: z.number().optional(),
+				description: z.string().optional(),
+				displayOrder: z.number().optional(),
+			})).optional(),
 			isFavorite: z.boolean().optional(),
 		}),
 	}),
@@ -195,6 +201,7 @@ export const startInstance = command(
 		definitionId: z.string(),
 		startNotes: z.string().optional(),
 		startTreatmentId: z.string().optional(),
+		startedAt: z.date().optional(),
 	}),
 	async (request) => {
 		const { locals } = getRequestEvent();
@@ -216,7 +223,7 @@ export const completeInstance = command(
 	z.object({
 		id: z.string(),
 		request: z.object({
-			reason: z.number(),
+			reason: z.nativeEnum(CompletionReason),
 			completionNotes: z.string().optional(),
 			completeTreatmentId: z.string().optional(),
 		}),

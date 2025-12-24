@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace Nocturne.Core.Models;
 
 /// <summary>
 /// Category of tracker for grouping and UI filtering
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<TrackerCategory>))]
 public enum TrackerCategory
 {
     /// <summary>
@@ -35,6 +38,7 @@ public enum TrackerCategory
 /// Reason for completing/ending a tracker instance
 /// Category-aware: different reasons apply to different tracker types
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<CompletionReason>))]
 public enum CompletionReason
 {
     // === General (all categories) ===
@@ -104,4 +108,31 @@ public enum CompletionReason
     /// Failed to attend appointment
     /// </summary>
     Missed
+}
+
+/// <summary>
+/// Urgency level for tracker notification thresholds
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<NotificationUrgency>))]
+public enum NotificationUrgency
+{
+    /// <summary>
+    /// Informational notification
+    /// </summary>
+    Info,
+
+    /// <summary>
+    /// Warning level notification
+    /// </summary>
+    Warn,
+
+    /// <summary>
+    /// Hazard level notification (more urgent than warning)
+    /// </summary>
+    Hazard,
+
+    /// <summary>
+    /// Urgent notification (highest priority)
+    /// </summary>
+    Urgent
 }

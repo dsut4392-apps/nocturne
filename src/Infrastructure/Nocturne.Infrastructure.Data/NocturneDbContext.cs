@@ -155,6 +155,11 @@ public class NocturneDbContext : DbContext
     /// </summary>
     public DbSet<TrackerPresetEntity> TrackerPresets { get; set; }
 
+    /// <summary>
+    /// Gets or sets the TrackerNotificationThresholds table for flexible notification thresholds
+    /// </summary>
+    public DbSet<TrackerNotificationThresholdEntity> TrackerNotificationThresholds { get; set; }
+
 
     /// <summary>
     /// Configure the database model and relationships
@@ -714,6 +719,17 @@ public class NocturneDbContext : DbContext
             .HasIndex(p => p.DefinitionId)
             .HasDatabaseName("ix_tracker_presets_definition_id");
 
+        // Tracker Notification Thresholds indexes
+        modelBuilder
+            .Entity<TrackerNotificationThresholdEntity>()
+            .HasIndex(t => t.TrackerDefinitionId)
+            .HasDatabaseName("ix_tracker_notification_thresholds_definition_id");
+
+        modelBuilder
+            .Entity<TrackerNotificationThresholdEntity>()
+            .HasIndex(t => new { t.TrackerDefinitionId, t.DisplayOrder })
+            .HasDatabaseName("ix_tracker_notification_thresholds_def_order");
+
     }
 
     private static void ConfigureEntities(ModelBuilder modelBuilder)
@@ -811,6 +827,11 @@ public class NocturneDbContext : DbContext
             .Entity<TrackerPresetEntity>()
             .Property(p => p.Id)
             .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<TrackerNotificationThresholdEntity>()
+            .Property(t => t.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+
 
         // Configure automatic timestamp updates
         modelBuilder

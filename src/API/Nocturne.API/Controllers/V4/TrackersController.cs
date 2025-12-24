@@ -109,12 +109,23 @@ public class TrackersController : ControllerBase
             TriggerEventTypes = JsonSerializer.Serialize(request.TriggerEventTypes ?? []),
             TriggerNotesContains = request.TriggerNotesContains,
             LifespanHours = request.LifespanHours,
-            InfoHours = request.InfoHours,
-            WarnHours = request.WarnHours,
-            HazardHours = request.HazardHours,
-            UrgentHours = request.UrgentHours,
             IsFavorite = request.IsFavorite,
         };
+
+        // Add notification thresholds if provided
+        if (request.NotificationThresholds != null)
+        {
+            foreach (var threshold in request.NotificationThresholds)
+            {
+                entity.NotificationThresholds.Add(new TrackerNotificationThresholdEntity
+                {
+                    Urgency = threshold.Urgency,
+                    Hours = threshold.Hours,
+                    Description = threshold.Description,
+                    DisplayOrder = threshold.DisplayOrder,
+                });
+            }
+        }
 
         var created = await _repository.CreateDefinitionAsync(entity, HttpContext.RequestAborted);
 
@@ -157,11 +168,24 @@ public class TrackersController : ControllerBase
             : existing.TriggerEventTypes;
         existing.TriggerNotesContains = request.TriggerNotesContains ?? existing.TriggerNotesContains;
         existing.LifespanHours = request.LifespanHours ?? existing.LifespanHours;
-        existing.InfoHours = request.InfoHours ?? existing.InfoHours;
-        existing.WarnHours = request.WarnHours ?? existing.WarnHours;
-        existing.HazardHours = request.HazardHours ?? existing.HazardHours;
-        existing.UrgentHours = request.UrgentHours ?? existing.UrgentHours;
         existing.IsFavorite = request.IsFavorite ?? existing.IsFavorite;
+
+        // Handle notification thresholds update (replaces all existing if provided)
+        if (request.NotificationThresholds != null)
+        {
+            await _repository.UpdateNotificationThresholdsAsync(
+                id,
+                request.NotificationThresholds.Select(t => new TrackerNotificationThresholdEntity
+                {
+                    TrackerDefinitionId = id,
+                    Urgency = t.Urgency,
+                    Hours = t.Hours,
+                    Description = t.Description,
+                    DisplayOrder = t.DisplayOrder,
+                }).ToList(),
+                HttpContext.RequestAborted
+            );
+        }
 
         var updated = await _repository.UpdateDefinitionAsync(id, existing, HttpContext.RequestAborted);
 
@@ -272,6 +296,7 @@ public class TrackersController : ControllerBase
             userId,
             request.StartNotes,
             request.StartTreatmentId,
+            request.StartedAt,
             HttpContext.RequestAborted
         );
 
@@ -289,6 +314,7 @@ public class TrackersController : ControllerBase
             TrackerInstanceDto.FromEntity(instance)
         );
     }
+
 
     /// <summary>
     /// Complete a tracker instance
@@ -485,6 +511,25 @@ public class TrackersController : ControllerBase
 
 #region DTOs
 
+public class NotificationThresholdDto
+{
+    public Guid? Id { get; set; }
+    public NotificationUrgency Urgency { get; set; }
+    public int Hours { get; set; }
+    public string? Description { get; set; }
+    public int DisplayOrder { get; set; }
+
+    public static NotificationThresholdDto FromEntity(TrackerNotificationThresholdEntity entity) =>
+        new()
+        {
+            Id = entity.Id,
+            Urgency = entity.Urgency,
+            Hours = entity.Hours,
+            Description = entity.Description,
+            DisplayOrder = entity.DisplayOrder,
+        };
+}
+
 public class TrackerDefinitionDto
 {
     public Guid Id { get; set; }
@@ -495,10 +540,10 @@ public class TrackerDefinitionDto
     public List<string> TriggerEventTypes { get; set; } = [];
     public string? TriggerNotesContains { get; set; }
     public int? LifespanHours { get; set; }
-    public int? InfoHours { get; set; }
-    public int? WarnHours { get; set; }
-    public int? HazardHours { get; set; }
-    public int? UrgentHours { get; set; }
+
+    // Notification thresholds (many-to-one relationship)
+    public List<NotificationThresholdDto> NotificationThresholds { get; set; } = [];
+
     public bool IsFavorite { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
@@ -514,15 +559,17 @@ public class TrackerDefinitionDto
             TriggerEventTypes = JsonSerializer.Deserialize<List<string>>(entity.TriggerEventTypes) ?? [],
             TriggerNotesContains = entity.TriggerNotesContains,
             LifespanHours = entity.LifespanHours,
-            InfoHours = entity.InfoHours,
-            WarnHours = entity.WarnHours,
-            HazardHours = entity.HazardHours,
-            UrgentHours = entity.UrgentHours,
+            // Notification thresholds
+            NotificationThresholds = entity.NotificationThresholds?
+                .OrderBy(t => t.DisplayOrder)
+                .Select(NotificationThresholdDto.FromEntity)
+                .ToList() ?? [],
             IsFavorite = entity.IsFavorite,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt,
         };
 }
+
 
 public class TrackerInstanceDto
 {
@@ -598,10 +645,8 @@ public class CreateTrackerDefinitionRequest
     public List<string>? TriggerEventTypes { get; set; }
     public string? TriggerNotesContains { get; set; }
     public int? LifespanHours { get; set; }
-    public int? InfoHours { get; set; }
-    public int? WarnHours { get; set; }
-    public int? HazardHours { get; set; }
-    public int? UrgentHours { get; set; }
+    // Notification thresholds (many-to-one relationship)
+    public List<CreateNotificationThresholdRequest>? NotificationThresholds { get; set; }
     public bool IsFavorite { get; set; }
 }
 
@@ -614,11 +659,17 @@ public class UpdateTrackerDefinitionRequest
     public List<string>? TriggerEventTypes { get; set; }
     public string? TriggerNotesContains { get; set; }
     public int? LifespanHours { get; set; }
-    public int? InfoHours { get; set; }
-    public int? WarnHours { get; set; }
-    public int? HazardHours { get; set; }
-    public int? UrgentHours { get; set; }
+    // Notification thresholds (if provided, replaces all existing thresholds)
+    public List<CreateNotificationThresholdRequest>? NotificationThresholds { get; set; }
     public bool? IsFavorite { get; set; }
+}
+
+public class CreateNotificationThresholdRequest
+{
+    public NotificationUrgency Urgency { get; set; }
+    public int Hours { get; set; }
+    public string? Description { get; set; }
+    public int DisplayOrder { get; set; }
 }
 
 public class StartTrackerInstanceRequest
@@ -627,6 +678,10 @@ public class StartTrackerInstanceRequest
     public Guid DefinitionId { get; set; }
     public string? StartNotes { get; set; }
     public string? StartTreatmentId { get; set; }
+    /// <summary>
+    /// Optional custom start time for backdating. Defaults to now if not provided.
+    /// </summary>
+    public DateTime? StartedAt { get; set; }
 }
 
 public class CompleteTrackerInstanceRequest

@@ -72,30 +72,6 @@ public class TrackerDefinitionEntity
     public int? LifespanHours { get; set; }
 
     /// <summary>
-    /// Hours after start for Info-level notification (nullable = skip)
-    /// </summary>
-    [Column("info_hours")]
-    public int? InfoHours { get; set; }
-
-    /// <summary>
-    /// Hours after start for Warn-level notification (nullable = skip)
-    /// </summary>
-    [Column("warn_hours")]
-    public int? WarnHours { get; set; }
-
-    /// <summary>
-    /// Hours after start for Hazard-level notification (nullable = skip)
-    /// </summary>
-    [Column("hazard_hours")]
-    public int? HazardHours { get; set; }
-
-    /// <summary>
-    /// Hours after start for Urgent-level notification (nullable = skip)
-    /// </summary>
-    [Column("urgent_hours")]
-    public int? UrgentHours { get; set; }
-
-    /// <summary>
     /// Show in quick-add favorites
     /// </summary>
     [Column("is_favorite")]
@@ -122,4 +98,9 @@ public class TrackerDefinitionEntity
     /// Navigation property for presets
     /// </summary>
     public virtual ICollection<TrackerPresetEntity> Presets { get; set; } = new List<TrackerPresetEntity>();
+
+    /// <summary>
+    /// Navigation property for notification thresholds
+    /// </summary>
+    public virtual ICollection<TrackerNotificationThresholdEntity> NotificationThresholds { get; set; } = new List<TrackerNotificationThresholdEntity>();
 }

@@ -59,10 +59,13 @@ public class TrackerSeedService : ITrackerSeedService
             Icon = "activity",
             TriggerEventTypes = "[\"Sensor Start\",\"Sensor Change\"]",
             LifespanHours = 240, // 10 days
-            InfoHours = 192,    // Day 8
-            WarnHours = 216,    // Day 9
-            HazardHours = 234,  // Day 9.75
-            UrgentHours = 240,  // Day 10
+            NotificationThresholds =
+            [
+                new() { Urgency = NotificationUrgency.Info, Hours = 192, DisplayOrder = 1 },    // Day 8
+                new() { Urgency = NotificationUrgency.Warn, Hours = 216, DisplayOrder = 2 },    // Day 9
+                new() { Urgency = NotificationUrgency.Hazard, Hours = 234, DisplayOrder = 3 },  // Day 9.75
+                new() { Urgency = NotificationUrgency.Urgent, Hours = 240, DisplayOrder = 4 },  // Day 10
+            ],
             IsFavorite = true,
         },
         new TrackerDefinitionEntity
@@ -74,10 +77,13 @@ public class TrackerSeedService : ITrackerSeedService
             Icon = "activity",
             TriggerEventTypes = "[\"Sensor Start\",\"Sensor Change\"]",
             LifespanHours = 240,
-            InfoHours = 192,
-            WarnHours = 216,
-            HazardHours = 234,
-            UrgentHours = 240,
+            NotificationThresholds =
+            [
+                new() { Urgency = NotificationUrgency.Info, Hours = 192, DisplayOrder = 1 },
+                new() { Urgency = NotificationUrgency.Warn, Hours = 216, DisplayOrder = 2 },
+                new() { Urgency = NotificationUrgency.Hazard, Hours = 234, DisplayOrder = 3 },
+                new() { Urgency = NotificationUrgency.Urgent, Hours = 240, DisplayOrder = 4 },
+            ],
             IsFavorite = false,
         },
         new TrackerDefinitionEntity
@@ -89,10 +95,13 @@ public class TrackerSeedService : ITrackerSeedService
             Icon = "activity",
             TriggerEventTypes = "[\"Sensor Start\",\"Sensor Change\"]",
             LifespanHours = 336, // 14 days
-            InfoHours = 288,    // Day 12
-            WarnHours = 312,    // Day 13
-            HazardHours = 330,  // Day 13.75
-            UrgentHours = 336,  // Day 14
+            NotificationThresholds =
+            [
+                new() { Urgency = NotificationUrgency.Info, Hours = 288, DisplayOrder = 1 },    // Day 12
+                new() { Urgency = NotificationUrgency.Warn, Hours = 312, DisplayOrder = 2 },    // Day 13
+                new() { Urgency = NotificationUrgency.Hazard, Hours = 330, DisplayOrder = 3 },  // Day 13.75
+                new() { Urgency = NotificationUrgency.Urgent, Hours = 336, DisplayOrder = 4 },  // Day 14
+            ],
             IsFavorite = false,
         },
 
@@ -106,10 +115,13 @@ public class TrackerSeedService : ITrackerSeedService
             Icon = "syringe",
             TriggerEventTypes = "[\"Site Change\",\"Pump Resume\"]",
             LifespanHours = 80, // Pod expires at 80h
-            InfoHours = 60,    // 2.5 days
-            WarnHours = 72,    // 3 days
-            HazardHours = 76,  // 3.17 days
-            UrgentHours = 79,  // Just before expiry
+            NotificationThresholds =
+            [
+                new() { Urgency = NotificationUrgency.Info, Hours = 60, DisplayOrder = 1 },    // 2.5 days
+                new() { Urgency = NotificationUrgency.Warn, Hours = 72, DisplayOrder = 2 },    // 3 days
+                new() { Urgency = NotificationUrgency.Hazard, Hours = 76, DisplayOrder = 3 },  // 3.17 days
+                new() { Urgency = NotificationUrgency.Urgent, Hours = 79, DisplayOrder = 4 },  // Just before expiry
+            ],
             IsFavorite = true,
         },
         new TrackerDefinitionEntity
@@ -121,10 +133,13 @@ public class TrackerSeedService : ITrackerSeedService
             Icon = "syringe",
             TriggerEventTypes = "[\"Site Change\",\"Cannula Change\"]",
             LifespanHours = 72,
-            InfoHours = 48,
-            WarnHours = 66,
-            HazardHours = 70,
-            UrgentHours = 72,
+            NotificationThresholds =
+            [
+                new() { Urgency = NotificationUrgency.Info, Hours = 48, DisplayOrder = 1 },
+                new() { Urgency = NotificationUrgency.Warn, Hours = 66, DisplayOrder = 2 },
+                new() { Urgency = NotificationUrgency.Hazard, Hours = 70, DisplayOrder = 3 },
+                new() { Urgency = NotificationUrgency.Urgent, Hours = 72, DisplayOrder = 4 },
+            ],
             IsFavorite = false,
         },
         new TrackerDefinitionEntity
@@ -136,10 +151,13 @@ public class TrackerSeedService : ITrackerSeedService
             Icon = "beaker",
             TriggerEventTypes = "[\"Insulin Change\",\"Reservoir Change\"]",
             LifespanHours = 72,
-            InfoHours = 48,
-            WarnHours = 66,
-            HazardHours = 70,
-            UrgentHours = 72,
+            NotificationThresholds =
+            [
+                new() { Urgency = NotificationUrgency.Info, Hours = 48, DisplayOrder = 1 },
+                new() { Urgency = NotificationUrgency.Warn, Hours = 66, DisplayOrder = 2 },
+                new() { Urgency = NotificationUrgency.Hazard, Hours = 70, DisplayOrder = 3 },
+                new() { Urgency = NotificationUrgency.Urgent, Hours = 72, DisplayOrder = 4 },
+            ],
             IsFavorite = false,
         },
 
@@ -153,8 +171,11 @@ public class TrackerSeedService : ITrackerSeedService
             Icon = "calendar",
             TriggerEventTypes = "[]",
             LifespanHours = 2160, // 90 days
-            InfoHours = 2088,    // 87 days (1 week notice)
-            WarnHours = 2136,    // 89 days (1 day notice)
+            NotificationThresholds =
+            [
+                new() { Urgency = NotificationUrgency.Info, Hours = 2088, DisplayOrder = 1 },  // 87 days (1 week notice)
+                new() { Urgency = NotificationUrgency.Warn, Hours = 2136, DisplayOrder = 2 },  // 89 days (1 day notice)
+            ],
             IsFavorite = false,
         },
 
@@ -168,8 +189,11 @@ public class TrackerSeedService : ITrackerSeedService
             Icon = "clock",
             TriggerEventTypes = "[]",
             LifespanHours = 2160, // 90 days
-            InfoHours = 2088,
-            WarnHours = 2136,
+            NotificationThresholds =
+            [
+                new() { Urgency = NotificationUrgency.Info, Hours = 2088, DisplayOrder = 1 },
+                new() { Urgency = NotificationUrgency.Warn, Hours = 2136, DisplayOrder = 2 },
+            ],
             IsFavorite = false,
         },
     ];

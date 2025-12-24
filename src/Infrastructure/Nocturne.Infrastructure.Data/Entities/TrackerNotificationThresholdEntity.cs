@@ -1,0 +1,56 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Nocturne.Core.Models;
+
+namespace Nocturne.Infrastructure.Data.Entities;
+
+/// <summary>
+/// PostgreSQL entity for TrackerNotificationThreshold
+/// Represents a notification threshold for a tracker definition
+/// Multiple thresholds can be defined per definition, supporting multiple notifications per urgency level
+/// </summary>
+[Table("tracker_notification_thresholds")]
+public class TrackerNotificationThresholdEntity
+{
+    /// <summary>
+    /// Primary key
+    /// </summary>
+    [Key]
+    public Guid Id { get; set; }
+
+    /// <summary>
+    /// Foreign key to the tracker definition
+    /// </summary>
+    [Column("tracker_definition_id")]
+    public Guid TrackerDefinitionId { get; set; }
+
+    /// <summary>
+    /// Urgency level of the notification
+    /// </summary>
+    [Column("urgency")]
+    public NotificationUrgency Urgency { get; set; } = NotificationUrgency.Info;
+
+    /// <summary>
+    /// Hours after tracker start to trigger this notification
+    /// </summary>
+    [Column("hours")]
+    public int Hours { get; set; }
+
+    /// <summary>
+    /// Optional description shown when this threshold is triggered
+    /// </summary>
+    [Column("description")]
+    [MaxLength(500)]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Display order for multiple thresholds (lower = first)
+    /// </summary>
+    [Column("display_order")]
+    public int DisplayOrder { get; set; }
+
+    /// <summary>
+    /// Navigation property to the parent tracker definition
+    /// </summary>
+    public virtual TrackerDefinitionEntity? Definition { get; set; }
+}

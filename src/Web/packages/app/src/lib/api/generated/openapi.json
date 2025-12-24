@@ -17810,25 +17810,11 @@
             "format": "int32",
             "nullable": true
           },
-          "infoHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "warnHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "hazardHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "urgentHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
+          "notificationThresholds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationThresholdDto"
+            }
           },
           "isFavorite": {
             "type": "boolean"
@@ -17845,7 +17831,7 @@
         }
       },
       "TrackerCategory": {
-        "type": "integer",
+        "type": "string",
         "description": "",
         "x-enumNames": [
           "Consumable",
@@ -17855,11 +17841,53 @@
           "Custom"
         ],
         "enum": [
-          0,
-          1,
-          2,
-          3,
-          4
+          "Consumable",
+          "Reservoir",
+          "Appointment",
+          "Reminder",
+          "Custom"
+        ]
+      },
+      "NotificationThresholdDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "urgency": {
+            "$ref": "#/components/schemas/NotificationUrgency"
+          },
+          "hours": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "displayOrder": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "NotificationUrgency": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Info",
+          "Warn",
+          "Hazard",
+          "Urgent"
+        ],
+        "enum": [
+          "Info",
+          "Warn",
+          "Hazard",
+          "Urgent"
         ]
       },
       "CreateTrackerDefinitionRequest": {
@@ -17900,28 +17928,36 @@
             "format": "int32",
             "nullable": true
           },
-          "infoHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "warnHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "hazardHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "urgentHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
+          "notificationThresholds": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/CreateNotificationThresholdRequest"
+            }
           },
           "isFavorite": {
             "type": "boolean"
+          }
+        }
+      },
+      "CreateNotificationThresholdRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "urgency": {
+            "$ref": "#/components/schemas/NotificationUrgency"
+          },
+          "hours": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "displayOrder": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -17965,25 +18001,12 @@
             "format": "int32",
             "nullable": true
           },
-          "infoHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "warnHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "hazardHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "urgentHours": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
+          "notificationThresholds": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/CreateNotificationThresholdRequest"
+            }
           },
           "isFavorite": {
             "type": "boolean",
@@ -18062,7 +18085,7 @@
         }
       },
       "CompletionReason": {
-        "type": "integer",
+        "type": "string",
         "description": "",
         "x-enumNames": [
           "Completed",
@@ -18079,18 +18102,18 @@
           "Missed"
         ],
         "enum": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7,
-          8,
-          9,
-          10,
-          11
+          "Completed",
+          "Expired",
+          "Other",
+          "Failed",
+          "FellOff",
+          "ReplacedEarly",
+          "Empty",
+          "Refilled",
+          "Attended",
+          "Rescheduled",
+          "Cancelled",
+          "Missed"
         ]
       },
       "StartTrackerInstanceRequest": {
@@ -18111,6 +18134,12 @@
           },
           "startTreatmentId": {
             "type": "string",
+            "nullable": true
+          },
+          "startedAt": {
+            "type": "string",
+            "description": "Optional custom start time for backdating. Defaults to now if not provided.",
+            "format": "date-time",
             "nullable": true
           }
         }

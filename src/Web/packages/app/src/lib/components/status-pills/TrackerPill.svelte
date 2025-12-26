@@ -52,6 +52,15 @@
     return definition.lifespanHours - instance.ageHours;
   });
 
+  // Calculate progress percentage (capped at 100%)
+  const progressPercent = $derived.by(() => {
+    if (!instance.ageHours || !definition?.lifespanHours) return 0;
+    return Math.min(100, (instance.ageHours / definition.lifespanHours) * 100);
+  });
+
+  // Only show progress bar if over 10%
+  const showProgress = $derived(progressPercent > 10);
+
   // Format time remaining
   function formatTimeRemaining(hours: number | undefined): string {
     if (hours === undefined) return "Unknown";
@@ -83,7 +92,7 @@
 
   const pillClasses = $derived.by(() => {
     const baseClasses =
-      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition-colors cursor-pointer select-none";
+      "relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition-colors cursor-pointer select-none overflow-hidden";
 
     const levelClasses: Record<AlertLevel, string> = {
       none: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
@@ -96,6 +105,18 @@
     };
 
     return cn(baseClasses, levelClasses[level], className);
+  });
+
+  // Progress fill colors - slightly more saturated/darker version of each alert level
+  const progressFillClasses = $derived.by((): string => {
+    const fillClasses: Record<AlertLevel, string> = {
+      none: "bg-secondary-foreground/10 dark:bg-secondary-foreground/15",
+      info: "bg-blue-200/60 dark:bg-blue-700/40",
+      warn: "bg-yellow-200/60 dark:bg-yellow-700/40",
+      hazard: "bg-orange-200/60 dark:bg-orange-700/40",
+      urgent: "bg-red-200/60 dark:bg-red-700/40",
+    };
+    return fillClasses[level];
   });
 
   const label = $derived(
@@ -111,9 +132,16 @@
 
 <Popover.Root bind:open={popoverOpen}>
   <Popover.Trigger class={pillClasses}>
-    <Timer class="h-3 w-3 opacity-75" />
-    <span class="text-xs font-normal opacity-75">{label}</span>
-    <span>{ageDisplay}</span>
+    {#if showProgress}
+      <span
+        class="absolute inset-y-0 left-0 {progressFillClasses} transition-all duration-500 ease-out"
+        style="width: {progressPercent}%"
+        aria-hidden="true"
+      ></span>
+    {/if}
+    <Timer class="relative h-3 w-3 opacity-75" />
+    <span class="relative text-xs font-normal opacity-75">{label}</span>
+    <span class="relative">{ageDisplay}</span>
   </Popover.Trigger>
   <Popover.Content class="w-72 p-0" align="center" side="bottom">
     <div class="px-4 py-3 border-b border-border">

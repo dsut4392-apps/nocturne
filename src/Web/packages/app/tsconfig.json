@@ -37,7 +37,8 @@
     "src/**/*.svelte"
   ],
   "exclude": [
-    "src/lib/api/generated"
+    "src/lib/api/generated",
+    "src/lib/components/ui/**"
   ],
   "extends": "./.svelte-kit/tsconfig.json"
 }

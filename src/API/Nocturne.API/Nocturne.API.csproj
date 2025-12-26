@@ -86,7 +86,7 @@
     <Exec
       Command="$(NSwagExe_Net100) run nswag.json"
       WorkingDirectory="$(MSBuildProjectDirectory)"
-      ContinueOnError="true"
+      ContinueOnError="false"
     />
     <Message Importance="high" Text="TypeScript API client generation complete." />
   </Target>

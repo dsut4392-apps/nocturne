@@ -15981,6 +15981,10 @@ export interface TrackerDefinitionDto {
     isFavorite?: boolean;
     /** Dashboard visibility: Off, Always, Info, Warn, Hazard, Urgent */
     dashboardVisibility?: DashboardVisibility;
+    /** Event type to create when tracker is started (for Nightscout compatibility) */
+    startEventType?: string | undefined;
+    /** Event type to create when tracker is completed (for Nightscout compatibility) */
+    completionEventType?: string | undefined;
     createdAt?: Date;
     updatedAt?: Date | undefined;
 }
@@ -16029,6 +16033,10 @@ export interface CreateTrackerDefinitionRequest {
     isFavorite?: boolean;
     /** Dashboard visibility: Off, Always, Info, Warn, Hazard, Urgent */
     dashboardVisibility?: DashboardVisibility;
+    /** Event type to create when tracker is started (for Nightscout compatibility) */
+    startEventType?: string | undefined;
+    /** Event type to create when tracker is completed (for Nightscout compatibility) */
+    completionEventType?: string | undefined;
 }
 
 export interface CreateNotificationThresholdRequest {
@@ -16057,6 +16065,10 @@ export interface UpdateTrackerDefinitionRequest {
     isFavorite?: boolean | undefined;
     /** Dashboard visibility: Off, Always, Info, Warn, Hazard, Urgent */
     dashboardVisibility?: DashboardVisibility | undefined;
+    /** Event type to create when tracker is started (for Nightscout compatibility) */
+    startEventType?: string | undefined;
+    /** Event type to create when tracker is completed (for Nightscout compatibility) */
+    completionEventType?: string | undefined;
 }
 
 export interface TrackerInstanceDto {

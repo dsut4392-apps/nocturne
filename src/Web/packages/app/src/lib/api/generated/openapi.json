@@ -18230,6 +18230,16 @@
               }
             ]
           },
+          "startEventType": {
+            "type": "string",
+            "description": "Event type to create when tracker is started (for Nightscout compatibility)",
+            "nullable": true
+          },
+          "completionEventType": {
+            "type": "string",
+            "description": "Event type to create when tracker is completed (for Nightscout compatibility)",
+            "nullable": true
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -18384,6 +18394,16 @@
                 "$ref": "#/components/schemas/DashboardVisibility"
               }
             ]
+          },
+          "startEventType": {
+            "type": "string",
+            "description": "Event type to create when tracker is started (for Nightscout compatibility)",
+            "nullable": true
+          },
+          "completionEventType": {
+            "type": "string",
+            "description": "Event type to create when tracker is completed (for Nightscout compatibility)",
+            "nullable": true
           }
         }
       },
@@ -18491,6 +18511,16 @@
                 "$ref": "#/components/schemas/DashboardVisibility"
               }
             ]
+          },
+          "startEventType": {
+            "type": "string",
+            "description": "Event type to create when tracker is started (for Nightscout compatibility)",
+            "nullable": true
+          },
+          "completionEventType": {
+            "type": "string",
+            "description": "Event type to create when tracker is completed (for Nightscout compatibility)",
+            "nullable": true
           }
         }
       },

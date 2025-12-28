@@ -1341,23 +1341,9 @@ namespace Nocturne.Connectors.Glooko.Services
                 }
             }
 
-            // Process Profile Changes
-            if (series.ProfileChange != null)
-            {
-                foreach (var change in series.ProfileChange)
-                {
-                    var rawTimestamp = DateTimeOffset.FromUnixTimeSeconds(change.X).UtcDateTime;
-                    var correctedTimestamp = GetCorrectedGlookoTime(change.X);
-                    treatments.Add(new Treatment
-                    {
-                        Id = GenerateTreatmentId("Profile Switch", rawTimestamp, $"profile:{change.ProfileName}"),
-                        EventType = "Profile Switch",
-                        CreatedAt = correctedTimestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                        Notes = change.ProfileName ?? change.Label,
-                        DataSource = ConnectorSource
-                    });
-                }
-            }
+            // NOTE: Profile Changes are no longer created as treatments.
+            // They are handled as StateSpans in TransformV3ToStateSpans().
+            // See implementation_plan.md for migration details.
 
             _logger.LogInformation("[{ConnectorSource}] Transformed {Count} treatments from v3 data",
                 ConnectorSource, treatments.Count);
@@ -1523,6 +1509,43 @@ namespace Nocturne.Connectors.Glooko.Services
                         Metadata = new Dictionary<string, object>
                         {
                             { "profileName", change.ProfileName ?? change.Label ?? "Unknown" }
+                        }
+                    });
+                }
+            }
+
+            // Process Temporary Basals as TempBasal state spans
+            if (series.TemporaryBasal != null)
+            {
+                foreach (var tempBasal in series.TemporaryBasal)
+                {
+                    var startTimestamp = GetCorrectedGlookoTime(tempBasal.X);
+                    var durationSeconds = tempBasal.Duration ?? 0;
+                    var endMills = durationSeconds > 0
+                        ? new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds() + (durationSeconds * 1000)
+                        : (long?)null;
+
+                    // Rate is stored in Y field (U/hr)
+                    var rate = tempBasal.Y ?? 0;
+
+                    // Calculate total insulin delivered: rate (U/hr) × duration (seconds) / 3600 (seconds/hr)
+                    var calculatedInsulin = rate * durationSeconds / 3600.0;
+
+                    stateSpans.Add(new StateSpan
+                    {
+                        OriginalId = $"glooko_tempbasal_{tempBasal.X}",
+                        Category = StateSpanCategory.TempBasal,
+                        State = TempBasalState.Active.ToString(),
+                        StartMills = new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds(),
+                        EndMills = endMills,
+                        Source = ConnectorSource,
+                        Metadata = new Dictionary<string, object>
+                        {
+                            { "rate", rate },
+                            { "durationSeconds", durationSeconds },
+                            { "durationMinutes", durationSeconds / 60.0 },
+                            { "calculatedInsulin", calculatedInsulin },
+                            { "label", tempBasal.Label ?? "Temp Basal" }
                         }
                     });
                 }

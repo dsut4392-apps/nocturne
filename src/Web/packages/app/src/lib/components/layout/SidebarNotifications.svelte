@@ -15,7 +15,10 @@
   import { getAuthStore } from "$lib/stores/auth-store.svelte";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
   import * as trackersRemote from "$lib/data/trackers.remote";
-  import { type TrackerInstanceDto, CompletionReason } from "$lib/api/generated/nocturne-api-client";
+  import {
+    type TrackerInstanceDto,
+    CompletionReason,
+  } from "$lib/api/generated/nocturne-api-client";
 
   // Get the realtime store for reactive tracker data
   const realtimeStore = getRealtimeStore();
@@ -176,7 +179,7 @@
   </Popover.Trigger>
   <Popover.Content align="end" class="w-80 p-0">
     <div class="flex items-center justify-between border-b px-4 py-3">
-      <h4 class="text-sm font-semibold">Tracker Notifications</h4>
+      <h4 class="text-sm font-semibold">Notifications</h4>
       {#if notifications.length > 0}
         <a
           href="/settings/trackers"

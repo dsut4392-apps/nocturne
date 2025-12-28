@@ -26,7 +26,12 @@ public enum StateSpanCategory
     /// <summary>
     /// Active basal profile
     /// </summary>
-    Profile
+    Profile,
+
+    /// <summary>
+    /// Temporary basal rate override
+    /// </summary>
+    TempBasal
 }
 
 /// <summary>
@@ -135,4 +140,21 @@ public enum ProfileState
     /// A profile is active (name in metadata)
     /// </summary>
     Active
+}
+
+/// <summary>
+/// Temp basal states - the actual rate is stored in metadata
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<TempBasalState>))]
+public enum TempBasalState
+{
+    /// <summary>
+    /// Temporary basal rate is active (rate in metadata)
+    /// </summary>
+    Active,
+
+    /// <summary>
+    /// Temp basal was cancelled early
+    /// </summary>
+    Cancelled
 }

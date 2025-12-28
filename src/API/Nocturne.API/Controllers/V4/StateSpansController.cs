@@ -93,6 +93,19 @@ public class StateSpansController : ControllerBase
     }
 
     /// <summary>
+    /// Get temp basal state spans
+    /// </summary>
+    [HttpGet("temp-basals")]
+    public async Task<ActionResult<IEnumerable<StateSpan>>> GetTempBasals(
+        [FromQuery] long? from = null,
+        [FromQuery] long? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        var spans = await _repository.GetByCategory(StateSpanCategory.TempBasal, from, to, cancellationToken);
+        return Ok(spans);
+    }
+
+    /// <summary>
     /// Get a specific state span by ID
     /// </summary>
     [HttpGet("{id}")]

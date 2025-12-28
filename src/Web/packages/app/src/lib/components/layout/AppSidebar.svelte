@@ -45,6 +45,7 @@
   }
 
   const { user = null }: Props = $props();
+  const sidebar = Sidebar.useSidebar();
 
   type NavItem = {
     title: string;
@@ -107,6 +108,11 @@
           title: "Glucose Distribution",
           href: "/reports/glucose-distribution",
           icon: PieChart,
+        },
+        {
+          title: "Site Change Impact",
+          href: "/reports/site-change-impact",
+          icon: Syringe,
         },
       ],
     },
@@ -289,9 +295,15 @@
 
   <Sidebar.Footer class="p-2">
     <Sidebar.Menu>
-      <Sidebar.MenuItem class="flex items-center gap-2">
+      <Sidebar.MenuItem
+        class="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:flex-col"
+      >
         <SidebarNotifications />
-        <UserMenu {user} />
+        <UserMenu
+          {user}
+          collapsed={sidebar.state === "collapsed"}
+          class="flex-1 min-w-0"
+        />
       </Sidebar.MenuItem>
     </Sidebar.Menu>
   </Sidebar.Footer>

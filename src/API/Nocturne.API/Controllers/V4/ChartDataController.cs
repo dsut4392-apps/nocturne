@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Services;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
+using Nocturne.Infrastructure.Data.Repositories;
 
 namespace Nocturne.API.Controllers.V4;
 
@@ -21,6 +22,7 @@ public class ChartDataController : ControllerBase
     private readonly IDeviceStatusService _deviceStatusService;
     private readonly IProfileService _profileService;
     private readonly IProfileDataService _profileDataService;
+    private readonly StateSpanRepository _stateSpanRepository;
     private readonly ILogger<ChartDataController> _logger;
 
     public ChartDataController(
@@ -30,6 +32,7 @@ public class ChartDataController : ControllerBase
         IDeviceStatusService deviceStatusService,
         IProfileService profileService,
         IProfileDataService profileDataService,
+        StateSpanRepository stateSpanRepository,
         ILogger<ChartDataController> logger
     )
     {
@@ -39,6 +42,7 @@ public class ChartDataController : ControllerBase
         _deviceStatusService = deviceStatusService;
         _profileService = profileService;
         _profileDataService = profileDataService;
+        _stateSpanRepository = stateSpanRepository;
         _logger = logger;
     }
 
@@ -159,6 +163,14 @@ public class ChartDataController : ControllerBase
                 defaultBasalRate
             );
 
+            // Fetch StateSpans for pump modes and temp basals
+            var pumpModeSpans = await _stateSpanRepository.GetByCategory(
+                StateSpanCategory.PumpMode, startTime, endTime, cancellationToken);
+            var tempBasalSpans = await _stateSpanRepository.GetByCategory(
+                StateSpanCategory.TempBasal, startTime, endTime, cancellationToken);
+            var profileSpans = await _stateSpanRepository.GetByCategory(
+                StateSpanCategory.Profile, startTime, endTime, cancellationToken);
+
             var maxBasalRate = Math.Max(
                 defaultBasalRate * 2.5,
                 basalSeries.Any() ? basalSeries.Max(b => b.Rate) : defaultBasalRate
@@ -174,6 +186,9 @@ public class ChartDataController : ControllerBase
                     MaxBasalRate = maxBasalRate,
                     MaxIob = Math.Max(3, maxIob),
                     MaxCob = Math.Max(30, maxCob),
+                    PumpModeSpans = pumpModeSpans.ToList(),
+                    TempBasalSpans = tempBasalSpans.ToList(),
+                    ProfileSpans = profileSpans.ToList(),
                 }
             );
         }
@@ -364,6 +379,21 @@ public class DashboardChartData
     /// Maximum COB in the series (for Y-axis scaling)
     /// </summary>
     public double MaxCob { get; set; }
+
+    /// <summary>
+    /// Pump mode state spans for chart background coloring
+    /// </summary>
+    public List<StateSpan> PumpModeSpans { get; set; } = new();
+
+    /// <summary>
+    /// Temp basal state spans with rate and duration metadata
+    /// </summary>
+    public List<StateSpan> TempBasalSpans { get; set; } = new();
+
+    /// <summary>
+    /// Profile state spans showing active profile changes
+    /// </summary>
+    public List<StateSpan> ProfileSpans { get; set; } = new();
 }
 
 /// <summary>

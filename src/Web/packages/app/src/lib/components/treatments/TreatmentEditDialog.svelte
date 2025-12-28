@@ -7,6 +7,7 @@
   import { Textarea } from "$lib/components/ui/textarea";
   import { Badge } from "$lib/components/ui/badge";
   import EventTypeCombobox from "./EventTypeCombobox.svelte";
+  import TreatmentFoodBreakdown from "./TreatmentFoodBreakdown.svelte";
   import {
     Syringe,
     Apple,
@@ -16,6 +17,7 @@
     Database,
     Braces,
     Activity,
+    Trash2,
   } from "lucide-svelte";
   import { getEventTypeStyle } from "$lib/constants/treatment-categories";
   import { formatDateTime, formatDateForInput } from "$lib/utils/formatting";
@@ -27,6 +29,7 @@
     isLoading?: boolean;
     onClose: () => void;
     onSave: (treatment: Treatment) => void;
+    onDelete?: (treatmentId: string) => void;
   }
 
   let {
@@ -36,6 +39,7 @@
     isLoading = false,
     onClose,
     onSave,
+    onDelete,
   }: Props = $props();
 
   // Editable form state
@@ -297,6 +301,10 @@
           </div>
         </div>
 
+        {#if treatment?._id}
+          <TreatmentFoodBreakdown treatmentId={treatment._id} />
+        {/if}
+
         <!-- Profile -->
         <div class="space-y-2">
           <Label for="profile">Profile</Label>
@@ -346,6 +354,18 @@
         {/if}
 
         <Dialog.Footer class="gap-2">
+          {#if treatment?._id && onDelete}
+            <Button
+              type="button"
+              variant="destructive"
+              onclick={() => treatment?._id && onDelete(treatment._id)}
+              disabled={isLoading}
+              class="mr-auto"
+            >
+              <Trash2 class="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          {/if}
           <Button
             type="button"
             variant="outline"

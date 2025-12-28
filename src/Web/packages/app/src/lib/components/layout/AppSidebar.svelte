@@ -22,6 +22,7 @@
     TrendingUp,
     Droplets,
     Apple,
+    Utensils,
     Bell,
     Brain,
     HeartHandshake,
@@ -125,6 +126,11 @@
       title: "Food",
       href: "/food",
       icon: Apple,
+    },
+    {
+      title: "Meals",
+      href: "/meals",
+      icon: Utensils,
     },
     {
       title: "Profile",

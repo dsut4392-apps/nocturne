@@ -1,6 +1,5 @@
 import {
   Client,
-  AdminNotificationsClient,
   AuthenticationClient,
   AuthorizationClient,
   StatisticsClient,
@@ -8,11 +7,13 @@ import {
   DeviceStatusClient,
   EntriesClient,
   FoodClient,
+  FoodsClient,
   LastModifiedClient,
   ProfileClient,
   SettingsClient,
   StatusClient,
   TreatmentsClient,
+  TreatmentFoodsClient,
   VersionClient,
   DDataClient,
   LoopClient,
@@ -49,7 +50,6 @@ import {
 export class ApiClient {
   public readonly baseUrl: string;
   public readonly client: Client;
-  public readonly adminNotifications: AdminNotificationsClient;
   public readonly authentication: AuthenticationClient;
   public readonly authorization: AuthorizationClient;
   public readonly statistics: StatisticsClient;
@@ -57,11 +57,13 @@ export class ApiClient {
   public readonly deviceStatus: DeviceStatusClient;
   public readonly entries: EntriesClient;
   public readonly food: FoodClient;
+  public readonly foodsV4: FoodsClient;
   public readonly lastModified: LastModifiedClient;
   public readonly profile: ProfileClient;
   public readonly settings: SettingsClient;
   public readonly status: StatusClient;
   public readonly treatments: TreatmentsClient;
+  public readonly treatmentFoods: TreatmentFoodsClient;
   public readonly version: VersionClient;
   public readonly v2DData: DDataClient;
   public readonly loopNotifications: LoopClient;
@@ -100,7 +102,6 @@ export class ApiClient {
 
     // Initialize all client instances with the custom fetch function
     this.client = new Client(apiBaseUrl, http);
-    this.adminNotifications = new AdminNotificationsClient(apiBaseUrl, http);
     this.authentication = new AuthenticationClient(apiBaseUrl, http);
     this.authorization = new AuthorizationClient(apiBaseUrl, http);
     this.statistics = new StatisticsClient(apiBaseUrl, http);
@@ -108,11 +109,13 @@ export class ApiClient {
     this.deviceStatus = new DeviceStatusClient(apiBaseUrl, http);
     this.entries = new EntriesClient(apiBaseUrl, http);
     this.food = new FoodClient(apiBaseUrl, http);
+    this.foodsV4 = new FoodsClient(apiBaseUrl, http);
     this.lastModified = new LastModifiedClient(apiBaseUrl, http);
     this.profile = new ProfileClient(apiBaseUrl, http);
     this.settings = new SettingsClient(apiBaseUrl, http);
     this.status = new StatusClient(apiBaseUrl, http);
     this.treatments = new TreatmentsClient(apiBaseUrl, http);
+    this.treatmentFoods = new TreatmentFoodsClient(apiBaseUrl, http);
     this.version = new VersionClient(apiBaseUrl, http);
     this.v2DData = new DDataClient(apiBaseUrl, http);
     this.loopNotifications = new LoopClient(apiBaseUrl, http);

@@ -162,12 +162,12 @@
   }
 </script>
 
-<div class="bg-white shadow-lg rounded-lg p-4 md:p-6 mb-6">
-  <h2 class="text-lg font-semibold text-gray-700 mb-4">{title}</h2>
+<div class="rounded-lg border bg-card p-4 md:p-6 mb-6">
+  <h2 class="text-lg font-semibold text-card-foreground mb-4">{title}</h2>
   {#if showDaysPresets}
     <!-- Quick Day Selection -->
     <div class="mb-4">
-      <Label class="text-sm font-medium text-gray-700 mb-2 block">
+      <Label class="text-sm font-medium text-foreground mb-2 block">
         Quick Selection
       </Label>
       <div class="flex flex-wrap gap-2">

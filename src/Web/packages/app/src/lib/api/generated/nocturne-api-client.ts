@@ -5393,6 +5393,186 @@ export class DiscrepancyClient {
     }
 }
 
+export class FoodsClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get current user's favorite foods.
+     */
+    getFavorites(signal?: AbortSignal): Promise<Food[]> {
+        let url_ = this.baseUrl + "/api/v4/foods/favorites";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetFavorites(_response);
+        });
+    }
+
+    protected processGetFavorites(response: Response): Promise<Food[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Food[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Food[]>(null as any);
+    }
+
+    /**
+     * Add a food to favorites.
+     */
+    addFavorite(foodId: string, signal?: AbortSignal): Promise<FileResponse> {
+        let url_ = this.baseUrl + "/api/v4/foods/{foodId}/favorite";
+        if (foodId === undefined || foodId === null)
+            throw new globalThis.Error("The parameter 'foodId' must be defined.");
+        url_ = url_.replace("{foodId}", encodeURIComponent("" + foodId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+                "Accept": "application/octet-stream"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAddFavorite(_response);
+        });
+    }
+
+    protected processAddFavorite(response: Response): Promise<FileResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return response.blob().then(blob => { return { fileName: fileName, data: blob, status: status, headers: _headers }; });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<FileResponse>(null as any);
+    }
+
+    /**
+     * Remove a food from favorites.
+     */
+    removeFavorite(foodId: string, signal?: AbortSignal): Promise<FileResponse> {
+        let url_ = this.baseUrl + "/api/v4/foods/{foodId}/favorite";
+        if (foodId === undefined || foodId === null)
+            throw new globalThis.Error("The parameter 'foodId' must be defined.");
+        url_ = url_.replace("{foodId}", encodeURIComponent("" + foodId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/octet-stream"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRemoveFavorite(_response);
+        });
+    }
+
+    protected processRemoveFavorite(response: Response): Promise<FileResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return response.blob().then(blob => { return { fileName: fileName, data: blob, status: status, headers: _headers }; });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<FileResponse>(null as any);
+    }
+
+    /**
+     * Get recently used foods (excluding favorites).
+     * @param limit (optional) 
+     */
+    getRecentFoods(limit?: number | undefined, signal?: AbortSignal): Promise<Food[]> {
+        let url_ = this.baseUrl + "/api/v4/foods/recent?";
+        if (limit === null)
+            throw new globalThis.Error("The parameter 'limit' cannot be null.");
+        else if (limit !== undefined)
+            url_ += "limit=" + encodeURIComponent("" + limit) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetRecentFoods(_response);
+        });
+    }
+
+    protected processGetRecentFoods(response: Response): Promise<Food[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Food[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Food[]>(null as any);
+    }
+}
+
 export class PredictionClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -8082,6 +8262,237 @@ export class TrackersClient {
             });
         }
         return Promise.resolve<FileResponse>(null as any);
+    }
+}
+
+export class TreatmentFoodsClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get food breakdown for a treatment.
+     */
+    getTreatmentFoods(id: string, signal?: AbortSignal): Promise<TreatmentFoodBreakdown> {
+        let url_ = this.baseUrl + "/api/v4/treatments/{id}/foods";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetTreatmentFoods(_response);
+        });
+    }
+
+    protected processGetTreatmentFoods(response: Response): Promise<TreatmentFoodBreakdown> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TreatmentFoodBreakdown;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TreatmentFoodBreakdown>(null as any);
+    }
+
+    /**
+     * Add a food breakdown entry to a treatment.
+     */
+    addTreatmentFood(id: string, request: TreatmentFoodRequest, signal?: AbortSignal): Promise<TreatmentFoodBreakdown> {
+        let url_ = this.baseUrl + "/api/v4/treatments/{id}/foods";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAddTreatmentFood(_response);
+        });
+    }
+
+    protected processAddTreatmentFood(response: Response): Promise<TreatmentFoodBreakdown> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TreatmentFoodBreakdown;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TreatmentFoodBreakdown>(null as any);
+    }
+
+    /**
+     * Update a food breakdown entry.
+     */
+    updateTreatmentFood(id: string, foodEntryId: string, request: TreatmentFoodRequest, signal?: AbortSignal): Promise<TreatmentFoodBreakdown> {
+        let url_ = this.baseUrl + "/api/v4/treatments/{id}/foods/{foodEntryId}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        if (foodEntryId === undefined || foodEntryId === null)
+            throw new globalThis.Error("The parameter 'foodEntryId' must be defined.");
+        url_ = url_.replace("{foodEntryId}", encodeURIComponent("" + foodEntryId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdateTreatmentFood(_response);
+        });
+    }
+
+    protected processUpdateTreatmentFood(response: Response): Promise<TreatmentFoodBreakdown> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TreatmentFoodBreakdown;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TreatmentFoodBreakdown>(null as any);
+    }
+
+    /**
+     * Remove a food breakdown entry.
+     */
+    deleteTreatmentFood(id: string, foodEntryId: string, signal?: AbortSignal): Promise<TreatmentFoodBreakdown> {
+        let url_ = this.baseUrl + "/api/v4/treatments/{id}/foods/{foodEntryId}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        if (foodEntryId === undefined || foodEntryId === null)
+            throw new globalThis.Error("The parameter 'foodEntryId' must be defined.");
+        url_ = url_.replace("{foodEntryId}", encodeURIComponent("" + foodEntryId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDeleteTreatmentFood(_response);
+        });
+    }
+
+    protected processDeleteTreatmentFood(response: Response): Promise<TreatmentFoodBreakdown> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TreatmentFoodBreakdown;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TreatmentFoodBreakdown>(null as any);
+    }
+
+    /**
+     * Get carb treatments with attribution status for meals view.
+     * @param from (optional) 
+     * @param to (optional) 
+     * @param attributed (optional) 
+     */
+    getMeals(from?: Date | null | undefined, to?: Date | null | undefined, attributed?: boolean | null | undefined, signal?: AbortSignal): Promise<MealTreatment[]> {
+        let url_ = this.baseUrl + "/api/v4/treatments/meals?";
+        if (from !== undefined && from !== null)
+            url_ += "from=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+        if (to !== undefined && to !== null)
+            url_ += "to=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
+        if (attributed !== undefined && attributed !== null)
+            url_ += "attributed=" + encodeURIComponent("" + attributed) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetMeals(_response);
+        });
+    }
+
+    protected processGetMeals(response: Response): Promise<MealTreatment[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as MealTreatment[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MealTreatment[]>(null as any);
     }
 }
 
@@ -16555,6 +16966,33 @@ export interface ForwardedDiscrepancyDto {
     analysis?: DiscrepancyAnalysisDto;
 }
 
+export interface Food {
+    _id?: string | undefined;
+    type?: string;
+    category?: string;
+    subcategory?: string;
+    name?: string;
+    portion?: number;
+    carbs?: number;
+    fat?: number;
+    protein?: number;
+    energy?: number;
+    gi?: number;
+    unit?: string;
+    foods?: QuickPickFood[] | undefined;
+    hideafteruse?: boolean;
+    hidden?: boolean;
+    position?: number;
+}
+
+export interface QuickPickFood {
+    name?: string;
+    portion?: number;
+    carbs?: number;
+    unit?: string;
+    portions?: number;
+}
+
 /** Response containing glucose predictions. */
 export interface GlucosePredictionResponse {
     /** Timestamp when predictions were calculated */
@@ -17165,6 +17603,47 @@ export interface ApplyPresetRequest {
     overrideNotes?: string | undefined;
 }
 
+export interface TreatmentFoodBreakdown {
+    treatmentId?: string;
+    foods?: TreatmentFood[];
+    isAttributed?: boolean;
+    attributedCarbs?: number;
+    unspecifiedCarbs?: number;
+}
+
+export interface TreatmentFood {
+    id?: string;
+    treatmentId?: string;
+    foodId?: string | undefined;
+    portions?: number;
+    carbs?: number;
+    timeOffsetMinutes?: number;
+    note?: string | undefined;
+    foodName?: string | undefined;
+    carbsPerPortion?: number | undefined;
+}
+
+export interface TreatmentFoodRequest {
+    foodId?: string | undefined;
+    portions?: number | undefined;
+    carbs?: number | undefined;
+    timeOffsetMinutes?: number | undefined;
+    note?: string | undefined;
+    inputMode?: TreatmentFoodInputMode | undefined;
+}
+
+export enum TreatmentFoodInputMode {
+    Portions = 0,
+    Carbs = 1,
+}
+
+export interface MealTreatment {
+    treatment?: Treatment;
+    isAttributed?: boolean;
+    attributedCarbs?: number;
+    unspecifiedCarbs?: number;
+}
+
 export interface UISettingsConfiguration {
     devices?: DeviceSettings;
     algorithm?: AlgorithmSettings;
@@ -17750,33 +18229,6 @@ export interface InsulinPenStatus {
     insulinType?: string | undefined;
     needleAttached?: boolean | undefined;
     cartridgeExpiration?: Date | undefined;
-}
-
-export interface Food {
-    _id?: string | undefined;
-    type?: string;
-    category?: string;
-    subcategory?: string;
-    name?: string;
-    portion?: number;
-    carbs?: number;
-    fat?: number;
-    protein?: number;
-    energy?: number;
-    gi?: number;
-    unit?: string;
-    foods?: QuickPickFood[] | undefined;
-    hideafteruse?: boolean;
-    hidden?: boolean;
-    position?: number;
-}
-
-export interface QuickPickFood {
-    name?: string;
-    portion?: number;
-    carbs?: number;
-    unit?: string;
-    portions?: number;
 }
 
 export interface LastModifiedResponse {

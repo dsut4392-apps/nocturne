@@ -4305,6 +4305,130 @@
         }
       }
     },
+    "/api/v4/foods/favorites": {
+      "get": {
+        "tags": [
+          "V4 Foods"
+        ],
+        "summary": "Get current user's favorite foods.",
+        "operationId": "Foods_GetFavorites",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Food"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/foods/{foodId}/favorite": {
+      "post": {
+        "tags": [
+          "V4 Foods"
+        ],
+        "summary": "Add a food to favorites.",
+        "operationId": "Foods_AddFavorite",
+        "parameters": [
+          {
+            "name": "foodId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "V4 Foods"
+        ],
+        "summary": "Remove a food from favorites.",
+        "operationId": "Foods_RemoveFavorite",
+        "parameters": [
+          {
+            "name": "foodId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/foods/recent": {
+      "get": {
+        "tags": [
+          "V4 Foods"
+        ],
+        "summary": "Get recently used foods (excluding favorites).",
+        "operationId": "Foods_GetRecentFoods",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Food"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v4/predictions": {
       "get": {
         "tags": [
@@ -6500,6 +6624,229 @@
                 "schema": {
                   "type": "string",
                   "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/treatments/{id}/foods": {
+      "get": {
+        "tags": [
+          "V4 Treatment Foods"
+        ],
+        "summary": "Get food breakdown for a treatment.",
+        "operationId": "TreatmentFoods_GetTreatmentFoods",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreatmentFoodBreakdown"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "V4 Treatment Foods"
+        ],
+        "summary": "Add a food breakdown entry to a treatment.",
+        "operationId": "TreatmentFoods_AddTreatmentFood",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TreatmentFoodRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreatmentFoodBreakdown"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/treatments/{id}/foods/{foodEntryId}": {
+      "put": {
+        "tags": [
+          "V4 Treatment Foods"
+        ],
+        "summary": "Update a food breakdown entry.",
+        "operationId": "TreatmentFoods_UpdateTreatmentFood",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "foodEntryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 2
+          }
+        ],
+        "requestBody": {
+          "x-name": "request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TreatmentFoodRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 3
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreatmentFoodBreakdown"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "V4 Treatment Foods"
+        ],
+        "summary": "Remove a food breakdown entry.",
+        "operationId": "TreatmentFoods_DeleteTreatmentFood",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "foodEntryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreatmentFoodBreakdown"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/treatments/meals": {
+      "get": {
+        "tags": [
+          "V4 Treatment Foods"
+        ],
+        "summary": "Get carb treatments with attribution status for meals view.",
+        "operationId": "TreatmentFoods_GetMeals",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "attributed",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MealTreatment"
+                  }
                 }
               }
             }
@@ -18249,6 +18596,96 @@
           }
         }
       },
+      "Food": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "portion": {
+            "type": "number",
+            "format": "double"
+          },
+          "carbs": {
+            "type": "number",
+            "format": "double"
+          },
+          "fat": {
+            "type": "number",
+            "format": "double"
+          },
+          "protein": {
+            "type": "number",
+            "format": "double"
+          },
+          "energy": {
+            "type": "number",
+            "format": "double"
+          },
+          "gi": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "foods": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/QuickPickFood"
+            }
+          },
+          "hideafteruse": {
+            "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "QuickPickFood": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "portion": {
+            "type": "number",
+            "format": "double"
+          },
+          "carbs": {
+            "type": "number",
+            "format": "double"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "portions": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "GlucosePredictionResponse": {
         "type": "object",
         "description": "Response containing glucose predictions.",
@@ -20168,6 +20605,146 @@
           }
         }
       },
+      "TreatmentFoodBreakdown": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "treatmentId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "foods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TreatmentFood"
+            }
+          },
+          "isAttributed": {
+            "type": "boolean"
+          },
+          "attributedCarbs": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "unspecifiedCarbs": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "TreatmentFood": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "treatmentId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "foodId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "portions": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "carbs": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "timeOffsetMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "foodName": {
+            "type": "string",
+            "nullable": true
+          },
+          "carbsPerPortion": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          }
+        }
+      },
+      "TreatmentFoodRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "foodId": {
+            "type": "string",
+            "nullable": true
+          },
+          "portions": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "carbs": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "timeOffsetMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "inputMode": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TreatmentFoodInputMode"
+              }
+            ]
+          }
+        }
+      },
+      "TreatmentFoodInputMode": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Portions",
+          "Carbs"
+        ],
+        "enum": [
+          0,
+          1
+        ]
+      },
+      "MealTreatment": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "treatment": {
+            "$ref": "#/components/schemas/Treatment"
+          },
+          "isAttributed": {
+            "type": "boolean"
+          },
+          "attributedCarbs": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "unspecifiedCarbs": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
       "UISettingsConfiguration": {
         "type": "object",
         "additionalProperties": false,
@@ -22084,96 +22661,6 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
-          }
-        }
-      },
-      "Food": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "_id": {
-            "type": "string",
-            "nullable": true
-          },
-          "type": {
-            "type": "string"
-          },
-          "category": {
-            "type": "string"
-          },
-          "subcategory": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "portion": {
-            "type": "number",
-            "format": "double"
-          },
-          "carbs": {
-            "type": "number",
-            "format": "double"
-          },
-          "fat": {
-            "type": "number",
-            "format": "double"
-          },
-          "protein": {
-            "type": "number",
-            "format": "double"
-          },
-          "energy": {
-            "type": "number",
-            "format": "double"
-          },
-          "gi": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "unit": {
-            "type": "string"
-          },
-          "foods": {
-            "type": "array",
-            "nullable": true,
-            "items": {
-              "$ref": "#/components/schemas/QuickPickFood"
-            }
-          },
-          "hideafteruse": {
-            "type": "boolean"
-          },
-          "hidden": {
-            "type": "boolean"
-          },
-          "position": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "QuickPickFood": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "portion": {
-            "type": "number",
-            "format": "double"
-          },
-          "carbs": {
-            "type": "number",
-            "format": "double"
-          },
-          "unit": {
-            "type": "string"
-          },
-          "portions": {
-            "type": "number",
-            "format": "double"
           }
         }
       },

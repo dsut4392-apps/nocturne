@@ -40,6 +40,16 @@ public class NocturneDbContext : DbContext
     public DbSet<FoodEntity> Foods { get; set; }
 
     /// <summary>
+    /// Gets or sets the TreatmentFoods table for treatment food breakdowns
+    /// </summary>
+    public DbSet<TreatmentFoodEntity> TreatmentFoods { get; set; }
+
+    /// <summary>
+    /// Gets or sets the UserFoodFavorites table for user food favorites
+    /// </summary>
+    public DbSet<UserFoodFavoriteEntity> UserFoodFavorites { get; set; }
+
+    /// <summary>
     /// Gets or sets the Settings table for application settings
     /// </summary>
     public DbSet<SettingsEntity> Settings { get; set; }
@@ -288,6 +298,39 @@ public class NocturneDbContext : DbContext
             .Entity<FoodEntity>()
             .HasIndex(f => f.SysCreatedAt)
             .HasDatabaseName("ix_foods_sys_created_at");
+
+        // Treatment food breakdown indexes
+        modelBuilder
+            .Entity<TreatmentFoodEntity>()
+            .HasIndex(tf => tf.TreatmentId)
+            .HasDatabaseName("ix_treatment_foods_treatment_id");
+
+        modelBuilder
+            .Entity<TreatmentFoodEntity>()
+            .HasIndex(tf => tf.FoodId)
+            .HasDatabaseName("ix_treatment_foods_food_id");
+
+        modelBuilder
+            .Entity<TreatmentFoodEntity>()
+            .HasIndex(tf => tf.SysCreatedAt)
+            .HasDatabaseName("ix_treatment_foods_sys_created_at");
+
+        // User food favorites indexes
+        modelBuilder
+            .Entity<UserFoodFavoriteEntity>()
+            .HasIndex(f => f.UserId)
+            .HasDatabaseName("ix_user_food_favorites_user_id");
+
+        modelBuilder
+            .Entity<UserFoodFavoriteEntity>()
+            .HasIndex(f => f.FoodId)
+            .HasDatabaseName("ix_user_food_favorites_food_id");
+
+        modelBuilder
+            .Entity<UserFoodFavoriteEntity>()
+            .HasIndex(f => new { f.UserId, f.FoodId })
+            .HasDatabaseName("ix_user_food_favorites_user_food")
+            .IsUnique();
 
         // Settings indexes - optimized for common queries
         modelBuilder
@@ -831,6 +874,14 @@ public class NocturneDbContext : DbContext
             .Property(f => f.Id)
             .HasValueGenerator<GuidV7ValueGenerator>();
         modelBuilder
+            .Entity<TreatmentFoodEntity>()
+            .Property(tf => tf.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
+            .Entity<UserFoodFavoriteEntity>()
+            .Property(f => f.Id)
+            .HasValueGenerator<GuidV7ValueGenerator>();
+        modelBuilder
             .Entity<SettingsEntity>()
             .Property(s => s.Id)
             .HasValueGenerator<GuidV7ValueGenerator>();
@@ -948,6 +999,17 @@ public class NocturneDbContext : DbContext
             .ValueGeneratedOnAddOrUpdate();
 
         modelBuilder
+            .Entity<TreatmentFoodEntity>()
+            .Property(tf => tf.SysUpdatedAt)
+            .HasDefaultValueSql("CURRENT_TIMESTAMP")
+            .ValueGeneratedOnAddOrUpdate();
+
+        modelBuilder
+            .Entity<UserFoodFavoriteEntity>()
+            .Property(f => f.SysCreatedAt)
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+        modelBuilder
             .Entity<SettingsEntity>()
             .Property(s => s.SysUpdatedAt)
             .HasDefaultValueSql("CURRENT_TIMESTAMP")
@@ -978,6 +1040,35 @@ public class NocturneDbContext : DbContext
             .Property(f => f.Gi)
             .HasDefaultValue(GlycemicIndex.Medium)
             .HasSentinel((GlycemicIndex)0); // CLR default (0) is not a valid enum value, use it as sentinel
+
+        modelBuilder
+            .Entity<TreatmentFoodEntity>()
+            .Property(tf => tf.TimeOffsetMinutes)
+            .HasDefaultValue(0);
+
+        modelBuilder.Entity<TreatmentFoodEntity>(entity =>
+        {
+            entity
+                .HasOne(tf => tf.Treatment)
+                .WithMany()
+                .HasForeignKey(tf => tf.TreatmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity
+                .HasOne(tf => tf.Food)
+                .WithMany()
+                .HasForeignKey(tf => tf.FoodId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<UserFoodFavoriteEntity>(entity =>
+        {
+            entity
+                .HasOne(f => f.Food)
+                .WithMany()
+                .HasForeignKey(f => f.FoodId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<FoodEntity>().Property(f => f.Unit).HasDefaultValue("g");
 
@@ -1389,6 +1480,21 @@ public class NocturneDbContext : DbContext
                     foodEntity.SysCreatedAt = utcNow;
                 }
                 foodEntity.SysUpdatedAt = utcNow;
+            }
+            else if (entry.Entity is TreatmentFoodEntity treatmentFoodEntity)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    treatmentFoodEntity.SysCreatedAt = utcNow;
+                }
+                treatmentFoodEntity.SysUpdatedAt = utcNow;
+            }
+            else if (entry.Entity is UserFoodFavoriteEntity userFoodFavoriteEntity)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    userFoodFavoriteEntity.SysCreatedAt = utcNow;
+                }
             }
             else if (entry.Entity is SettingsEntity settingsEntity)
             {

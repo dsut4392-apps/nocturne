@@ -31,7 +31,22 @@ public enum TrackerCategory
     /// <summary>
     /// User-defined custom category
     /// </summary>
-    Custom
+    Custom,
+
+    /// <summary>
+    /// CGM Sensor: continuous glucose monitor sensor
+    /// </summary>
+    Sensor,
+
+    /// <summary>
+    /// Cannula/Infusion Site: insulin pump cannula or infusion site
+    /// </summary>
+    Cannula,
+
+    /// <summary>
+    /// Battery: pump or CGM battery
+    /// </summary>
+    Battery
 }
 
 /// <summary>

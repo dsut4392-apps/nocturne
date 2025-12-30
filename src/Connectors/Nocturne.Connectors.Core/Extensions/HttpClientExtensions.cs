@@ -5,6 +5,8 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
+using Polly;
 
 namespace Nocturne.Connectors.Core.Extensions;
 
@@ -141,15 +143,22 @@ public static class HttpClientExtensions
                     "User-Agent",
                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15"
                 );
-                client.Timeout = TimeSpan.FromMinutes(2);
+                client.Timeout = TimeSpan.FromMinutes(5);
             })
             .ConfigurePrimaryHttpMessageHandler(() =>
                 new SocketsHttpHandler
                 {
                     AutomaticDecompression = DecompressionMethods.All,
-                    ConnectTimeout = TimeSpan.FromSeconds(5),
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                    ConnectTimeout = TimeSpan.FromSeconds(15),
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(5),
                 }
+            )
+            // Configure connector-specific resilience with timeouts
+            // Per-attempt timeout resets after each successful API response
+            // Total timeout should be less than the minimum sync interval (5 min)
+            .ConfigureConnectorResilience(
+                attemptTimeout: TimeSpan.FromMinutes(2),
+                totalTimeout: TimeSpan.FromMinutes(5)
             );
     }
 
@@ -200,9 +209,7 @@ public static class HttpClientExtensions
             .ConfigureHttpClient(client =>
             {
                 client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(
-                    new MediaTypeWithQualityHeaderValue("*/*")
-                );
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
                 // Spoof curl User-Agent
                 client.DefaultRequestHeaders.Add("User-Agent", "curl/8.4.0");
                 client.Timeout = TimeSpan.FromMinutes(2);
@@ -218,7 +225,8 @@ public static class HttpClientExtensions
                     // Use TLS 1.2 like curl typically does
                     SslProtocols = System.Security.Authentication.SslProtocols.Tls12,
                     // Accept all certificates (curl default behavior with -k)
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
+                        true,
                 };
                 return handler;
             });
@@ -229,5 +237,75 @@ public static class HttpClientExtensions
         using var sha1 = SHA1.Create();
         var hashBytes = sha1.ComputeHash(Encoding.UTF8.GetBytes(apiSecret));
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Configures resilience settings optimized for connector services that make
+    /// multiple sequential API calls. Uses longer timeouts per-request (2 minutes)
+    /// and a longer total timeout (10 minutes) to accommodate sync operations.
+    /// </summary>
+    /// <remarks>
+    /// The standard Aspire resilience handler has a 30-second per-request timeout
+    /// which is too short for connectors that need to fetch data from multiple
+    /// endpoints sequentially (e.g., Glooko fetches glucose, treatments, food, etc.).
+    ///
+    /// This configuration:
+    /// - 2 minute timeout per individual HTTP request (AttemptTimeout)
+    /// - 10 minute total timeout for all retries (TotalRequestTimeout)
+    /// - Retries up to 3 times with exponential backoff for transient failures
+    /// - Circuit breaker to fail fast when the remote service is consistently failing
+    /// </remarks>
+    public static IHttpClientBuilder ConfigureConnectorResilience(
+        this IHttpClientBuilder builder,
+        TimeSpan? attemptTimeout = null,
+        TimeSpan? totalTimeout = null
+    )
+    {
+        var perAttemptTimeout = attemptTimeout ?? TimeSpan.FromMinutes(2);
+        var totalRequestTimeout = totalTimeout ?? TimeSpan.FromMinutes(10);
+
+        builder.AddResilienceHandler(
+            "ConnectorResilience",
+            resilienceBuilder =>
+            {
+                // Add total request timeout (outermost - applies to all retries)
+                resilienceBuilder.AddTimeout(totalRequestTimeout);
+
+                // Add retry with exponential backoff for transient failures
+                resilienceBuilder.AddRetry(
+                    new HttpRetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 3,
+                        Delay = TimeSpan.FromSeconds(2),
+                        BackoffType = DelayBackoffType.Exponential,
+                        UseJitter = true,
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                HttpClientResiliencePredicates.IsTransient(args.Outcome)
+                            ),
+                    }
+                );
+
+                // Add circuit breaker
+                resilienceBuilder.AddCircuitBreaker(
+                    new HttpCircuitBreakerStrategyOptions
+                    {
+                        SamplingDuration = TimeSpan.FromSeconds(60),
+                        FailureRatio = 0.5,
+                        MinimumThroughput = 5,
+                        BreakDuration = TimeSpan.FromSeconds(30),
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                HttpClientResiliencePredicates.IsTransient(args.Outcome)
+                            ),
+                    }
+                );
+
+                // Add per-attempt timeout (innermost - applies to each individual request)
+                resilienceBuilder.AddTimeout(perAttemptTimeout);
+            }
+        );
+
+        return builder;
     }
 }

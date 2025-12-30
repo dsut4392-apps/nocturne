@@ -30,6 +30,7 @@ using Nocturne.Infrastructure.Data.Abstractions;
 using Nocturne.Infrastructure.Data.Extensions;
 using NSwag;
 using OpenTelemetry.Logs;
+using Polly;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -233,10 +234,56 @@ builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 // Data source service for services/connectors management
 builder.Services.AddScoped<IDataSourceService, DataSourceService>();
 
-
-
 // Connector sync service for triggering granular syncs
 builder.Services.AddScoped<IConnectorSyncService, ConnectorSyncService>();
+
+// HTTP client for connector sync operations
+// Connector sync calls can take a long time (multiple API calls to fetch data)
+// Timeouts are set to be less than the minimum sync interval (5 minutes) to prevent overlapping syncs
+builder
+    .Services.AddHttpClient(
+        "ConnectorSync",
+        client =>
+        {
+            // Allow up to 5 minutes for the entire sync operation
+            // This should be less than the minimum sync interval to prevent overlap
+            client.Timeout = TimeSpan.FromMinutes(5);
+        }
+    )
+    .AddResilienceHandler(
+        "ConnectorSyncResilience",
+        builder =>
+        {
+            // Total timeout for the sync operation (including retries)
+            // Must be <= HttpClient.Timeout to be effective
+            builder.AddTimeout(TimeSpan.FromMinutes(5));
+
+            // Retry transient failures (but not timeouts - those should propagate)
+            builder.AddRetry(
+                new Microsoft.Extensions.Http.Resilience.HttpRetryStrategyOptions
+                {
+                    MaxRetryAttempts = 1, // Only 1 retry to stay within timeout budget
+                    Delay = TimeSpan.FromSeconds(3),
+                    BackoffType = Polly.DelayBackoffType.Constant,
+                    UseJitter = false,
+                    // Only retry on connection/network errors, not timeouts
+                    ShouldHandle = args =>
+                        ValueTask.FromResult(
+                            args.Outcome.Exception is HttpRequestException
+                                || args.Outcome.Result?.StatusCode
+                                    == System.Net.HttpStatusCode.ServiceUnavailable
+                                || args.Outcome.Result?.StatusCode
+                                    == System.Net.HttpStatusCode.BadGateway
+                                || args.Outcome.Result?.StatusCode
+                                    == System.Net.HttpStatusCode.GatewayTimeout
+                        ),
+                }
+            );
+
+            // Per-attempt timeout (each individual request)
+            builder.AddTimeout(TimeSpan.FromMinutes(2));
+        }
+    );
 
 // Configure JWT authentication
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName);
@@ -323,7 +370,10 @@ builder.Services.AddScoped<IConnectorFoodEntryService, ConnectorFoodEntryService
 builder.Services.AddScoped<ITreatmentFoodService, TreatmentFoodService>();
 builder.Services.AddScoped<IUserFoodFavoriteService, UserFoodFavoriteService>();
 builder.Services.AddScoped<IActivityService, ActivityService>();
-builder.Services.AddScoped<IMyFitnessPalMatchingSettingsService, MyFitnessPalMatchingSettingsService>();
+builder.Services.AddScoped<
+    IMyFitnessPalMatchingSettingsService,
+    MyFitnessPalMatchingSettingsService
+>();
 
 // Note: Processing status service is registered by AddNocturneMemoryCache
 
@@ -341,6 +391,7 @@ builder.Services.Configure<DeviceHealthOptions>(
 // Register device health services
 builder.Services.AddScoped<IDeviceRegistryService, DeviceRegistryService>();
 builder.Services.AddScoped<IDeviceHealthAnalysisService, DeviceHealthAnalysisService>();
+
 // Configure alert monitoring settings
 builder.Services.Configure<AlertMonitoringOptions>(
     builder.Configuration.GetSection(AlertMonitoringOptions.SectionName)
@@ -362,10 +413,8 @@ builder.Services.Configure<AnalyticsConfiguration>(
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 // Register connector health service with service discovery-enabled HTTP client
-builder.Services.AddHttpClient(ConnectorHealthService.HttpClientName)
-    .AddServiceDiscovery();
+builder.Services.AddHttpClient(ConnectorHealthService.HttpClientName).AddServiceDiscovery();
 builder.Services.AddScoped<IConnectorHealthService, ConnectorHealthService>();
-
 
 var app = builder.Build();
 
@@ -498,8 +547,6 @@ static bool IsRunningInNSwagContext()
 
     return false;
 }
-
-
 
 // Make Program accessible for testing
 namespace Nocturne.API

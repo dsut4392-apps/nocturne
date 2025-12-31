@@ -213,8 +213,12 @@ public class CobService : ICobService
         var isDecaying = 0.0;
         var lastDecayedBy = 0L;
 
+        // CRITICAL: Sort treatments by Mills ascending (oldest first) for correct lastDecayedBy accumulation
+        // The legacy algorithm depends on processing meals in chronological order
+        var sortedTreatments = (treatments ?? new List<Treatment>()).OrderBy(t => t.Mills).ToList();
+
         // Process each treatment - exact legacy logic
-        foreach (var treatment in treatments ?? new List<Treatment>())
+        foreach (var treatment in sortedTreatments)
         {
             var carbAbsorptionRateFromProfile = GetCarbAbsorptionRateOrDefault(
                 profile,

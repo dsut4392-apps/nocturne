@@ -1240,7 +1240,9 @@
                     label={activeBasal.isTemp ? "Temp Basal" : "Basal"}
                     value={activeBasal.rate}
                     format={"decimal"}
-                    color={activeBasal.isTemp ? "var(--insulin-temp-basal)" : "var(--insulin-basal)"}
+                    color={activeBasal.isTemp
+                      ? "var(--insulin-temp-basal)"
+                      : "var(--insulin-basal)"}
                     class={cn(
                       staleBasalData && data.time >= staleBasalData.start
                         ? "text-yellow-500 font-bold"

@@ -3,7 +3,7 @@ name: Build and Publish with Aspire
 on:
   push:
     branches: [master, main]
-    tags: ['v*']
+    tags: ["v*"]
   pull_request:
     branches: [master, main]
   workflow_dispatch:
@@ -11,9 +11,9 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_REPOSITORY: ${{ github.repository }}
-  DOTNET_VERSION: '10.0.x'
-  NODE_VERSION: '24'
-  PNPM_VERSION: '9'
+  DOTNET_VERSION: "10.0.x"
+  NODE_VERSION: "24"
+  PNPM_VERSION: "9"
 
 jobs:
   build-and-push:
@@ -43,7 +43,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
           cache-dependency-path: src/Web/pnpm-lock.yaml
 
       - name: Install web dependencies
@@ -76,6 +76,15 @@ jobs:
             VERSION=${GITHUB_REF#refs/heads/}
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build oref.wasm
+        working-directory: src/Core/oref
+        run: cargo build --release --target wasm32-unknown-unknown
 
       - name: Restore .NET dependencies
         run: dotnet restore
@@ -243,7 +252,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
           cache-dependency-path: src/Web/pnpm-lock.yaml
 
       - name: Install web dependencies

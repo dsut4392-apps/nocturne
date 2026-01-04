@@ -45,7 +45,7 @@
             : ''} {className}"
           {...props}
         >
-          <Avatar.Root class="h-8 w-8">
+          <Avatar.Root class="h-8 w-8 shrink-0">
             <Avatar.Fallback class="bg-primary/10 text-primary text-xs">
               {getInitials(user.name)}
             </Avatar.Fallback>
@@ -139,7 +139,9 @@
       ? 'justify-center'
       : ''} {className}"
   >
-    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+    <div
+      class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted"
+    >
       <User class="h-4 w-4 text-muted-foreground" />
     </div>
     {#if !collapsed}

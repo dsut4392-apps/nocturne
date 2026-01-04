@@ -256,6 +256,14 @@ public class DashboardWidgets
 
     [JsonPropertyName("batteryStatus")]
     public bool BatteryStatus { get; set; } = true;
+
+    /// <summary>
+    /// Ordered list of widget IDs to display in the top row of the dashboard.
+    /// Valid values: "bg-delta", "last-updated", "connection-status", "meals", "trackers", "tir-chart", "daily-summary"
+    /// </summary>
+    [JsonPropertyName("dashboardWidgets")]
+    public List<string> DashboardWidgets { get; set; } =
+        new() { "bg-delta", "last-updated", "connection-status" };
 }
 
 /// <summary>

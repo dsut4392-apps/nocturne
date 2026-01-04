@@ -243,7 +243,7 @@
     {isLoading}
     {isStale}
     {isDisconnected}
-    size="sm"
+    size="xs"
     class="text-lg"
   />
 </div>

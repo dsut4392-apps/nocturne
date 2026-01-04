@@ -22,8 +22,8 @@
     statusTooltip?: string;
     /** Callback when sync button is clicked (makes status text clickable) */
     onSyncClick?: () => void;
-    /** Size variant - 'sm' for sidebar, 'lg' for dashboard */
-    size?: "sm" | "lg";
+    /** Size variant - 'xs' for collapsed sidebar, 'sm' for sidebar, 'lg' for dashboard */
+    size?: "xs" | "sm" | "lg";
     /** Additional CSS classes for the container */
     class?: string;
   }
@@ -87,13 +87,17 @@
     return ""; // No special border when connected
   };
 
-  const sizeClasses = $derived(
-    size === "lg" ? "text-4xl px-4 py-2" : "text-3xl px-3 py-1.5"
-  );
+  const sizeClasses = $derived.by(() => {
+    if (size === "lg") return "text-4xl px-4 py-2";
+    if (size === "xs") return "text-base px-1.5 py-1";
+    return "text-3xl px-3 py-1.5";
+  });
 
-  const skeletonSizeClasses = $derived(
-    size === "lg" ? "h-12 w-20" : "h-10 w-16"
-  );
+  const skeletonSizeClasses = $derived.by(() => {
+    if (size === "lg") return "h-12 w-20";
+    if (size === "xs") return "h-8 w-10";
+    return "h-10 w-16";
+  });
 </script>
 
 <!-- Horizontal layout with grid overlay on status text to prevent layout shift when syncing -->

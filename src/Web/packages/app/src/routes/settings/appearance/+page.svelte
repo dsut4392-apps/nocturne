@@ -15,6 +15,7 @@
   } from "$lib/stores/appearance-store.svelte";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
   import TitleFaviconSettings from "$lib/components/settings/TitleFaviconSettings.svelte";
+  import DashboardWidgetConfigurator from "$lib/components/settings/DashboardWidgetConfigurator.svelte";
   import {
     Card,
     CardContent,
@@ -44,9 +45,32 @@
   } from "lucide-svelte";
   import SettingsPageSkeleton from "$lib/components/settings/SettingsPageSkeleton.svelte";
   import { browser } from "$app/environment";
+  import {
+    DEFAULT_TOP_WIDGETS,
+    type WidgetId,
+  } from "$lib/types/dashboard-widgets";
 
   const store = getSettingsStore();
   const realtimeStore = getRealtimeStore();
+
+  // Dashboard widgets state
+  const dashboardWidgets = $derived<WidgetId[]>(
+    (store.features?.dashboardWidgets?.dashboardWidgets as
+      | WidgetId[]
+      | undefined) ?? [...DEFAULT_TOP_WIDGETS]
+  );
+
+  function handleWidgetsChange(widgets: WidgetId[]) {
+    if (!store.features) return;
+    if (!store.features.dashboardWidgets) {
+      store.features.dashboardWidgets = {};
+    }
+    // Store as any since the generated type doesn't have dashboardWidgets yet
+    (
+      store.features.dashboardWidgets as Record<string, unknown>
+    ).dashboardWidgets = widgets;
+    store.markChanged();
+  }
 
   // Theme state - reactive wrapper around store (color theme: nocturne/trio)
   let currentTheme = $state<ColorTheme>(getColorTheme());
@@ -321,6 +345,13 @@
         </div>
       </CardContent>
     </Card>
+
+    <!-- Dashboard Widgets -->
+    <DashboardWidgetConfigurator
+      value={dashboardWidgets}
+      onchange={handleWidgetsChange}
+      maxWidgets={3}
+    />
 
     <!-- Tracker Pills -->
     <Card>

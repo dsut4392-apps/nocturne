@@ -5,9 +5,14 @@
     GlucoseChartCard,
     RecentEntriesCard,
     RecentTreatmentsCard,
+    WidgetGrid,
   } from "$lib/components/dashboard";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
   import { getSettingsStore } from "$lib/stores/settings-store.svelte";
+  import {
+    DEFAULT_TOP_WIDGETS,
+    type WidgetId,
+  } from "$lib/types/dashboard-widgets";
 
   const realtimeStore = getRealtimeStore();
   const settingsStore = getSettingsStore();
@@ -22,6 +27,13 @@
     dailyStats: settingsStore.features?.dashboardWidgets?.dailyStats ?? true,
   });
 
+  // Get the configured top widgets or use defaults
+  const dashboardWidgets = $derived<WidgetId[]>(
+    (settingsStore.features?.dashboardWidgets?.dashboardWidgets as
+      | WidgetId[]
+      | undefined) ?? [...DEFAULT_TOP_WIDGETS]
+  );
+
   // Get focusHours setting for chart default time range
   const focusHours = $derived(settingsStore.features?.display?.focusHours ?? 3);
 
@@ -35,7 +47,7 @@
   <CurrentBGDisplay />
 
   {#if widgets.statistics}
-    <BGStatisticsCards />
+    <WidgetGrid widgets={dashboardWidgets} maxWidgets={3} />
   {/if}
 
   {#if widgets.glucoseChart}

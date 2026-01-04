@@ -43,9 +43,13 @@ public class BatteryService : IBatteryService
                 cancellationToken: cancellationToken
             );
 
-            // Filter to only those with uploader battery data
+            // Filter to those with any battery data (uploader, pump, or CGM)
             var statusesWithBattery = deviceStatuses
-                .Where(s => s.Uploader?.Battery != null || s.Uploader?.BatteryVoltage != null)
+                .Where(s =>
+                    s.Uploader?.Battery != null ||
+                    s.Uploader?.BatteryVoltage != null ||
+                    s.Pump?.Battery?.Percent != null ||
+                    s.Cgm?.TransmitterBattery != null)
                 .ToList();
 
             if (!statusesWithBattery.Any())
@@ -53,25 +57,25 @@ public class BatteryService : IBatteryService
                 return result;
             }
 
-            // Group by device
+            // Group by device, extracting battery readings from all available sources
             foreach (var status in statusesWithBattery)
             {
-                var deviceUri = status.Device ?? "uploader";
-                var deviceName = ExtractDeviceName(deviceUri);
-
-                if (!result.Devices.ContainsKey(deviceUri))
+                var readings = ConvertToBatteryReadings(status);
+                foreach (var reading in readings)
                 {
-                    result.Devices[deviceUri] = new DeviceBatteryStatus
+                    var deviceUri = reading.Device;
+                    var deviceName = ExtractDeviceName(deviceUri);
+
+                    if (!result.Devices.ContainsKey(deviceUri))
                     {
-                        Uri = deviceUri,
-                        Name = deviceName,
-                        Statuses = new List<BatteryReading>(),
-                    };
-                }
+                        result.Devices[deviceUri] = new DeviceBatteryStatus
+                        {
+                            Uri = deviceUri,
+                            Name = deviceName,
+                            Statuses = new List<BatteryReading>(),
+                        };
+                    }
 
-                var reading = ConvertToBatteryReading(status);
-                if (reading != null)
-                {
                     result.Devices[deviceUri].Statuses.Add(reading);
                 }
             }
@@ -162,11 +166,8 @@ public class BatteryService : IBatteryService
 
             foreach (var status in deviceStatuses)
             {
-                var reading = ConvertToBatteryReading(status);
-                if (reading != null)
-                {
-                    readings.Add(reading);
-                }
+                var statusReadings = ConvertToBatteryReadings(status);
+                readings.AddRange(statusReadings);
             }
 
             // Sort by time
@@ -278,12 +279,14 @@ public class BatteryService : IBatteryService
 
             foreach (var status in deviceStatuses)
             {
-                if (
-                    (status.Uploader?.Battery != null || status.Uploader?.BatteryVoltage != null)
-                    && !string.IsNullOrEmpty(status.Device)
-                )
+                // Use ConvertToBatteryReadings to find all devices with battery data
+                var readings = ConvertToBatteryReadings(status);
+                foreach (var reading in readings)
                 {
-                    devices.Add(status.Device);
+                    if (!string.IsNullOrEmpty(reading.Device))
+                    {
+                        devices.Add(reading.Device);
+                    }
                 }
             }
         }
@@ -295,27 +298,85 @@ public class BatteryService : IBatteryService
         return devices;
     }
 
-    private BatteryReading? ConvertToBatteryReading(DeviceStatus status)
+    /// <summary>
+    /// Converts a DeviceStatus to battery readings from all available sources (uploader, pump, CGM)
+    /// </summary>
+    private List<BatteryReading> ConvertToBatteryReadings(DeviceStatus status)
     {
-        if (status.Uploader?.Battery == null && status.Uploader?.BatteryVoltage == null)
+        var readings = new List<BatteryReading>();
+
+        // Extract uploader battery (phone/uploader device)
+        if (status.Uploader?.Battery != null || status.Uploader?.BatteryVoltage != null)
         {
-            return null;
+            readings.Add(new BatteryReading
+            {
+                Id = status.Id,
+                Device = status.Device ?? "uploader",
+                Battery = status.Uploader?.Battery,
+                Voltage = status.Uploader?.BatteryVoltage,
+                IsCharging = status.IsCharging ?? false,
+                Temperature = status.Uploader?.Temperature,
+                Mills = status.Mills,
+                Timestamp = status.CreatedAt,
+                Notification = GetNotificationStatus(status.Uploader?.Battery),
+            });
         }
 
-        var reading = new BatteryReading
+        // Extract pump battery
+        if (status.Pump?.Battery?.Percent != null)
         {
-            Id = status.Id,
-            Device = status.Device ?? "uploader",
-            Battery = status.Uploader?.Battery,
-            Voltage = status.Uploader?.BatteryVoltage,
-            IsCharging = status.IsCharging ?? false,
-            Temperature = status.Uploader?.Temperature,
-            Mills = status.Mills,
-            Timestamp = status.CreatedAt,
-            Notification = GetNotificationStatus(status.Uploader?.Battery),
-        };
+            var deviceName = status.Device ?? "pump";
+            // Create a unique device identifier for the pump
+            var pumpDevice = deviceName.Contains("pump", StringComparison.OrdinalIgnoreCase)
+                ? deviceName
+                : $"{deviceName}/pump";
 
-        return reading;
+            readings.Add(new BatteryReading
+            {
+                Id = $"{status.Id}_pump",
+                Device = pumpDevice,
+                Battery = status.Pump.Battery.Percent,
+                Voltage = status.Pump.Battery.Voltage,
+                IsCharging = false, // Pumps typically don't have charging status
+                Mills = status.Mills,
+                Timestamp = status.CreatedAt,
+                Notification = GetNotificationStatus(status.Pump.Battery.Percent),
+            });
+        }
+
+        // Extract CGM transmitter battery
+        if (status.Cgm?.TransmitterBattery != null)
+        {
+            var deviceName = status.Device ?? "cgm";
+            // Create a unique device identifier for the CGM
+            var cgmDevice = deviceName.Contains("cgm", StringComparison.OrdinalIgnoreCase) ||
+                           deviceName.Contains("dexcom", StringComparison.OrdinalIgnoreCase) ||
+                           deviceName.Contains("libre", StringComparison.OrdinalIgnoreCase)
+                ? deviceName
+                : $"{deviceName}/cgm";
+
+            readings.Add(new BatteryReading
+            {
+                Id = $"{status.Id}_cgm",
+                Device = cgmDevice,
+                Battery = status.Cgm.TransmitterBattery,
+                IsCharging = false, // CGM transmitters don't charge
+                Mills = status.Mills,
+                Timestamp = status.CreatedAt,
+                Notification = GetNotificationStatus(status.Cgm.TransmitterBattery),
+            });
+        }
+
+        return readings;
+    }
+
+    /// <summary>
+    /// Converts a DeviceStatus to a single battery reading (for backward compatibility)
+    /// </summary>
+    private BatteryReading? ConvertToBatteryReading(DeviceStatus status)
+    {
+        var readings = ConvertToBatteryReadings(status);
+        return readings.FirstOrDefault();
     }
 
     private string? GetNotificationStatus(int? battery)

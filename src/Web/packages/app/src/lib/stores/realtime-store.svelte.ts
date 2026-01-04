@@ -30,6 +30,15 @@ export class RealtimeStore {
   now = $state(Date.now());
   private timeInterval: ReturnType<typeof setTimeout> | null = null;
 
+  /** Track when we last received data for backfill purposes */
+  private lastDataReceived = Date.now();
+
+  /** Track if sync/backfill is in progress (public for UI feedback) */
+  isSyncing = $state(false);
+
+  /** Bound visibility change handler for cleanup */
+  private handleVisibilityChange: (() => void) | null = null;
+
   /** Reactive state using Svelte 5 runes - using $state.raw for arrays to avoid deep proxy issues */
   entries = $state.raw<Entry[]>([]);
   treatments = $state.raw<Treatment[]>([]);
@@ -177,11 +186,21 @@ export class RealtimeStore {
     // Set initialized flag immediately to prevent re-entry during reactive updates
     this.initialized = true;
 
-    // Start time ticker
+    // Start time ticker and visibility change listener
     if (typeof window !== "undefined") {
       this.timeInterval = setInterval(() => {
         this.now = Date.now();
       }, 1000);
+
+      // Add visibility change listener for sleep/wake detection
+      this.handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          // Browser just became visible (wake from sleep, tab switch back)
+          console.log('[RealtimeStore] Page became visible, checking for backfill...');
+          this.performBackfillIfNeeded();
+        }
+      };
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
     }
 
     // Skip if WebSocket URL is not available (SSR scenario)
@@ -248,6 +267,8 @@ export class RealtimeStore {
   private setupEventHandlers(): void {
     this.websocketClient.on("connect", () => {
       toast.success("Connected to real-time data");
+      // Backfill any missed data on reconnection
+      this.performBackfillIfNeeded();
     });
 
     this.websocketClient.on("disconnect", () => {
@@ -300,6 +321,8 @@ export class RealtimeStore {
   private handleDataUpdate(event: DataUpdateEvent): void {
     if (!Array.isArray(event.data)) return;
 
+    this.updateLastDataReceived();
+
     // Merge new entries with existing ones, avoiding duplicates
     const newEntries = event.data.filter(
       (newEntry) =>
@@ -320,6 +343,8 @@ export class RealtimeStore {
   /** Handle storage create events */
   private handleCreate(event: StorageEvent): void {
     const { colName, doc } = event;
+
+    this.updateLastDataReceived();
 
     if (colName === "entries" && this.isEntry(doc)) {
       // Check for duplicates
@@ -519,12 +544,144 @@ export class RealtimeStore {
     }, 1000);
   }
 
+  /** Manual sync - fetch data since last update (exposed for UI trigger) */
+  async syncData(): Promise<void> {
+    const startTime = Date.now();
+    await this.performBackfillIfNeeded(true);
+
+    // Ensure syncing state shows for at least 1 second for visual feedback
+    const elapsed = Date.now() - startTime;
+    const minDisplayTime = 1000;
+    if (elapsed < minDisplayTime) {
+      await new Promise(resolve => setTimeout(resolve, minDisplayTime - elapsed));
+    }
+  }
+
   /** Cleanup */
   destroy(): void {
     if (this.timeInterval) {
       clearInterval(this.timeInterval);
     }
+    if (this.handleVisibilityChange && typeof window !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    }
     this.websocketClient.destroy();
+  }
+
+  /**
+   * Check if backfill is needed and perform it.
+   * Called on visibility change (wake from sleep) and WebSocket reconnection.
+   * @param force If true, skip the time threshold check (for manual sync)
+   */
+  private async performBackfillIfNeeded(force = false): Promise<void> {
+    // Skip if already syncing
+    if (this.isSyncing) {
+      return;
+    }
+
+    const timeSinceLastData = Date.now() - this.lastDataReceived;
+    const fiveMinutes = 5 * 60 * 1000;
+
+    // Only backfill if more than 5 minutes have passed (unless forced)
+    if (!force && timeSinceLastData < fiveMinutes) {
+      console.log('[RealtimeStore] Data is recent, skipping backfill');
+      return;
+    }
+
+    this.isSyncing = true;
+    const backfillFrom = this.lastDataReceived;
+
+    console.log(
+      `[RealtimeStore] Backfilling data from ${new Date(backfillFrom).toISOString()} ` +
+      `(${Math.round(timeSinceLastData / 60000)} minutes ago)`
+    );
+
+    try {
+      const apiClient = getApiClient();
+
+      // Build MongoDB-style find query for entries since lastDataReceived
+      const findQuery = JSON.stringify({ mills: { $gte: backfillFrom } });
+
+      // Fetch all data types since last received using existing API methods
+      // Note: getDeviceStatus2 doesn't support find queries, so we fetch recent and filter client-side
+      const [entries, treatments, deviceStatuses] = await Promise.all([
+        apiClient.entries.getEntries2(findQuery, 1000).catch(() => []),
+        apiClient.treatments.getTreatments2(findQuery, 500).catch(() => []),
+        apiClient.deviceStatus.getDeviceStatus2(100).catch(() => []),
+      ]);
+
+      let backfilledCount = 0;
+
+      // Merge entries
+      if (entries && entries.length > 0) {
+        const newEntries = entries.filter(
+          (newEntry: Entry) => !this.entries.some(
+            (existing) => existing._id === newEntry._id ||
+              (existing.mills === newEntry.mills && existing.sgv === newEntry.sgv)
+          )
+        );
+        if (newEntries.length > 0) {
+          this.entries = [...this.entries, ...newEntries]
+            .sort((a, b) => (b.mills || 0) - (a.mills || 0))
+            .slice(0, 1000);
+          backfilledCount += newEntries.length;
+        }
+      }
+
+      // Merge treatments
+      if (treatments && treatments.length > 0) {
+        const newTreatments = treatments.filter(
+          (newTreatment: Treatment) => !this.treatments.some(
+            (existing) => existing._id === newTreatment._id ||
+              (existing.mills === newTreatment.mills && existing.eventType === newTreatment.eventType)
+          )
+        );
+        if (newTreatments.length > 0) {
+          this.treatments = [...this.treatments, ...newTreatments]
+            .sort((a, b) => (b.mills || 0) - (a.mills || 0))
+            .slice(0, 500);
+          backfilledCount += newTreatments.length;
+        }
+      }
+
+      // Merge device statuses (filter by timestamp since API doesn't support find query)
+      if (deviceStatuses && deviceStatuses.length > 0) {
+        const newStatuses = deviceStatuses.filter(
+          (newStatus: DeviceStatus) =>
+            (newStatus.mills || 0) >= backfillFrom &&
+            !this.deviceStatuses.some((existing) => existing._id === newStatus._id)
+        );
+        if (newStatuses.length > 0) {
+          this.deviceStatuses = [...this.deviceStatuses, ...newStatuses]
+            .sort((a, b) => (b.mills || 0) - (a.mills || 0))
+            .slice(0, 100);
+          backfilledCount += newStatuses.length;
+        }
+      }
+
+      // Update last data received timestamp
+      this.lastDataReceived = Date.now();
+
+      if (backfilledCount > 0) {
+        console.log(`[RealtimeStore] Backfilled ${backfilledCount} items`);
+        toast.success(`Synced ${backfilledCount} missed data points`);
+      } else {
+        console.log('[RealtimeStore] Backfill complete, no new data');
+      }
+    } catch (error) {
+      console.error('[RealtimeStore] Backfill failed:', error);
+      toast.error('Failed to sync missed data');
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  /**
+   * Update the last data received timestamp.
+   * Called when new data arrives via WebSocket.
+   */
+  private updateLastDataReceived(): void {
+    this.lastDataReceived = Date.now();
   }
 }
 

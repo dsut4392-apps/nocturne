@@ -117,14 +117,18 @@ public class DemoSettingsGenerator
                 ShowRawBG = false,
                 FocusHours = 3,
             },
-            DashboardWidgets = new DashboardWidgets
+            Widgets = new List<WidgetConfig>
             {
-                GlucoseChart = true,
-                Statistics = true,
-                Treatments = true,
-                Predictions = true,
-                Agp = false,
-                DailyStats = true,
+                // Top widgets
+                new() { Id = WidgetId.BgDelta, Enabled = true, Placement = WidgetPlacement.Top },
+                new() { Id = WidgetId.LastUpdated, Enabled = true, Placement = WidgetPlacement.Top },
+                new() { Id = WidgetId.ConnectionStatus, Enabled = true, Placement = WidgetPlacement.Top },
+                // Main sections
+                new() { Id = WidgetId.GlucoseChart, Enabled = true, Placement = WidgetPlacement.Main },
+                new() { Id = WidgetId.Statistics, Enabled = true, Placement = WidgetPlacement.Main },
+                new() { Id = WidgetId.Predictions, Enabled = true, Placement = WidgetPlacement.Main },
+                new() { Id = WidgetId.DailyStats, Enabled = true, Placement = WidgetPlacement.Main },
+                new() { Id = WidgetId.Treatments, Enabled = true, Placement = WidgetPlacement.Main },
             },
             Plugins = new Dictionary<string, PluginSettings>
             {
@@ -211,76 +215,135 @@ public class DemoSettingsGenerator
 
         return new NotificationSettings
         {
-            AlarmsEnabled = true,
-            SoundEnabled = true,
-            VibrationEnabled = true,
-            Volume = 70,
-            Alarms = new AlarmSettings
+            AlarmConfiguration = new UserAlarmConfiguration
             {
-                UrgentHigh = new AlarmConfig
+                Version = 1,
+                Enabled = true,
+                SoundEnabled = true,
+                VibrationEnabled = true,
+                GlobalVolume = 70,
+                Profiles = new List<AlarmProfileConfiguration>
                 {
-                    Enabled = true,
-                    Threshold = urgentHigh,
-                    Sound = "alarm-urgent",
-                    RepeatMinutes = 5,
-                    SnoozeOptions = new List<int> { 5, 10, 15, 30 },
+                    new()
+                    {
+                        Id = "demo-urgent-low",
+                        Name = "Urgent Low",
+                        Description = "Critical low glucose alarm",
+                        Enabled = true,
+                        AlarmType = AlarmTriggerType.UrgentLow,
+                        Threshold = urgentLow,
+                        PersistenceMinutes = 0,
+                        Priority = AlarmPriority.Critical,
+                        OverrideQuietHours = true,
+                        DisplayOrder = 0,
+                        Audio = new AlarmAudioSettings
+                        {
+                            Enabled = true,
+                            SoundId = "alarm-urgent",
+                            AscendingVolume = true,
+                            StartVolume = 50,
+                            MaxVolume = 100,
+                            AscendDurationSeconds = 30,
+                        },
+                        Visual = new AlarmVisualSettings
+                        {
+                            ScreenFlash = true,
+                            FlashColor = "#ff0000",
+                            PersistentBanner = true,
+                            WakeScreen = true,
+                        },
+                    },
+                    new()
+                    {
+                        Id = "demo-low",
+                        Name = "Low",
+                        Description = "Low glucose warning",
+                        Enabled = true,
+                        AlarmType = AlarmTriggerType.Low,
+                        Threshold = targetLow - 10, // 70 mg/dL
+                        PersistenceMinutes = 5,
+                        Priority = AlarmPriority.High,
+                        DisplayOrder = 1,
+                        Audio = new AlarmAudioSettings
+                        {
+                            Enabled = true,
+                            SoundId = "alarm-low",
+                            AscendingVolume = false,
+                            MaxVolume = 80,
+                        },
+                    },
+                    new()
+                    {
+                        Id = "demo-high",
+                        Name = "High",
+                        Description = "High glucose warning",
+                        Enabled = true,
+                        AlarmType = AlarmTriggerType.High,
+                        Threshold = targetHigh + 60, // 180 mg/dL
+                        PersistenceMinutes = 15,
+                        Priority = AlarmPriority.Normal,
+                        DisplayOrder = 2,
+                        Audio = new AlarmAudioSettings
+                        {
+                            Enabled = true,
+                            SoundId = "alarm-high",
+                            AscendingVolume = false,
+                            MaxVolume = 70,
+                        },
+                    },
+                    new()
+                    {
+                        Id = "demo-urgent-high",
+                        Name = "Urgent High",
+                        Description = "Critical high glucose alarm",
+                        Enabled = true,
+                        AlarmType = AlarmTriggerType.UrgentHigh,
+                        Threshold = urgentHigh,
+                        PersistenceMinutes = 10,
+                        Priority = AlarmPriority.High,
+                        DisplayOrder = 3,
+                        Audio = new AlarmAudioSettings
+                        {
+                            Enabled = true,
+                            SoundId = "alarm-urgent",
+                            AscendingVolume = true,
+                            StartVolume = 40,
+                            MaxVolume = 100,
+                            AscendDurationSeconds = 45,
+                        },
+                    },
                 },
-                High = new AlarmConfig
+                QuietHours = new QuietHoursConfiguration
                 {
-                    Enabled = true,
-                    Threshold = targetHigh + 60, // 180 mg/dL
-                    Sound = "alarm-high",
-                    RepeatMinutes = 15,
-                    SnoozeOptions = new List<int> { 15, 30, 60 },
+                    Enabled = false,
+                    StartTime = "22:00",
+                    EndTime = "07:00",
+                    AllowCritical = true,
+                    ReduceVolume = true,
+                    QuietVolume = 30,
                 },
-                Low = new AlarmConfig
+                Channels = new NotificationChannelsConfig
                 {
-                    Enabled = true,
-                    Threshold = targetLow - 10, // 70 mg/dL
-                    Sound = "alarm-low",
-                    RepeatMinutes = 5,
-                    SnoozeOptions = new List<int> { 10, 15, 30 },
+                    Push = new ChannelConfig { Enabled = true },
+                    Email = new ChannelConfig { Enabled = false },
+                    Sms = new ChannelConfig { Enabled = false },
                 },
-                UrgentLow = new AlarmConfig
+                EmergencyContacts = new List<EmergencyContactConfig>
                 {
-                    Enabled = true,
-                    Threshold = urgentLow,
-                    Sound = "alarm-urgent",
-                    RepeatMinutes = 5,
-                    SnoozeOptions = new List<int> { 5, 10, 15 },
-                },
-                StaleData = new StaleDataAlarm
-                {
-                    Enabled = true,
-                    WarningMinutes = 15,
-                    UrgentMinutes = 30,
-                    Sound = "alert",
-                },
-            },
-            QuietHours = new QuietHoursSettings
-            {
-                Enabled = false,
-                StartTime = "22:00",
-                EndTime = "07:00",
-            },
-            Channels = new NotificationChannels
-            {
-                Push = new NotificationChannel { Enabled = true, Label = "Push Notifications" },
-                Email = new NotificationChannel { Enabled = false, Label = "Email" },
-                Sms = new NotificationChannel { Enabled = false, Label = "SMS" },
-            },
-            EmergencyContacts = new List<EmergencyContact>
-            {
-                new()
-                {
-                    Id = "demo-contact-1",
-                    Name = "Jane Doe",
-                    Phone = "+1 555-0123",
-                    NotifyOnUrgent = true,
+                    new()
+                    {
+                        Id = "demo-contact-1",
+                        Name = "Jane Doe",
+                        Phone = "+1 555-0123",
+                        CriticalOnly = true,
+                        DelayMinutes = 5,
+                        Enabled = true,
+                    },
                 },
             },
         };
     }
+
 
     private ServicesSettings GenerateServicesSettings()
     {

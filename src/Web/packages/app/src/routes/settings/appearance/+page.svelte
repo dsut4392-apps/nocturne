@@ -46,29 +46,37 @@
   import SettingsPageSkeleton from "$lib/components/settings/SettingsPageSkeleton.svelte";
   import { browser } from "$app/environment";
   import {
-    DEFAULT_TOP_WIDGETS,
-    type WidgetId,
-  } from "$lib/types/dashboard-widgets";
+    WidgetId,
+    WidgetPlacement,
+    type WidgetConfig,
+  } from "$lib/api/generated/nocturne-api-client";
+  import { getEnabledWidgetsByPlacement } from "$lib/types/dashboard-widgets";
 
   const store = getSettingsStore();
   const realtimeStore = getRealtimeStore();
 
-  // Dashboard widgets state
-  const dashboardWidgets = $derived<WidgetId[]>(
-    (store.features?.dashboardWidgets?.dashboardWidgets as
-      | WidgetId[]
-      | undefined) ?? [...DEFAULT_TOP_WIDGETS]
+  // Dashboard widgets - get enabled top widgets for configurator
+  const dashboardWidgets = $derived(
+    getEnabledWidgetsByPlacement(store.features?.widgets, WidgetPlacement.Top)
   );
 
   function handleWidgetsChange(widgets: WidgetId[]) {
     if (!store.features) return;
-    if (!store.features.dashboardWidgets) {
-      store.features.dashboardWidgets = {};
+    if (!store.features.widgets) {
+      store.features.widgets = [];
     }
-    // Store as any since the generated type doesn't have dashboardWidgets yet
-    (
-      store.features.dashboardWidgets as Record<string, unknown>
-    ).dashboardWidgets = widgets;
+
+    // Update the widgets array: update top widgets, preserve main widgets
+    const mainWidgets = (store.features.widgets ?? []).filter(
+      (w) => w.placement === WidgetPlacement.Main
+    );
+    const newTopWidgets: WidgetConfig[] = widgets.map((id) => ({
+      id,
+      enabled: true,
+      placement: WidgetPlacement.Top,
+    }));
+
+    store.features.widgets = [...newTopWidgets, ...mainWidgets];
     store.markChanged();
   }
 

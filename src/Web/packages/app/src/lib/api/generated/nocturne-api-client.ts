@@ -1770,6 +1770,45 @@ export class MetadataClient {
         }
         return Promise.resolve<TreatmentEventTypesMetadata>(null as any);
     }
+
+    /**
+     * Get widget definitions metadata
+    This endpoint provides all available dashboard widget definitions for frontend configuration
+     * @return Widget definitions metadata
+     */
+    getWidgetDefinitions(signal?: AbortSignal): Promise<WidgetDefinitionsMetadata> {
+        let url_ = this.baseUrl + "/api/Metadata/widget-definitions";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetWidgetDefinitions(_response);
+        });
+    }
+
+    protected processGetWidgetDefinitions(response: Response): Promise<WidgetDefinitionsMetadata> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as WidgetDefinitionsMetadata;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<WidgetDefinitionsMetadata>(null as any);
+    }
 }
 
 export class OidcClient {
@@ -15663,6 +15702,65 @@ export interface EventTypeConfiguration {
     sensor?: boolean;
 }
 
+/** Metadata about available widget definitions */
+export interface WidgetDefinitionsMetadata {
+    /** Array of all widget definitions with full metadata */
+    definitions?: WidgetDefinition[];
+    /** All available placement options */
+    availablePlacements?: WidgetPlacement[];
+    /** All available size options */
+    availableSizes?: WidgetSize[];
+    /** All available UI category options */
+    availableUICategories?: WidgetUICategory[];
+    /** Description of the widget definitions */
+    description?: string;
+}
+
+export interface WidgetDefinition {
+    id?: WidgetId;
+    name?: string;
+    description?: string;
+    defaultEnabled?: boolean;
+    icon?: string;
+    uiCategory?: WidgetUICategory;
+    placement?: WidgetPlacement;
+}
+
+export enum WidgetId {
+    BgDelta = "BgDelta",
+    LastUpdated = "LastUpdated",
+    ConnectionStatus = "ConnectionStatus",
+    Meals = "Meals",
+    Trackers = "Trackers",
+    TirChart = "TirChart",
+    DailySummary = "DailySummary",
+    GlucoseChart = "GlucoseChart",
+    Statistics = "Statistics",
+    Treatments = "Treatments",
+    Predictions = "Predictions",
+    DailyStats = "DailyStats",
+    Agp = "Agp",
+    BatteryStatus = "BatteryStatus",
+}
+
+export enum WidgetUICategory {
+    Glucose = "Glucose",
+    Meals = "Meals",
+    Device = "Device",
+    Status = "Status",
+}
+
+export enum WidgetPlacement {
+    Top = "Top",
+    Main = "Main",
+}
+
+export enum WidgetSize {
+    Small = "Small",
+    Medium = "Medium",
+    Large = "Large",
+}
+
 /** OIDC provider info for login page */
 export interface OidcProviderInfo {
     /** Provider ID */
@@ -17939,7 +18037,7 @@ export interface SafetyLimits {
 
 export interface FeatureSettings {
     display?: DisplaySettings;
-    dashboardWidgets?: DashboardWidgets;
+    widgets?: WidgetConfig[];
     plugins?: { [key: string]: PluginSettings; };
     battery?: BatteryDisplaySettings;
     trackerPills?: TrackerPillsSettings;
@@ -17954,14 +18052,12 @@ export interface DisplaySettings {
     focusHours?: number;
 }
 
-export interface DashboardWidgets {
-    glucoseChart?: boolean;
-    statistics?: boolean;
-    treatments?: boolean;
-    predictions?: boolean;
-    agp?: boolean;
-    dailyStats?: boolean;
-    batteryStatus?: boolean;
+export interface WidgetConfig {
+    id?: WidgetId;
+    enabled?: boolean;
+    placement?: WidgetPlacement;
+    size?: WidgetSize | undefined;
+    settings?: { [key: string]: any; } | undefined;
 }
 
 export interface PluginSettings {
@@ -17984,62 +18080,7 @@ export interface TrackerPillsSettings {
 }
 
 export interface NotificationSettings {
-    alarmsEnabled?: boolean;
-    soundEnabled?: boolean;
-    vibrationEnabled?: boolean;
-    volume?: number;
-    alarms?: AlarmSettings;
-    quietHours?: QuietHoursSettings;
-    channels?: NotificationChannels;
-    emergencyContacts?: EmergencyContact[];
-    alarmConfiguration?: UserAlarmConfiguration | undefined;
-}
-
-export interface AlarmSettings {
-    urgentHigh?: AlarmConfig;
-    high?: AlarmConfig;
-    low?: AlarmConfig;
-    urgentLow?: AlarmConfig;
-    staleData?: StaleDataAlarm;
-}
-
-export interface AlarmConfig {
-    enabled?: boolean;
-    threshold?: number;
-    sound?: string;
-    repeatMinutes?: number;
-    snoozeOptions?: number[];
-}
-
-export interface StaleDataAlarm {
-    enabled?: boolean;
-    warningMinutes?: number;
-    urgentMinutes?: number;
-    sound?: string;
-}
-
-export interface QuietHoursSettings {
-    enabled?: boolean;
-    startTime?: string;
-    endTime?: string;
-}
-
-export interface NotificationChannels {
-    push?: NotificationChannel;
-    email?: NotificationChannel;
-    sms?: NotificationChannel;
-}
-
-export interface NotificationChannel {
-    enabled?: boolean;
-    label?: string;
-}
-
-export interface EmergencyContact {
-    id?: string;
-    name?: string;
-    phone?: string;
-    notifyOnUrgent?: boolean;
+    alarmConfiguration?: UserAlarmConfiguration;
 }
 
 export interface UserAlarmConfiguration {

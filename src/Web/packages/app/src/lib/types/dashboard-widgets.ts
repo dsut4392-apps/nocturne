@@ -1,168 +1,99 @@
 /**
  * Dashboard Widget System
  *
- * Defines the configurable widgets that can appear above the glucose chart.
- * Widgets are small, self-contained display cards that show real-time data.
+ * Widget icon mappings and helpers.
+ * Types must be imported directly from '$lib/api/generated/nocturne-api-client'.
+ * Widget definitions will eventually come from the backend API.
  */
 
-/**
- * Unique identifier for each widget type
- */
-export type WidgetId =
-  | "bg-delta"
-  | "last-updated"
-  | "connection-status"
-  | "meals"
-  | "trackers"
-  | "tir-chart"
-  | "daily-summary";
+import {
+  WidgetId,
+  WidgetPlacement,
+  type WidgetConfig,
+} from "$lib/api/generated/nocturne-api-client";
+
+import {
+  TrendingUp,
+  Clock,
+  Wifi,
+  UtensilsCrossed,
+  ListChecks,
+  BarChart3,
+  CalendarDays,
+  LineChart,
+  BarChart2,
+  Syringe,
+  Activity,
+  Battery,
+} from "lucide-svelte";
+import type { ComponentType } from "svelte";
 
 /**
- * Widget size variants
+ * Widget icon mapping - maps widget IDs to their Svelte icon components
  */
-export type WidgetSize = "sm" | "md" | "lg";
+export const WIDGET_ICONS: Partial<Record<WidgetId, ComponentType>> = {
+  [WidgetId.BgDelta]: TrendingUp,
+  [WidgetId.LastUpdated]: Clock,
+  [WidgetId.ConnectionStatus]: Wifi,
+  [WidgetId.Meals]: UtensilsCrossed,
+  [WidgetId.Trackers]: ListChecks,
+  [WidgetId.TirChart]: BarChart3,
+  [WidgetId.DailySummary]: CalendarDays,
+  [WidgetId.GlucoseChart]: LineChart,
+  [WidgetId.Statistics]: BarChart2,
+  [WidgetId.Predictions]: TrendingUp,
+  [WidgetId.DailyStats]: CalendarDays,
+  [WidgetId.Treatments]: Syringe,
+  [WidgetId.Agp]: Activity,
+  [WidgetId.BatteryStatus]: Battery,
+};
 
 /**
- * Widget definition with metadata
+ * Get icon component for a widget
  */
-export interface WidgetDefinition {
-  id: WidgetId;
-  name: string;
-  description: string;
-  /** Default enabled state */
-  defaultEnabled: boolean;
-  /** Icon name from lucide-svelte */
-  icon: string;
-  /** Category for grouping in settings */
-  category: "glucose" | "meals" | "device" | "status";
+export function getWidgetIcon(id: WidgetId): ComponentType | undefined {
+  return WIDGET_ICONS[id];
 }
 
 /**
- * Widget instance configuration (user preferences)
- */
-export interface WidgetConfig {
-  id: WidgetId;
-  enabled: boolean;
-  /** Position in the grid (0-indexed) */
-  position: number;
-}
-
-/**
- * Dashboard layout configuration
- */
-export interface DashboardLayoutConfig {
-  /** Ordered list of widget IDs for the top 3 slots */
-  dashboardWidgets: WidgetId[];
-  /** All widget configurations */
-  widgets: Record<WidgetId, { enabled: boolean }>;
-}
-
-/**
- * Available widget definitions
- */
-export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
-  {
-    id: "bg-delta",
-    name: "BG Delta",
-    description: "Blood glucose change since last reading",
-    defaultEnabled: true,
-    icon: "TrendingUp",
-    category: "glucose",
-  },
-  {
-    id: "last-updated",
-    name: "Last Updated",
-    description: "Time since last glucose reading with device info",
-    defaultEnabled: true,
-    icon: "Clock",
-    category: "device",
-  },
-  {
-    id: "connection-status",
-    name: "Connection Status",
-    description: "Real-time data connection status",
-    defaultEnabled: true,
-    icon: "Wifi",
-    category: "status",
-  },
-  {
-    id: "meals",
-    name: "Recent Meals",
-    description: "Recent meal entries and carb intake",
-    defaultEnabled: false,
-    icon: "UtensilsCrossed",
-    category: "meals",
-  },
-  {
-    id: "trackers",
-    name: "Trackers",
-    description: "Active tracker status and progress",
-    defaultEnabled: false,
-    icon: "ListChecks",
-    category: "status",
-  },
-  {
-    id: "tir-chart",
-    name: "Time in Range",
-    description: "Stacked chart showing time in glucose ranges",
-    defaultEnabled: false,
-    icon: "BarChart3",
-    category: "glucose",
-  },
-  {
-    id: "daily-summary",
-    name: "Daily Summary",
-    description: "Today's glucose statistics overview",
-    defaultEnabled: false,
-    icon: "CalendarDays",
-    category: "glucose",
-  },
-];
-
-/**
- * Get widget definition by ID
- */
-export function getWidgetDefinition(id: WidgetId): WidgetDefinition | undefined {
-  return WIDGET_DEFINITIONS.find((w) => w.id === id);
-}
-
-/**
- * Default top 3 widgets
+ * Default top widgets (for when no user config exists)
  */
 export const DEFAULT_TOP_WIDGETS: WidgetId[] = [
-  "bg-delta",
-  "last-updated",
-  "connection-status",
+  WidgetId.BgDelta,
+  WidgetId.LastUpdated,
+  WidgetId.ConnectionStatus,
 ];
 
 /**
- * Create default dashboard layout
+ * Helper to check if a widget is enabled
  */
-export function createDefaultDashboardLayout(): DashboardLayoutConfig {
-  const widgets: Record<WidgetId, { enabled: boolean }> = {} as Record<WidgetId, { enabled: boolean }>;
-
-  for (const def of WIDGET_DEFINITIONS) {
-    widgets[def.id] = { enabled: def.defaultEnabled };
+export function isWidgetEnabled(
+  widgets: WidgetConfig[] | undefined,
+  widgetId: WidgetId
+): boolean {
+  if (!widgets) {
+    return true; // Default to enabled if no config
   }
-
-  return {
-    dashboardWidgets: [...DEFAULT_TOP_WIDGETS],
-    widgets,
-  };
+  const widget = widgets.find((w) => w.id === widgetId);
+  return widget?.enabled ?? true;
 }
 
 /**
- * Get ordered list of enabled widgets for display
+ * Get enabled widgets by placement
  */
-export function getEnabledDashboardWidgets(
-  layout: DashboardLayoutConfig | undefined
+export function getEnabledWidgetsByPlacement(
+  widgets: WidgetConfig[] | undefined,
+  placement: WidgetPlacement
 ): WidgetId[] {
-  if (!layout) {
-    return DEFAULT_TOP_WIDGETS;
+  if (!widgets) {
+    // Return defaults for top placement
+    if (placement === WidgetPlacement.Top) {
+      return DEFAULT_TOP_WIDGETS;
+    }
+    return [];
   }
 
-  // Filter to only enabled widgets that exist in dashboardWidgets
-  return layout.dashboardWidgets.filter(
-    (id) => layout.widgets[id]?.enabled !== false
-  );
+  return widgets
+    .filter((w) => w.placement === placement && w.enabled)
+    .map((w) => w.id) as WidgetId[];
 }

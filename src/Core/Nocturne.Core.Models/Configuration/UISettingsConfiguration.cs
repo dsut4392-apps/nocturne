@@ -197,8 +197,11 @@ public class FeatureSettings
     [JsonPropertyName("display")]
     public DisplaySettings Display { get; set; } = new();
 
-    [JsonPropertyName("dashboardWidgets")]
-    public DashboardWidgets DashboardWidgets { get; set; } = new();
+    /// <summary>
+    /// Dashboard widget configurations. Array position determines display order within each category.
+    /// </summary>
+    [JsonPropertyName("widgets")]
+    public List<WidgetConfig> Widgets { get; set; } = GetDefaultWidgets();
 
     [JsonPropertyName("plugins")]
     public Dictionary<string, PluginSettings> Plugins { get; set; } = new();
@@ -211,6 +214,26 @@ public class FeatureSettings
     /// </summary>
     [JsonPropertyName("trackerPills")]
     public TrackerPillsSettings TrackerPills { get; set; } = new();
+
+    private static List<WidgetConfig> GetDefaultWidgets() =>
+    [
+        // Top widgets (widget grid)
+        new() { Id = WidgetId.BgDelta, Enabled = true, Placement = WidgetPlacement.Top },
+        new() { Id = WidgetId.LastUpdated, Enabled = true, Placement = WidgetPlacement.Top },
+        new() { Id = WidgetId.ConnectionStatus, Enabled = true, Placement = WidgetPlacement.Top },
+        new() { Id = WidgetId.Meals, Enabled = false, Placement = WidgetPlacement.Top },
+        new() { Id = WidgetId.Trackers, Enabled = false, Placement = WidgetPlacement.Top },
+        new() { Id = WidgetId.TirChart, Enabled = false, Placement = WidgetPlacement.Top },
+        new() { Id = WidgetId.DailySummary, Enabled = false, Placement = WidgetPlacement.Top },
+        // Main sections
+        new() { Id = WidgetId.GlucoseChart, Enabled = true, Placement = WidgetPlacement.Main },
+        new() { Id = WidgetId.Statistics, Enabled = true, Placement = WidgetPlacement.Main },
+        new() { Id = WidgetId.Predictions, Enabled = true, Placement = WidgetPlacement.Main },
+        new() { Id = WidgetId.DailyStats, Enabled = true, Placement = WidgetPlacement.Main },
+        new() { Id = WidgetId.Treatments, Enabled = true, Placement = WidgetPlacement.Main },
+        new() { Id = WidgetId.Agp, Enabled = false, Placement = WidgetPlacement.Main },
+        new() { Id = WidgetId.BatteryStatus, Enabled = true, Placement = WidgetPlacement.Main },
+    ];
 }
 
 public class DisplaySettings
@@ -234,36 +257,131 @@ public class DisplaySettings
     public int FocusHours { get; set; } = 3;
 }
 
-public class DashboardWidgets
+/// <summary>
+/// Available widget types for the dashboard.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum WidgetId
 {
-    [JsonPropertyName("glucoseChart")]
-    public bool GlucoseChart { get; set; } = true;
+    // Top widgets (widget grid)
+    BgDelta,
+    LastUpdated,
+    ConnectionStatus,
+    Meals,
+    Trackers,
+    TirChart,
+    DailySummary,
 
-    [JsonPropertyName("statistics")]
-    public bool Statistics { get; set; } = true;
+    // Main sections
+    GlucoseChart,
+    Statistics,
+    Treatments,
+    Predictions,
+    DailyStats,
+    Agp,
+    BatteryStatus
+}
 
-    [JsonPropertyName("treatments")]
-    public bool Treatments { get; set; } = true;
-
-    [JsonPropertyName("predictions")]
-    public bool Predictions { get; set; } = true;
-
-    [JsonPropertyName("agp")]
-    public bool Agp { get; set; }
-
-    [JsonPropertyName("dailyStats")]
-    public bool DailyStats { get; set; } = true;
-
-    [JsonPropertyName("batteryStatus")]
-    public bool BatteryStatus { get; set; } = true;
+/// <summary>
+/// Widget placement determines where the widget is displayed.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum WidgetPlacement
+{
+    /// <summary>
+    /// Top widget grid (small cards above the main chart)
+    /// </summary>
+    Top,
 
     /// <summary>
-    /// Ordered list of widget IDs to display in the top row of the dashboard.
-    /// Valid values: "bg-delta", "last-updated", "connection-status", "meals", "trackers", "tir-chart", "daily-summary"
+    /// Main dashboard sections (larger components)
     /// </summary>
-    [JsonPropertyName("dashboardWidgets")]
-    public List<string> DashboardWidgets { get; set; } =
-        new() { "bg-delta", "last-updated", "connection-status" };
+    Main
+}
+
+/// <summary>
+/// Widget size variants for layout.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum WidgetSize
+{
+    Small,
+    Medium,
+    Large
+}
+
+/// <summary>
+/// Widget UI category for grouping in settings.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum WidgetUICategory
+{
+    Glucose,
+    Meals,
+    Device,
+    Status
+}
+
+/// <summary>
+/// Widget definition with metadata for UI display.
+/// Served from the API so frontend doesn't need to maintain widget definitions.
+/// </summary>
+public class WidgetDefinition
+{
+    [JsonPropertyName("id")]
+    public WidgetId Id { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("defaultEnabled")]
+    public bool DefaultEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Icon name (e.g., "TrendingUp", "Clock") - frontend maps to actual icon component
+    /// </summary>
+    [JsonPropertyName("icon")]
+    public string Icon { get; set; } = string.Empty;
+
+    /// <summary>
+    /// UI category for grouping in settings
+    /// </summary>
+    [JsonPropertyName("uiCategory")]
+    public WidgetUICategory UICategory { get; set; }
+
+    /// <summary>
+    /// Where the widget is displayed (top grid or main section)
+    /// </summary>
+    [JsonPropertyName("placement")]
+    public WidgetPlacement Placement { get; set; }
+}
+
+/// <summary>
+/// Configuration for a single dashboard widget.
+/// Array position determines display order within each placement.
+/// </summary>
+public class WidgetConfig
+{
+    [JsonPropertyName("id")]
+    public WidgetId Id { get; set; }
+
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("placement")]
+    public WidgetPlacement Placement { get; set; } = WidgetPlacement.Main;
+
+    [JsonPropertyName("size")]
+    public WidgetSize? Size { get; set; }
+
+    /// <summary>
+    /// Widget-specific settings (future extensibility)
+    /// </summary>
+    [JsonPropertyName("settings")]
+    public Dictionary<string, object>? Settings { get; set; }
 }
 
 /// <summary>
@@ -341,177 +459,21 @@ public class TrackerPillsSettings
 #region Notification Settings
 
 /// <summary>
-/// Notification settings including alarms and notification channels.
-/// This is the legacy format - new code should use UserAlarmConfiguration from AlarmProfileConfiguration.cs
-/// which provides xDrip+-style alarm profiles with full customization.
+/// Notification settings using the modern xDrip+-style alarm profile configuration.
+/// This class now directly wraps UserAlarmConfiguration for full customization.
 /// </summary>
 public class NotificationSettings
 {
-    [JsonPropertyName("alarmsEnabled")]
-    public bool AlarmsEnabled { get; set; } = true;
-
-    [JsonPropertyName("soundEnabled")]
-    public bool SoundEnabled { get; set; } = true;
-
-    [JsonPropertyName("vibrationEnabled")]
-    public bool VibrationEnabled { get; set; } = true;
-
-    [JsonPropertyName("volume")]
-    public int Volume { get; set; } = 70;
-
-    [JsonPropertyName("alarms")]
-    public AlarmSettings Alarms { get; set; } = new();
-
-    [JsonPropertyName("quietHours")]
-    public QuietHoursSettings QuietHours { get; set; } = new();
-
-    [JsonPropertyName("channels")]
-    public NotificationChannels Channels { get; set; } = new();
-
-    [JsonPropertyName("emergencyContacts")]
-    public List<EmergencyContact> EmergencyContacts { get; set; } = new();
-
     /// <summary>
-    /// New xDrip+-style alarm configuration stored as JSONB.
-    /// When this is present, it takes precedence over the legacy AlarmSettings.
+    /// xDrip+-style alarm configuration stored as JSONB.
+    /// Contains all alarm profiles, quiet hours, channels, and emergency contacts.
     /// </summary>
     [JsonPropertyName("alarmConfiguration")]
-    public UserAlarmConfiguration? AlarmConfiguration { get; set; }
-}
-
-public class AlarmSettings
-{
-    [JsonPropertyName("urgentHigh")]
-    public AlarmConfig UrgentHigh { get; set; } =
-        new()
-        {
-            Enabled = true,
-            Threshold = 250,
-            Sound = "alarm-urgent",
-            RepeatMinutes = 5,
-            SnoozeOptions = new List<int> { 5, 10, 15, 30 },
-        };
-
-    [JsonPropertyName("high")]
-    public AlarmConfig High { get; set; } =
-        new()
-        {
-            Enabled = true,
-            Threshold = 180,
-            Sound = "alarm-high",
-            RepeatMinutes = 15,
-            SnoozeOptions = new List<int> { 15, 30, 60 },
-        };
-
-    [JsonPropertyName("low")]
-    public AlarmConfig Low { get; set; } =
-        new()
-        {
-            Enabled = true,
-            Threshold = 70,
-            Sound = "alarm-low",
-            RepeatMinutes = 5,
-            SnoozeOptions = new List<int> { 10, 15, 30 },
-        };
-
-    [JsonPropertyName("urgentLow")]
-    public AlarmConfig UrgentLow { get; set; } =
-        new()
-        {
-            Enabled = true,
-            Threshold = 55,
-            Sound = "alarm-urgent",
-            RepeatMinutes = 5,
-            SnoozeOptions = new List<int> { 5, 10, 15 },
-        };
-
-    [JsonPropertyName("staleData")]
-    public StaleDataAlarm StaleData { get; set; } = new();
-}
-
-public class AlarmConfig
-{
-    [JsonPropertyName("enabled")]
-    public bool Enabled { get; set; }
-
-    [JsonPropertyName("threshold")]
-    public int Threshold { get; set; }
-
-    [JsonPropertyName("sound")]
-    public string Sound { get; set; } = "alert";
-
-    [JsonPropertyName("repeatMinutes")]
-    public int RepeatMinutes { get; set; } = 5;
-
-    [JsonPropertyName("snoozeOptions")]
-    public List<int> SnoozeOptions { get; set; } = new();
-}
-
-public class StaleDataAlarm
-{
-    [JsonPropertyName("enabled")]
-    public bool Enabled { get; set; } = true;
-
-    [JsonPropertyName("warningMinutes")]
-    public int WarningMinutes { get; set; } = 15;
-
-    [JsonPropertyName("urgentMinutes")]
-    public int UrgentMinutes { get; set; } = 30;
-
-    [JsonPropertyName("sound")]
-    public string Sound { get; set; } = "alert";
-}
-
-public class QuietHoursSettings
-{
-    [JsonPropertyName("enabled")]
-    public bool Enabled { get; set; }
-
-    [JsonPropertyName("startTime")]
-    public string StartTime { get; set; } = "22:00";
-
-    [JsonPropertyName("endTime")]
-    public string EndTime { get; set; } = "07:00";
-}
-
-public class NotificationChannels
-{
-    [JsonPropertyName("push")]
-    public NotificationChannel Push { get; set; } =
-        new() { Enabled = true, Label = "Push Notifications" };
-
-    [JsonPropertyName("email")]
-    public NotificationChannel Email { get; set; } = new() { Enabled = false, Label = "Email" };
-
-    [JsonPropertyName("sms")]
-    public NotificationChannel Sms { get; set; } = new() { Enabled = false, Label = "SMS" };
-}
-
-public class NotificationChannel
-{
-    [JsonPropertyName("enabled")]
-    public bool Enabled { get; set; }
-
-    [JsonPropertyName("label")]
-    public string Label { get; set; } = string.Empty;
-}
-
-public class EmergencyContact
-{
-    [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [JsonPropertyName("name")]
-    public string Name { get; set; } = string.Empty;
-
-    [JsonPropertyName("phone")]
-    public string Phone { get; set; } = string.Empty;
-
-    [JsonPropertyName("notifyOnUrgent")]
-    public bool NotifyOnUrgent { get; set; } = true;
+    public UserAlarmConfiguration AlarmConfiguration { get; set; } = new();
 }
 
 #endregion
+
 
 #region Services Settings
 

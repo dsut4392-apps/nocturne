@@ -1335,6 +1335,27 @@
         }
       }
     },
+    "/api/Metadata/widget-definitions": {
+      "get": {
+        "tags": [
+          "Metadata"
+        ],
+        "summary": "Get widget definitions metadata\nThis endpoint provides all available dashboard widget definitions for frontend configuration",
+        "operationId": "Metadata_GetWidgetDefinitions",
+        "responses": {
+          "200": {
+            "description": "Widget definitions metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetDefinitionsMetadata"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/providers": {
       "get": {
         "tags": [
@@ -14080,6 +14101,150 @@
           }
         }
       },
+      "WidgetDefinitionsMetadata": {
+        "type": "object",
+        "description": "Metadata about available widget definitions",
+        "additionalProperties": false,
+        "properties": {
+          "definitions": {
+            "type": "array",
+            "description": "Array of all widget definitions with full metadata",
+            "items": {
+              "$ref": "#/components/schemas/WidgetDefinition"
+            }
+          },
+          "availablePlacements": {
+            "type": "array",
+            "description": "All available placement options",
+            "items": {
+              "$ref": "#/components/schemas/WidgetPlacement"
+            }
+          },
+          "availableSizes": {
+            "type": "array",
+            "description": "All available size options",
+            "items": {
+              "$ref": "#/components/schemas/WidgetSize"
+            }
+          },
+          "availableUICategories": {
+            "type": "array",
+            "description": "All available UI category options",
+            "items": {
+              "$ref": "#/components/schemas/WidgetUICategory"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the widget definitions"
+          }
+        }
+      },
+      "WidgetDefinition": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/WidgetId"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "defaultEnabled": {
+            "type": "boolean"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "uiCategory": {
+            "$ref": "#/components/schemas/WidgetUICategory"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/WidgetPlacement"
+          }
+        }
+      },
+      "WidgetId": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "BgDelta",
+          "LastUpdated",
+          "ConnectionStatus",
+          "Meals",
+          "Trackers",
+          "TirChart",
+          "DailySummary",
+          "GlucoseChart",
+          "Statistics",
+          "Treatments",
+          "Predictions",
+          "DailyStats",
+          "Agp",
+          "BatteryStatus"
+        ],
+        "enum": [
+          "BgDelta",
+          "LastUpdated",
+          "ConnectionStatus",
+          "Meals",
+          "Trackers",
+          "TirChart",
+          "DailySummary",
+          "GlucoseChart",
+          "Statistics",
+          "Treatments",
+          "Predictions",
+          "DailyStats",
+          "Agp",
+          "BatteryStatus"
+        ]
+      },
+      "WidgetUICategory": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Glucose",
+          "Meals",
+          "Device",
+          "Status"
+        ],
+        "enum": [
+          "Glucose",
+          "Meals",
+          "Device",
+          "Status"
+        ]
+      },
+      "WidgetPlacement": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Top",
+          "Main"
+        ],
+        "enum": [
+          "Top",
+          "Main"
+        ]
+      },
+      "WidgetSize": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Small",
+          "Medium",
+          "Large"
+        ],
+        "enum": [
+          "Small",
+          "Medium",
+          "Large"
+        ]
+      },
       "OidcProviderInfo": {
         "type": "object",
         "description": "OIDC provider info for login page",
@@ -21312,8 +21477,11 @@
           "display": {
             "$ref": "#/components/schemas/DisplaySettings"
           },
-          "dashboardWidgets": {
-            "$ref": "#/components/schemas/DashboardWidgets"
+          "widgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WidgetConfig"
+            }
           },
           "plugins": {
             "type": "object",
@@ -21354,30 +21522,31 @@
           }
         }
       },
-      "DashboardWidgets": {
+      "WidgetConfig": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "glucoseChart": {
+          "id": {
+            "$ref": "#/components/schemas/WidgetId"
+          },
+          "enabled": {
             "type": "boolean"
           },
-          "statistics": {
-            "type": "boolean"
+          "placement": {
+            "$ref": "#/components/schemas/WidgetPlacement"
           },
-          "treatments": {
-            "type": "boolean"
+          "size": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WidgetSize"
+              }
+            ]
           },
-          "predictions": {
-            "type": "boolean"
-          },
-          "agp": {
-            "type": "boolean"
-          },
-          "dailyStats": {
-            "type": "boolean"
-          },
-          "batteryStatus": {
-            "type": "boolean"
+          "settings": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": {}
           }
         }
       },
@@ -21436,169 +21605,8 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "alarmsEnabled": {
-            "type": "boolean"
-          },
-          "soundEnabled": {
-            "type": "boolean"
-          },
-          "vibrationEnabled": {
-            "type": "boolean"
-          },
-          "volume": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "alarms": {
-            "$ref": "#/components/schemas/AlarmSettings"
-          },
-          "quietHours": {
-            "$ref": "#/components/schemas/QuietHoursSettings"
-          },
-          "channels": {
-            "$ref": "#/components/schemas/NotificationChannels"
-          },
-          "emergencyContacts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EmergencyContact"
-            }
-          },
           "alarmConfiguration": {
-            "nullable": true,
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/UserAlarmConfiguration"
-              }
-            ]
-          }
-        }
-      },
-      "AlarmSettings": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "urgentHigh": {
-            "$ref": "#/components/schemas/AlarmConfig"
-          },
-          "high": {
-            "$ref": "#/components/schemas/AlarmConfig"
-          },
-          "low": {
-            "$ref": "#/components/schemas/AlarmConfig"
-          },
-          "urgentLow": {
-            "$ref": "#/components/schemas/AlarmConfig"
-          },
-          "staleData": {
-            "$ref": "#/components/schemas/StaleDataAlarm"
-          }
-        }
-      },
-      "AlarmConfig": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "threshold": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "sound": {
-            "type": "string"
-          },
-          "repeatMinutes": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "snoozeOptions": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        }
-      },
-      "StaleDataAlarm": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "warningMinutes": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "urgentMinutes": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "sound": {
-            "type": "string"
-          }
-        }
-      },
-      "QuietHoursSettings": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "startTime": {
-            "type": "string"
-          },
-          "endTime": {
-            "type": "string"
-          }
-        }
-      },
-      "NotificationChannels": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "push": {
-            "$ref": "#/components/schemas/NotificationChannel"
-          },
-          "email": {
-            "$ref": "#/components/schemas/NotificationChannel"
-          },
-          "sms": {
-            "$ref": "#/components/schemas/NotificationChannel"
-          }
-        }
-      },
-      "NotificationChannel": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "label": {
-            "type": "string"
-          }
-        }
-      },
-      "EmergencyContact": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "phone": {
-            "type": "string"
-          },
-          "notifyOnUrgent": {
-            "type": "boolean"
+            "$ref": "#/components/schemas/UserAlarmConfiguration"
           }
         }
       },

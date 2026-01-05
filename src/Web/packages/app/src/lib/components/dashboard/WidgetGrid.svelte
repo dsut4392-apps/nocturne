@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { WidgetId } from "$lib/types/dashboard-widgets";
+  import { WidgetId } from "$lib/api/generated/nocturne-api-client";
   import { DEFAULT_TOP_WIDGETS } from "$lib/types/dashboard-widgets";
   import BgDeltaWidget from "./widgets/BgDeltaWidget.svelte";
   import LastUpdatedWidget from "./widgets/LastUpdatedWidget.svelte";
@@ -21,15 +21,16 @@
   // Limit to max widgets
   const displayWidgets = $derived(widgets.slice(0, maxWidgets));
 
-  // Widget component map
-  const widgetComponents: Record<WidgetId, typeof BgDeltaWidget> = {
-    "bg-delta": BgDeltaWidget,
-    "last-updated": LastUpdatedWidget,
-    "connection-status": ConnectionStatusWidget,
-    meals: MealsWidget,
-    trackers: TrackersWidget,
-    "tir-chart": TirChartWidget,
-    "daily-summary": DailySummaryWidget,
+  // Widget component map using enum values
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const widgetComponents: Partial<Record<WidgetId, any>> = {
+    [WidgetId.BgDelta]: BgDeltaWidget,
+    [WidgetId.LastUpdated]: LastUpdatedWidget,
+    [WidgetId.ConnectionStatus]: ConnectionStatusWidget,
+    [WidgetId.Meals]: MealsWidget,
+    [WidgetId.Trackers]: TrackersWidget,
+    [WidgetId.TirChart]: TirChartWidget,
+    [WidgetId.DailySummary]: DailySummaryWidget,
   };
 </script>
 

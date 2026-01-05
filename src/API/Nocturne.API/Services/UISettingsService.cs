@@ -434,14 +434,16 @@ public class UISettingsService : IUISettingsService
                 ShowRawBG = false,
                 FocusHours = 3,
             },
-            DashboardWidgets = new DashboardWidgets
+            Widgets = new List<WidgetConfig>
             {
-                GlucoseChart = true,
-                Statistics = true,
-                Treatments = true,
-                Predictions = true,
-                Agp = false,
-                DailyStats = true,
+                new() { Id = WidgetId.BgDelta, Enabled = true, Placement = WidgetPlacement.Top },
+                new() { Id = WidgetId.LastUpdated, Enabled = true, Placement = WidgetPlacement.Top },
+                new() { Id = WidgetId.ConnectionStatus, Enabled = true, Placement = WidgetPlacement.Top },
+                new() { Id = WidgetId.GlucoseChart, Enabled = true, Placement = WidgetPlacement.Main },
+                new() { Id = WidgetId.Statistics, Enabled = true, Placement = WidgetPlacement.Main },
+                new() { Id = WidgetId.Predictions, Enabled = true, Placement = WidgetPlacement.Main },
+                new() { Id = WidgetId.DailyStats, Enabled = true, Placement = WidgetPlacement.Main },
+                new() { Id = WidgetId.Treatments, Enabled = true, Placement = WidgetPlacement.Main },
             },
             Plugins = new Dictionary<string, PluginSettings>(),
         };
@@ -451,14 +453,6 @@ public class UISettingsService : IUISettingsService
     {
         return new NotificationSettings
         {
-            AlarmsEnabled = true,
-            SoundEnabled = true,
-            VibrationEnabled = true,
-            Volume = 70,
-            Alarms = new AlarmSettings(),
-            QuietHours = new QuietHoursSettings(),
-            Channels = new NotificationChannels(),
-            EmergencyContacts = new List<EmergencyContact>(),
             AlarmConfiguration = new UserAlarmConfiguration
             {
                 Enabled = true,

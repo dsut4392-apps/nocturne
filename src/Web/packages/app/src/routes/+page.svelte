@@ -1,7 +1,6 @@
 <script lang="ts">
   import {
     CurrentBGDisplay,
-    BGStatisticsCards,
     GlucoseChartCard,
     RecentEntriesCard,
     RecentTreatmentsCard,
@@ -10,28 +9,27 @@
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
   import { getSettingsStore } from "$lib/stores/settings-store.svelte";
   import {
-    DEFAULT_TOP_WIDGETS,
-    type WidgetId,
+    WidgetId,
+    WidgetPlacement,
+  } from "$lib/api/generated/nocturne-api-client";
+  import {
+    isWidgetEnabled,
+    getEnabledWidgetsByPlacement,
   } from "$lib/types/dashboard-widgets";
 
   const realtimeStore = getRealtimeStore();
   const settingsStore = getSettingsStore();
 
-  // Dashboard widget visibility settings with defaults (show all if not configured)
-  const widgets = $derived({
-    glucoseChart:
-      settingsStore.features?.dashboardWidgets?.glucoseChart ?? true,
-    statistics: settingsStore.features?.dashboardWidgets?.statistics ?? true,
-    treatments: settingsStore.features?.dashboardWidgets?.treatments ?? true,
-    predictions: settingsStore.features?.dashboardWidgets?.predictions ?? true,
-    dailyStats: settingsStore.features?.dashboardWidgets?.dailyStats ?? true,
-  });
+  // Get widgets array from settings
+  const widgets = $derived(settingsStore.features?.widgets);
 
-  // Get the configured top widgets or use defaults
-  const dashboardWidgets = $derived<WidgetId[]>(
-    (settingsStore.features?.dashboardWidgets?.dashboardWidgets as
-      | WidgetId[]
-      | undefined) ?? [...DEFAULT_TOP_WIDGETS]
+  // Helper to check if a main section is enabled
+  const isMainEnabled = (id: (typeof WidgetId)[keyof typeof WidgetId]) =>
+    isWidgetEnabled(widgets, id);
+
+  // Get enabled top widgets for the widget grid
+  const topWidgets = $derived(
+    getEnabledWidgetsByPlacement(widgets, WidgetPlacement.Top)
   );
 
   // Get focusHours setting for chart default time range
@@ -46,24 +44,24 @@
 <div class="p-6 space-y-6">
   <CurrentBGDisplay />
 
-  {#if widgets.statistics}
-    <WidgetGrid widgets={dashboardWidgets} maxWidgets={3} />
+  {#if isMainEnabled(WidgetId.Statistics)}
+    <WidgetGrid widgets={topWidgets} maxWidgets={3} />
   {/if}
 
-  {#if widgets.glucoseChart}
+  {#if isMainEnabled(WidgetId.GlucoseChart)}
     <GlucoseChartCard
       entries={realtimeStore.entries}
       treatments={realtimeStore.treatments}
-      showPredictions={widgets.predictions && predictionEnabled}
+      showPredictions={isMainEnabled(WidgetId.Predictions) && predictionEnabled}
       defaultFocusHours={focusHours}
     />
   {/if}
 
-  {#if widgets.dailyStats}
+  {#if isMainEnabled(WidgetId.DailyStats)}
     <RecentEntriesCard />
   {/if}
 
-  {#if widgets.treatments}
+  {#if isMainEnabled(WidgetId.Treatments)}
     <RecentTreatmentsCard />
   {/if}
 </div>

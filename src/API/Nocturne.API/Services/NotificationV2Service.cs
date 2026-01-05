@@ -284,17 +284,82 @@ public class NotificationV2Service : INotificationV2Service
             remoteAddress
         );
 
-        // Note: The legacy V2 endpoint uses a different request structure than the legacy loop.js
-        // The legacy loop.js expects specific data structure (LoopNotificationData + LoopSettings)
-        // This V2 endpoint is more generic and would need to be adapted to work with actual Loop service
-        // For now, we'll just log the notification processing
+        // If Loop service is available and configured, send through APNS
+        if (_loopService?.IsConfigurationValid() == true)
+        {
+            // Map the V2 LoopNotificationRequest to the internal LoopNotificationData format
+            var loopData = new LoopNotificationData
+            {
+                EventType = request.Type,
+                Notes = request.Message,
+                EnteredBy = request.Data?.TryGetValue("enteredBy", out var enteredBy) == true
+                    ? enteredBy?.ToString()
+                    : null,
+                Reason = request.Data?.TryGetValue("reason", out var reason) == true
+                    ? reason?.ToString()
+                    : null,
+                ReasonDisplay = request.Title,
+                Duration = request.Data?.TryGetValue("duration", out var duration) == true
+                    ? duration?.ToString()
+                    : null,
+                RemoteCarbs = request.Data?.TryGetValue("remoteCarbs", out var carbs) == true
+                    ? carbs?.ToString()
+                    : null,
+                RemoteAbsorption = request.Data?.TryGetValue("remoteAbsorption", out var absorption) == true
+                    ? absorption?.ToString()
+                    : null,
+                RemoteBolus = request.Data?.TryGetValue("remoteBolus", out var bolus) == true
+                    ? bolus?.ToString()
+                    : null,
+                Otp = request.Data?.TryGetValue("otp", out var otp) == true
+                    ? otp?.ToString()
+                    : null,
+                CreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(request.Timestamp ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
+                    .ToString("O"),
+            };
 
-        // TODO: If we want to integrate this with the actual Loop service, we would need to:
-        // 1. Extract profile data to get LoopSettings
-        // 2. Map the LoopNotificationRequest to LoopNotificationData
-        // 3. Call _loopService.SendNotificationAsync()
+            // Extract loop settings from request data if provided
+            var loopSettings = new LoopSettings
+            {
+                DeviceToken = request.Data?.TryGetValue("deviceToken", out var token) == true
+                    ? token?.ToString()
+                    : null,
+                BundleIdentifier = request.Data?.TryGetValue("bundleIdentifier", out var bundle) == true
+                    ? bundle?.ToString()
+                    : null,
+            };
 
-        await Task.Delay(1, cancellationToken); // Simulate async processing
+            // Only send if we have a device token
+            if (!string.IsNullOrEmpty(loopSettings.DeviceToken))
+            {
+                var response = await _loopService.SendNotificationAsync(
+                    loopData,
+                    loopSettings,
+                    remoteAddress,
+                    cancellationToken
+                );
+
+                if (!response.Success)
+                {
+                    _logger.LogWarning(
+                        "Loop APNS notification failed: {Message}",
+                        response.Message
+                    );
+                }
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "No device token provided in Loop notification request, skipping APNS delivery"
+                );
+            }
+        }
+        else
+        {
+            _logger.LogDebug(
+                "Loop service not configured, notification logged but not sent via APNS"
+            );
+        }
     }
 
     /// <summary>

@@ -105,6 +105,36 @@ public class NotificationPreferencesEntity
     public bool EmergencyOverrideQuietHours { get; set; } = true;
 
     /// <summary>
+    /// Whether push notifications are enabled
+    /// </summary>
+    [Column("push_enabled")]
+    public bool PushEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Battery low threshold percentage for device alerts
+    /// </summary>
+    [Column("battery_low_threshold")]
+    public int? BatteryLowThreshold { get; set; }
+
+    /// <summary>
+    /// Hours before sensor expiration to send warning
+    /// </summary>
+    [Column("sensor_expiration_warning_hours")]
+    public int? SensorExpirationWarningHours { get; set; }
+
+    /// <summary>
+    /// Minutes of data gap before warning
+    /// </summary>
+    [Column("data_gap_warning_minutes")]
+    public int? DataGapWarningMinutes { get; set; }
+
+    /// <summary>
+    /// Hours between calibration reminders
+    /// </summary>
+    [Column("calibration_reminder_hours")]
+    public int? CalibrationReminderHours { get; set; }
+
+    /// <summary>
     /// When these preferences were created
     /// </summary>
     [Column("created_at")]

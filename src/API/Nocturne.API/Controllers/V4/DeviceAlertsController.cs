@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Extensions;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
+using Nocturne.Infrastructure.Data.Entities;
+using Nocturne.Infrastructure.Data.Repositories;
 
 namespace Nocturne.API.Controllers.V4;
 
@@ -18,6 +20,7 @@ public class DeviceAlertsController : ControllerBase
 {
     private readonly IDeviceAlertEngine _alertEngine;
     private readonly IDeviceRegistryService _deviceRegistryService;
+    private readonly NotificationPreferencesRepository _preferencesRepository;
     private readonly ILogger<DeviceAlertsController> _logger;
 
     /// <summary>
@@ -25,15 +28,18 @@ public class DeviceAlertsController : ControllerBase
     /// </summary>
     /// <param name="alertEngine">Alert engine service</param>
     /// <param name="deviceRegistryService">Device registry service</param>
+    /// <param name="preferencesRepository">Notification preferences repository</param>
     /// <param name="logger">Logger</param>
     public DeviceAlertsController(
         IDeviceAlertEngine alertEngine,
         IDeviceRegistryService deviceRegistryService,
+        NotificationPreferencesRepository preferencesRepository,
         ILogger<DeviceAlertsController> logger
     )
     {
         _alertEngine = alertEngine;
         _deviceRegistryService = deviceRegistryService;
+        _preferencesRepository = preferencesRepository;
         _logger = logger;
     }
 
@@ -247,27 +253,39 @@ public class DeviceAlertsController : ControllerBase
     /// <summary>
     /// Get alert settings/preferences for device alerts
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Alert settings</returns>
     [HttpGet("settings")]
-    public ActionResult<DeviceAlertSettings> GetAlertSettings()
+    public async Task<ActionResult<DeviceAlertSettings>> GetAlertSettings(
+        CancellationToken cancellationToken
+    )
     {
         try
         {
-            // This would retrieve user-specific alert settings
-            // For now, return default settings
+            var userId = HttpContext.GetSubjectIdString();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            var prefs = await _preferencesRepository.GetPreferencesForUserAsync(
+                userId,
+                cancellationToken
+            );
+
             var settings = new DeviceAlertSettings
             {
-                EmailEnabled = true,
-                PushEnabled = true,
-                SmsEnabled = false,
-                QuietHoursEnabled = true,
-                QuietHoursStart = new TimeSpan(22, 0, 0), // 10 PM
-                QuietHoursEnd = new TimeSpan(6, 0, 0), // 6 AM
-                CriticalAlertsOverrideQuietHours = true,
-                BatteryLowThreshold = 20,
-                SensorExpirationWarningHours = 24,
-                DataGapWarningMinutes = 30,
-                CalibrationReminderHours = 12,
+                EmailEnabled = prefs?.EmailEnabled ?? true,
+                PushEnabled = prefs?.PushEnabled ?? true,
+                SmsEnabled = prefs?.SmsEnabled ?? false,
+                QuietHoursEnabled = prefs?.QuietHoursEnabled ?? true,
+                QuietHoursStart = prefs?.QuietHoursStart?.ToTimeSpan() ?? new TimeSpan(22, 0, 0),
+                QuietHoursEnd = prefs?.QuietHoursEnd?.ToTimeSpan() ?? new TimeSpan(6, 0, 0),
+                CriticalAlertsOverrideQuietHours = prefs?.EmergencyOverrideQuietHours ?? true,
+                BatteryLowThreshold = prefs?.BatteryLowThreshold ?? 20,
+                SensorExpirationWarningHours = prefs?.SensorExpirationWarningHours ?? 24,
+                DataGapWarningMinutes = prefs?.DataGapWarningMinutes ?? 30,
+                CalibrationReminderHours = prefs?.CalibrationReminderHours ?? 12,
             };
 
             return Ok(settings);
@@ -283,9 +301,13 @@ public class DeviceAlertsController : ControllerBase
     /// Update alert settings/preferences for device alerts
     /// </summary>
     /// <param name="settings">Alert settings</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Success response</returns>
     [HttpPut("settings")]
-    public ActionResult UpdateAlertSettings([FromBody] DeviceAlertSettings settings)
+    public async Task<ActionResult> UpdateAlertSettings(
+        [FromBody] DeviceAlertSettings settings,
+        CancellationToken cancellationToken
+    )
     {
         try
         {
@@ -294,9 +316,30 @@ public class DeviceAlertsController : ControllerBase
                 return BadRequest(ModelState);
             }
 
-            var userId = HttpContext.GetSubjectIdString()!;
+            var userId = HttpContext.GetSubjectIdString();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
 
-            // TODO(future): Save alert settings to user preferences database
+            var prefs = new NotificationPreferencesEntity
+            {
+                UserId = userId,
+                EmailEnabled = settings.EmailEnabled,
+                PushEnabled = settings.PushEnabled,
+                SmsEnabled = settings.SmsEnabled,
+                QuietHoursEnabled = settings.QuietHoursEnabled,
+                QuietHoursStart = TimeOnly.FromTimeSpan(settings.QuietHoursStart),
+                QuietHoursEnd = TimeOnly.FromTimeSpan(settings.QuietHoursEnd),
+                EmergencyOverrideQuietHours = settings.CriticalAlertsOverrideQuietHours,
+                BatteryLowThreshold = settings.BatteryLowThreshold,
+                SensorExpirationWarningHours = settings.SensorExpirationWarningHours,
+                DataGapWarningMinutes = settings.DataGapWarningMinutes,
+                CalibrationReminderHours = settings.CalibrationReminderHours,
+            };
+
+            await _preferencesRepository.UpsertPreferencesAsync(prefs, cancellationToken);
+
             _logger.LogInformation("Alert settings updated for user {UserId}", userId);
 
             return NoContent();

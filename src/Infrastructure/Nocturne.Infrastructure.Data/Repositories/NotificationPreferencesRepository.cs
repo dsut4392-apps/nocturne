@@ -62,6 +62,11 @@ public class NotificationPreferencesRepository
             existing.QuietHoursEnd = preferences.QuietHoursEnd;
             existing.QuietHoursEnabled = preferences.QuietHoursEnabled;
             existing.EmergencyOverrideQuietHours = preferences.EmergencyOverrideQuietHours;
+            existing.PushEnabled = preferences.PushEnabled;
+            existing.BatteryLowThreshold = preferences.BatteryLowThreshold;
+            existing.SensorExpirationWarningHours = preferences.SensorExpirationWarningHours;
+            existing.DataGapWarningMinutes = preferences.DataGapWarningMinutes;
+            existing.CalibrationReminderHours = preferences.CalibrationReminderHours;
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);

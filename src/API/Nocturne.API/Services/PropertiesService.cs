@@ -280,11 +280,10 @@ public class PropertiesService : IPropertiesService
 
             var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-            // Use full IOB calculation service - NO SIMPLIFICATIONS
             var iobResult = _iobService.CalculateTotal(
                 treatments,
                 deviceStatus,
-                (IIobProfile?)null,
+                profile: null,
                 now
             );
 

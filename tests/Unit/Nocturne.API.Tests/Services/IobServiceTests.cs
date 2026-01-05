@@ -378,17 +378,39 @@ public class IobServiceTests
 
     #region Test Profile Implementation
 
-    private class TestProfile : IIobProfile
+    private class TestProfile : IProfileService
     {
         public double DIA { get; set; } = 3.0;
         public double Sensitivity { get; set; } = 95.0;
         public double BasalRate { get; set; } = 1.0;
+        public double CarbRatio { get; set; } = 10.0;
+        public double CarbAbsorptionRate { get; set; } = 30.0;
+        public double LowBGTarget { get; set; } = 80.0;
+        public double HighBGTarget { get; set; } = 120.0;
 
         public double GetDIA(long time, string? specProfile = null) => DIA;
-
         public double GetSensitivity(long time, string? specProfile = null) => Sensitivity;
-
         public double GetBasalRate(long time, string? specProfile = null) => BasalRate;
+        public double GetCarbRatio(long time, string? specProfile = null) => CarbRatio;
+        public double GetCarbAbsorptionRate(long time, string? specProfile = null) => CarbAbsorptionRate;
+        public double GetLowBGTarget(long time, string? specProfile = null) => LowBGTarget;
+        public double GetHighBGTarget(long time, string? specProfile = null) => HighBGTarget;
+        public double GetValueByTime(long time, string valueType, string? specProfile = null) => 0.0;
+
+        // Stub implementations for interface compliance
+        public void LoadData(List<Profile> profileData) { }
+        public bool HasData() => true;
+        public void Clear() { }
+        public Profile? GetCurrentProfile(long? time = null, string? specProfile = null) => null;
+        public string? GetActiveProfileName(long? time = null) => "Default";
+        public List<string> ListBasalProfiles() => new() { "Default" };
+        public string? GetUnits(string? specProfile = null) => "mg/dl";
+        public string? GetTimezone(string? specProfile = null) => "UTC";
+        public void UpdateTreatments(List<Treatment>? profileTreatments = null, List<Treatment>? tempBasalTreatments = null, List<Treatment>? comboBolusTreatments = null) { }
+        public Treatment? GetActiveProfileTreatment(long time) => null;
+        public Treatment? GetTempBasalTreatment(long time) => null;
+        public Treatment? GetComboBolusTreatment(long time) => null;
+        public TempBasalResult GetTempBasal(long time, string? specProfile = null) => new();
     }
 
     #endregion

@@ -18326,6 +18326,7 @@ export interface DeviceStatus extends ProcessableDocumentBase {
     cgm?: CgmStatus | undefined;
     meter?: MeterStatus | undefined;
     insulinPen?: InsulinPenStatus | undefined;
+    mmtune?: OpenApsMmTune | undefined;
 }
 
 export function isDeviceStatus(object: any): object is DeviceStatus {
@@ -18493,6 +18494,14 @@ export interface InsulinPenStatus {
     insulinType?: string | undefined;
     needleAttached?: boolean | undefined;
     cartridgeExpiration?: Date | undefined;
+}
+
+export interface OpenApsMmTune {
+    scanDetails?: any[][] | undefined;
+    setFreq?: number | undefined;
+    timestamp?: string | undefined;
+    usedDefault?: boolean | undefined;
+    moment?: Date | undefined;
 }
 
 export interface LastModifiedResponse {

@@ -72,7 +72,7 @@ public class IobController : ControllerBase
             var iobResult = _iobService.CalculateTotal(
                 treatments?.ToList() ?? new List<Treatment>(),
                 deviceStatus?.ToList() ?? new List<DeviceStatus>(),
-                (IIobProfile?)null,
+                profile: null,
                 calculationTime
             );
 
@@ -116,7 +116,7 @@ public class IobController : ControllerBase
             // Calculate IOB from treatments only
             var iobResult = _iobService.FromTreatments(
                 treatments?.ToList() ?? new List<Treatment>(),
-                (IIobProfile?)null, // No profile for now
+                profile: null,
                 calculationTime
             );
 
@@ -185,7 +185,7 @@ public class IobController : ControllerBase
                 // Calculate IOB at this time point
                 var iobResult = _iobService.FromTreatments(
                     treatments?.ToList() ?? new List<Treatment>(),
-                    (IIobProfile?)null, // No profile for now
+                    profile: null,
                     timeSlot
                 );
 

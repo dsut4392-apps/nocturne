@@ -1,66 +1,8 @@
 using System.Reflection;
+using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 
-namespace Nocturne.Core.Contracts;
-
-/// <summary>
-/// Profile interface for IOB calculations with 1:1 legacy compatibility
-/// NOTE: This interface is now replaced by IProfileService for unified COB/IOB compatibility
-/// </summary>
-public interface IIobProfile
-{
-    double GetDIA(long time, string? specProfile = null);
-    double GetSensitivity(long time, string? specProfile = null);
-    double GetBasalRate(long time, string? specProfile = null);
-}
-
-/// <summary>
-/// Service for calculating Insulin on Board (IOB) with 1:1 legacy JavaScript compatibility
-/// Implements exact algorithms from ClientApp/lib/plugins/iob.js and ClientApp/src/lib/calculations/iob.ts
-/// </summary>
-public interface IIobService
-{
-    IobResult CalculateTotal(
-        List<Treatment> treatments,
-        List<DeviceStatus> deviceStatus,
-        IIobProfile? profile = null,
-        long? time = null,
-        string? specProfile = null
-    );
-    IobResult CalculateTotal(
-        List<Treatment> treatments,
-        List<DeviceStatus> deviceStatus,
-        IProfileService? profile = null,
-        long? time = null,
-        string? specProfile = null
-    );
-    IobResult FromTreatments(
-        List<Treatment> treatments,
-        IIobProfile? profile = null,
-        long? time = null,
-        string? specProfile = null
-    );
-    IobResult FromTreatments(
-        List<Treatment> treatments,
-        IProfileService? profile = null,
-        long? time = null,
-        string? specProfile = null
-    );
-    IobResult FromDeviceStatus(DeviceStatus deviceStatusEntry);
-    IobResult LastIobDeviceStatus(List<DeviceStatus> deviceStatus, long time);
-    IobContribution CalcTreatment(
-        Treatment treatment,
-        IIobProfile? profile = null,
-        long? time = null,
-        string? specProfile = null
-    );
-    IobContribution CalcBasalTreatment(
-        Treatment treatment,
-        IIobProfile? profile = null,
-        long? time = null,
-        string? specProfile = null
-    );
-}
+namespace Nocturne.API.Services;
 
 /// <summary>
 /// Implementation of IOB calculations with exact 1:1 legacy JavaScript compatibility
@@ -81,7 +23,7 @@ public class IobService : IIobService
     public IobResult CalculateTotal(
         List<Treatment> treatments,
         List<DeviceStatus> deviceStatus,
-        IIobProfile? profile = null,
+        IProfileService? profile = null,
         long? time = null,
         string? specProfile = null
     )
@@ -124,22 +66,6 @@ public class IobService : IIobService
         }
 
         return AddDisplay(result);
-    }
-
-    /// <summary>
-    /// Overload to support unified IProfileService interface for COB integration
-    /// </summary>
-    public IobResult CalculateTotal(
-        List<Treatment> treatments,
-        List<DeviceStatus> deviceStatus,
-        IProfileService? profile = null,
-        long? time = null,
-        string? specProfile = null
-    )
-    {
-        // Convert IProfileService to IIobProfile
-        IIobProfile? iobProfile = profile != null ? new ProfileServiceAdapter(profile) : null;
-        return CalculateTotal(treatments, deviceStatus, iobProfile, time, specProfile);
     }
 
     /// <summary>
@@ -282,7 +208,7 @@ public class IobService : IIobService
     /// </summary>
     public IobResult FromTreatments(
         List<Treatment> treatments,
-        IIobProfile? profile = null,
+        IProfileService? profile = null,
         long? time = null,
         string? specProfile = null
     )
@@ -343,27 +269,12 @@ public class IobService : IIobService
     }
 
     /// <summary>
-    /// Calculate IOB from treatments using exact legacy algorithm (IProfileService overload)
-    /// </summary>
-    public IobResult FromTreatments(
-        List<Treatment> treatments,
-        IProfileService? profile = null,
-        long? time = null,
-        string? specProfile = null
-    )
-    {
-        // Convert IProfileService to IIobProfile
-        IIobProfile? iobProfile = profile != null ? new ProfileServiceAdapter(profile) : null;
-        return FromTreatments(treatments, iobProfile, time, specProfile);
-    }
-
-    /// <summary>
     /// Calculate IOB contribution from a single treatment - exact legacy algorithm
     /// Implements exact curve from ClientApp/lib/plugins/iob.js calcTreatment
     /// </summary>
     public IobContribution CalcTreatment(
         Treatment treatment,
-        IIobProfile? profile = null,
+        IProfileService? profile = null,
         long? time = null,
         string? specProfile = null
     )
@@ -427,7 +338,7 @@ public class IobService : IIobService
     /// </summary>
     public IobContribution CalcBasalTreatment(
         Treatment treatment,
-        IIobProfile? profile = null,
+        IProfileService? profile = null,
         long? time = null,
         string? specProfile = null
     )
@@ -667,32 +578,4 @@ public class IobService : IIobService
     }
 
     #endregion
-}
-
-/// <summary>
-/// Adapter to convert IProfileService to IIobProfile for backwards compatibility
-/// </summary>
-internal class ProfileServiceAdapter : IIobProfile
-{
-    private readonly IProfileService _profileService;
-
-    public ProfileServiceAdapter(IProfileService profileService)
-    {
-        _profileService = profileService;
-    }
-
-    public double GetDIA(long time, string? specProfile = null)
-    {
-        return _profileService.GetDIA(time, specProfile);
-    }
-
-    public double GetSensitivity(long time, string? specProfile = null)
-    {
-        return _profileService.GetSensitivity(time, specProfile);
-    }
-
-    public double GetBasalRate(long time, string? specProfile = null)
-    {
-        return _profileService.GetBasalRate(time, specProfile);
-    }
 }

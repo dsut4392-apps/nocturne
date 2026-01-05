@@ -22410,6 +22410,14 @@
                     "$ref": "#/components/schemas/InsulinPenStatus"
                   }
                 ]
+              },
+              "mmtune": {
+                "nullable": true,
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/OpenApsMmTune"
+                  }
+                ]
               }
             }
           }
@@ -23028,6 +23036,38 @@
             "nullable": true
           },
           "cartridgeExpiration": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "OpenApsMmTune": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scanDetails": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "setFreq": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "timestamp": {
+            "type": "string",
+            "nullable": true
+          },
+          "usedDefault": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "moment": {
             "type": "string",
             "format": "date-time",
             "nullable": true

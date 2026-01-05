@@ -60,14 +60,6 @@ public interface ICachedIobService
     IobResult CalculateTotal(
         List<Treatment> treatments,
         List<DeviceStatus> deviceStatus,
-        IIobProfile? profile = null,
-        long? time = null,
-        string? specProfile = null
-    );
-
-    IobResult CalculateTotal(
-        List<Treatment> treatments,
-        List<DeviceStatus> deviceStatus,
         IProfileService? profile = null,
         long? time = null,
         string? specProfile = null
@@ -134,20 +126,6 @@ public class CachedIobService : ICachedIobService
     public IobResult CalculateTotal(
         List<Treatment> treatments,
         List<DeviceStatus> deviceStatus,
-        IIobProfile? profile = null,
-        long? time = null,
-        string? specProfile = null
-    )
-    {
-        return CalculateTotalAsync(treatments, deviceStatus, profile, time, specProfile)
-            .GetAwaiter()
-            .GetResult();
-    }
-
-    /// <inheritdoc />
-    public IobResult CalculateTotal(
-        List<Treatment> treatments,
-        List<DeviceStatus> deviceStatus,
         IProfileService? profile = null,
         long? time = null,
         string? specProfile = null
@@ -156,41 +134,6 @@ public class CachedIobService : ICachedIobService
         return CalculateTotalAsync(treatments, deviceStatus, profile, time, specProfile)
             .GetAwaiter()
             .GetResult();
-    }
-
-    /// <summary>
-    /// Async version of CalculateTotal with caching (IIobProfile overload)
-    /// </summary>
-    private async Task<IobResult> CalculateTotalAsync(
-        List<Treatment> treatments,
-        List<DeviceStatus> deviceStatus,
-        IIobProfile? profile = null,
-        long? time = null,
-        string? specProfile = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        var timestamp = time ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var userId = ExtractUserId(treatments, deviceStatus);
-
-        if (string.IsNullOrEmpty(userId))
-        {
-            // No user ID available, skip caching
-            return _iobService.CalculateTotal(treatments, deviceStatus, profile, time, specProfile);
-        }
-
-        var cacheKey = CacheKeyBuilder.BuildIobCalculationKey(userId, timestamp);
-        var expiration = TimeSpan.FromSeconds(_config.IobCalculationExpirationSeconds);
-
-        return await _cacheService.GetOrSetAsync(
-            cacheKey,
-            () =>
-                Task.FromResult(
-                    _iobService.CalculateTotal(treatments, deviceStatus, profile, time, specProfile)
-                ),
-            expiration,
-            cancellationToken
-        );
     }
 
     /// <inheritdoc />

@@ -263,6 +263,15 @@ public class PostgreSqlDataService : IDataService
     }
 
     /// <inheritdoc />
+    public async Task<Profile?> GetProfileAtTimestampAsync(
+        long timestamp,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return await _postgreSqlService.GetProfileAtTimestampAsync(timestamp, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<IEnumerable<Profile>> CreateProfilesAsync(
         IEnumerable<Profile> profiles,
         CancellationToken cancellationToken = default

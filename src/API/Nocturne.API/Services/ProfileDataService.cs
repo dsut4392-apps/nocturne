@@ -1,9 +1,9 @@
-using Nocturne.Infrastructure.Cache.Constants;
 using Microsoft.Extensions.Options;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Infrastructure.Cache.Abstractions;
 using Nocturne.Infrastructure.Cache.Configuration;
+using Nocturne.Infrastructure.Cache.Constants;
 using Nocturne.Infrastructure.Cache.Keys;
 using Nocturne.Infrastructure.Data.Abstractions;
 
@@ -92,7 +92,9 @@ public class ProfileDataService : IProfileDataService
     )
     {
         var cacheKey = CacheKeyBuilder.BuildProfileAtTimestampKey(DefaultTenantId, timestamp);
-        var cacheTtl = TimeSpan.FromSeconds(CacheConstants.Defaults.ProfileTimestampExpirationSeconds);
+        var cacheTtl = TimeSpan.FromSeconds(
+            CacheConstants.Defaults.ProfileTimestampExpirationSeconds
+        );
 
         return await _cacheService.GetOrSetAsync<Profile>(
             cacheKey,
@@ -103,11 +105,19 @@ public class ProfileDataService : IProfileDataService
                     timestamp
                 );
 
-                // TODO: Implement timestamp-based profile lookup in MongoDB service
-                // For now, fall back to current profile as placeholder
-                // This should be replaced with actual timestamp-based profile lookup logic
-                var profiles = await _postgreSqlService.GetProfilesAsync(1, 0, cancellationToken);
-                var profile = profiles.FirstOrDefault();
+                var profile = await _postgreSqlService.GetProfileAtTimestampAsync(
+                    timestamp,
+                    cancellationToken
+                );
+
+                if (profile == null)
+                {
+                    _logger.LogDebug(
+                        "No profile found at timestamp {Timestamp}, falling back to current profile",
+                        timestamp
+                    );
+                    profile = await _postgreSqlService.GetCurrentProfileAsync(cancellationToken);
+                }
 
                 _logger.LogDebug(
                     "Retrieved profile for timestamp {Timestamp}: {ProfileId}",

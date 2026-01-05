@@ -1109,6 +1109,35 @@ public class PostgreSqlService : IPostgreSqlService
     }
 
     /// <inheritdoc />
+    public async Task<Profile?> GetProfileAtTimestampAsync(
+        long timestamp,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("Getting profile at timestamp: {Timestamp}", timestamp);
+
+        var profile = await _profileRepository.GetProfileAtTimestampAsync(
+            timestamp,
+            cancellationToken
+        );
+
+        if (profile != null)
+        {
+            _logger.LogDebug(
+                "Found profile {ProfileId} for timestamp {Timestamp}",
+                profile.Id ?? "null",
+                timestamp
+            );
+        }
+        else
+        {
+            _logger.LogDebug("No profile found for timestamp {Timestamp}", timestamp);
+        }
+
+        return profile;
+    }
+
+    /// <inheritdoc />
     public async Task<IEnumerable<Profile>> CreateProfilesAsync(
         IEnumerable<Profile> profiles,
         CancellationToken cancellationToken = default
@@ -1159,10 +1188,13 @@ public class PostgreSqlService : IPostgreSqlService
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogDebug("Getting latest entry timestamp for data source: {DataSource}", dataSource);
+        _logger.LogDebug(
+            "Getting latest entry timestamp for data source: {DataSource}",
+            dataSource
+        );
 
-        var latestEntry = await _context.Entries
-            .Where(e => e.DataSource == dataSource)
+        var latestEntry = await _context
+            .Entries.Where(e => e.DataSource == dataSource)
             .OrderByDescending(e => e.Mills)
             .Select(e => new { e.Mills })
             .FirstOrDefaultAsync(cancellationToken);
@@ -1188,10 +1220,13 @@ public class PostgreSqlService : IPostgreSqlService
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogDebug("Getting oldest entry timestamp for data source: {DataSource}", dataSource);
+        _logger.LogDebug(
+            "Getting oldest entry timestamp for data source: {DataSource}",
+            dataSource
+        );
 
-        var oldestEntry = await _context.Entries
-            .Where(e => e.DataSource == dataSource)
+        var oldestEntry = await _context
+            .Entries.Where(e => e.DataSource == dataSource)
             .OrderBy(e => e.Mills)
             .Select(e => new { e.Mills })
             .FirstOrDefaultAsync(cancellationToken);
@@ -1217,10 +1252,13 @@ public class PostgreSqlService : IPostgreSqlService
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogDebug("Getting latest treatment timestamp for data source: {DataSource}", dataSource);
+        _logger.LogDebug(
+            "Getting latest treatment timestamp for data source: {DataSource}",
+            dataSource
+        );
 
-        var latestTreatment = await _context.Treatments
-            .Where(t => t.DataSource == dataSource)
+        var latestTreatment = await _context
+            .Treatments.Where(t => t.DataSource == dataSource)
             .OrderByDescending(t => t.Mills)
             .Select(t => new { t.Mills })
             .FirstOrDefaultAsync(cancellationToken);
@@ -1246,10 +1284,13 @@ public class PostgreSqlService : IPostgreSqlService
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogDebug("Getting oldest treatment timestamp for data source: {DataSource}", dataSource);
+        _logger.LogDebug(
+            "Getting oldest treatment timestamp for data source: {DataSource}",
+            dataSource
+        );
 
-        var oldestTreatment = await _context.Treatments
-            .Where(t => t.DataSource == dataSource)
+        var oldestTreatment = await _context
+            .Treatments.Where(t => t.DataSource == dataSource)
             .OrderBy(t => t.Mills)
             .Select(t => new { t.Mills })
             .FirstOrDefaultAsync(cancellationToken);

@@ -315,6 +315,17 @@ public interface IPostgreSqlService
     Task<Profile?> GetCurrentProfileAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get the profile active at a specific timestamp
+    /// </summary>
+    /// <param name="timestamp">Unix timestamp in milliseconds</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The profile active at the timestamp if found, null otherwise</returns>
+    Task<Profile?> GetProfileAtTimestampAsync(
+        long timestamp,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Get a profile by its ID
     /// </summary>
     /// <param name="id">The profile ID</param>

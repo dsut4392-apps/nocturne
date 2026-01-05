@@ -118,6 +118,30 @@ public class ProfileRepository
     }
 
     /// <summary>
+    /// Get the profile that was active at the specified timestamp
+    /// </summary>
+    public async Task<Profile?> GetProfileAtTimestampAsync(
+        long timestamp,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var entity = await _context
+            .Profiles.Where(p => p.Mills <= timestamp)
+            .OrderByDescending(p => p.Mills)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (entity == null)
+        {
+            // Fallback to the earliest profile if the timestamp is before any recorded profile
+            entity = await _context
+                .Profiles.OrderBy(p => p.Mills)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        return entity != null ? ProfileMapper.ToDomainModel(entity) : null;
+    }
+
+    /// <summary>
     /// Create new profiles (uses upsert logic to handle duplicates)
     /// </summary>
     public async Task<IEnumerable<Profile>> CreateProfilesAsync(

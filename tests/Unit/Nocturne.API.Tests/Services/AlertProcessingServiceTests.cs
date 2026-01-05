@@ -1,3 +1,4 @@
+using System;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,6 +17,7 @@ namespace Nocturne.API.Tests.Services;
 /// </summary>
 public class AlertProcessingServiceTests
 {
+    private readonly NocturneDbContext _dbContext;
     private readonly Mock<AlertHistoryRepository> _mockAlertHistoryRepository;
     private readonly Mock<AlertRuleRepository> _mockAlertRuleRepository;
     private readonly Mock<NotificationPreferencesRepository> _mockNotificationPreferencesRepository;
@@ -27,10 +29,16 @@ public class AlertProcessingServiceTests
 
     public AlertProcessingServiceTests()
     {
-        var db = Nocturne.Tests.Shared.Infrastructure.TestDbContextFactory.CreateInMemoryContext();
-        _mockAlertHistoryRepository = new Mock<AlertHistoryRepository>(db) { CallBase = true };
-        _mockAlertRuleRepository = new Mock<AlertRuleRepository>(db) { CallBase = true };
-        _mockNotificationPreferencesRepository = new Mock<NotificationPreferencesRepository>(db)
+        _dbContext =
+            Nocturne.Tests.Shared.Infrastructure.TestDbContextFactory.CreateInMemoryContext();
+        _mockAlertHistoryRepository = new Mock<AlertHistoryRepository>(_dbContext)
+        {
+            CallBase = true,
+        };
+        _mockAlertRuleRepository = new Mock<AlertRuleRepository>(_dbContext) { CallBase = true };
+        _mockNotificationPreferencesRepository = new Mock<NotificationPreferencesRepository>(
+            _dbContext
+        )
         {
             CallBase = true,
         };
@@ -371,6 +379,98 @@ public class AlertProcessingServiceTests
         );
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ProcessAlertEscalations_WhenNotScheduled_SetsNextEscalationTime()
+    {
+        // Arrange
+        var rule = await CreateRuleAsync("user-escalation", escalationDelayMinutes: 10);
+        var alert = await CreateAlertHistoryAsync(
+            rule.Id,
+            "user-escalation",
+            AlertType.Low,
+            nextEscalationTime: null,
+            triggerMinutesAgo: 1
+        );
+
+        // Act
+        await _alertProcessingService.ProcessAlertEscalations(CancellationToken.None);
+
+        // Assert
+        var updated = await _mockAlertHistoryRepository.Object.GetByIdAsync(alert.Id);
+        updated?.NextEscalationTime.Should().NotBeNull();
+        updated?.EscalationLevel.Should().Be(0);
+        _mockSignalRBroadcastService.Verify(
+            x => x.BroadcastAlarmAsync(It.IsAny<NotificationBase>()),
+            Times.Never
+        );
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ProcessAlertEscalations_WhenDue_EscalatesAndSendsNotification()
+    {
+        // Arrange
+        var rule = await CreateRuleAsync("user-escalation-due", escalationDelayMinutes: 5);
+        var alert = await CreateAlertHistoryAsync(
+            rule.Id,
+            "user-escalation-due",
+            AlertType.Low,
+            nextEscalationTime: DateTime.UtcNow.AddMinutes(-1),
+            triggerMinutesAgo: 10
+        );
+
+        // Act
+        await _alertProcessingService.ProcessAlertEscalations(CancellationToken.None);
+
+        // Assert
+        var updated = await _mockAlertHistoryRepository.Object.GetByIdAsync(alert.Id);
+        updated?.EscalationLevel.Should().Be(1);
+        updated?.NextEscalationTime.Should().BeAfter(DateTime.UtcNow.AddMinutes(-2));
+        _mockSignalRBroadcastService.Verify(
+            x => x.BroadcastAlarmAsync(It.IsAny<NotificationBase>()),
+            Times.AtLeastOnce
+        );
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ProcessAlertEscalations_InQuietHours_DefersNonUrgent()
+    {
+        // Arrange
+        var userId = "quiet-user";
+        await _mockNotificationPreferencesRepository.Object.UpsertPreferencesAsync(
+            new NotificationPreferencesEntity
+            {
+                UserId = userId,
+                QuietHoursEnabled = true,
+                QuietHoursStart = TimeOnly.FromDateTime(DateTime.UtcNow.AddHours(-1)),
+                QuietHoursEnd = TimeOnly.FromDateTime(DateTime.UtcNow.AddHours(1)),
+            }
+        );
+
+        var rule = await CreateRuleAsync(userId, escalationDelayMinutes: 5);
+        var alert = await CreateAlertHistoryAsync(
+            rule.Id,
+            userId,
+            AlertType.Low,
+            nextEscalationTime: DateTime.UtcNow.AddMinutes(-1),
+            triggerMinutesAgo: 10
+        );
+
+        // Act
+        await _alertProcessingService.ProcessAlertEscalations(CancellationToken.None);
+
+        // Assert
+        var updated = await _mockAlertHistoryRepository.Object.GetByIdAsync(alert.Id);
+        updated?.EscalationLevel.Should().Be(0);
+        updated?.NextEscalationTime.Should().BeAfter(DateTime.UtcNow);
+        _mockSignalRBroadcastService.Verify(
+            x => x.BroadcastAlarmAsync(It.IsAny<NotificationBase>()),
+            Times.Never
+        );
+    }
+
     private static AlertEvent CreateAlertEvent(
         AlertType alertType,
         string userId,
@@ -413,5 +513,52 @@ public class AlertProcessingServiceTests
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
+    }
+
+    private async Task<AlertRuleEntity> CreateRuleAsync(
+        string userId,
+        int escalationDelayMinutes = 15,
+        int maxEscalations = 3
+    )
+    {
+        var rule = new AlertRuleEntity
+        {
+            UserId = userId,
+            Name = "Escalation Rule",
+            IsEnabled = true,
+            EscalationDelayMinutes = escalationDelayMinutes,
+            MaxEscalations = maxEscalations,
+            NotificationChannels = "[]",
+        };
+
+        return await _mockAlertRuleRepository.Object.CreateRuleAsync(rule, CancellationToken.None);
+    }
+
+    private async Task<AlertHistoryEntity> CreateAlertHistoryAsync(
+        Guid ruleId,
+        string userId,
+        AlertType alertType,
+        DateTime? nextEscalationTime = null,
+        int triggerMinutesAgo = 5
+    )
+    {
+        var alert = new AlertHistoryEntity
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = userId,
+            AlertRuleId = ruleId,
+            AlertType = alertType.ToString(),
+            GlucoseValue = 80,
+            Threshold = 70,
+            Status = "ACTIVE",
+            TriggerTime = DateTime.UtcNow.AddMinutes(-triggerMinutesAgo),
+            EscalationLevel = 0,
+            NextEscalationTime = nextEscalationTime,
+        };
+
+        _dbContext.AlertHistory.Add(alert);
+        await _dbContext.SaveChangesAsync();
+
+        return alert;
     }
 }

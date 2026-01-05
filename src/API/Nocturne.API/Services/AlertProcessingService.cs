@@ -159,19 +159,153 @@ public class AlertProcessingService : IAlertProcessingService
     }
 
     /// <inheritdoc />
-    public Task ProcessAlertEscalations(CancellationToken cancellationToken)
+    public async Task ProcessAlertEscalations(CancellationToken cancellationToken)
     {
         try
         {
             // Get all active alerts that might need escalation
-            // This would typically be called by a background service periodically
+
+            var alerts = await _alertHistoryRepository.GetAlertsForEscalationAsync();
+
+            if (alerts.Count == 0)
+            {
+                _logger.LogDebug("No alerts pending escalation");
+                return;
+            }
             _logger.LogDebug("Processing alert escalations");
 
-            // TODO: Implement escalation logic based on escalation rules
-            // For now, this is a placeholder for future escalation functionality
+            var now = DateTime.UtcNow;
+            var alertsToProcess = alerts.Take(_options.AlertProcessingBatchSize).ToList();
+
+            foreach (var alert in alertsToProcess)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!string.Equals(alert.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogDebug(
+                        "Skipping alert {AlertId} with status {Status}",
+                        alert.Id,
+                        alert.Status
+                    );
+                    continue;
+                }
+
+                var rule =
+                    alert.AlertRule
+                    ?? (
+                        alert.AlertRuleId.HasValue
+                            ? await _alertRuleRepository.GetRuleByIdAsync(
+                                alert.AlertRuleId.Value,
+                                cancellationToken
+                            )
+                            : null
+                    );
+
+                var escalationDelayMinutes =
+                    rule?.EscalationDelayMinutes ?? _options.AlertCooldownMinutes;
+                var maxEscalations = rule?.MaxEscalations ?? 3;
+
+                if (alert.NextEscalationTime == null)
+                {
+                    alert.NextEscalationTime = alert.TriggerTime.AddMinutes(escalationDelayMinutes);
+                    alert.EscalationReason ??= "Initial escalation scheduled";
+                    await _alertHistoryRepository.UpdateAsync(alert);
+                    _logger.LogDebug(
+                        "Scheduled first escalation for alert {AlertId} at {NextEscalationTime}",
+                        alert.Id,
+                        alert.NextEscalationTime
+                    );
+                    continue;
+                }
+
+                if (alert.NextEscalationTime > now)
+                {
+                    continue; // Not yet time to escalate
+                }
+
+                if (alert.EscalationLevel >= maxEscalations)
+                {
+                    alert.NextEscalationTime = null;
+                    alert.EscalationReason = "Reached maximum escalations";
+                    await _alertHistoryRepository.UpdateAsync(alert);
+                    _logger.LogInformation(
+                        "Alert {AlertId} for user {UserId} reached max escalations ({Max})",
+                        alert.Id,
+                        alert.UserId,
+                        maxEscalations
+                    );
+                    continue;
+                }
+
+                var isUrgent =
+                    string.Equals(
+                        alert.AlertType,
+                        AlertType.UrgentLow.ToString(),
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                    || string.Equals(
+                        alert.AlertType,
+                        AlertType.UrgentHigh.ToString(),
+                        StringComparison.OrdinalIgnoreCase
+                    );
+
+                var inQuietHours = await _notificationPreferencesRepository.IsUserInQuietHoursAsync(
+                    alert.UserId,
+                    now,
+                    cancellationToken
+                );
+
+                if (inQuietHours && !isUrgent)
+                {
+                    alert.NextEscalationTime = now.AddMinutes(escalationDelayMinutes);
+                    alert.EscalationReason = "Escalation deferred due to quiet hours";
+                    await _alertHistoryRepository.UpdateAsync(alert);
+                    _logger.LogDebug(
+                        "Deferring escalation for alert {AlertId} until {NextEscalationTime} due to quiet hours",
+                        alert.Id,
+                        alert.NextEscalationTime
+                    );
+                    continue;
+                }
+
+                var newEscalationLevel = alert.EscalationLevel + 1;
+
+                // Send another notification to escalate
+                var alertEvent = CreateAlertEventFromHistory(alert);
+                if (alertEvent != null)
+                {
+                    await SendSignalRNotification(alertEvent, alert, cancellationToken);
+                }
+
+                // Record escalation attempt
+                var attempts = DeserializeEscalationAttempts(alert.EscalationAttempts);
+                attempts.Add(
+                    new EscalationAttempt
+                    {
+                        Level = newEscalationLevel,
+                        AttemptTime = now,
+                        ChannelsUsed = new List<string> { "SignalR" },
+                        Success = true,
+                    }
+                );
+
+                alert.EscalationLevel = newEscalationLevel;
+                alert.NextEscalationTime = now.AddMinutes(escalationDelayMinutes);
+                alert.EscalationAttempts = JsonSerializer.Serialize(attempts);
+                alert.EscalationReason = $"Escalation level {newEscalationLevel} triggered";
+
+                await _alertHistoryRepository.UpdateAsync(alert);
+
+                _logger.LogInformation(
+                    "Escalated alert {AlertId} for user {UserId} to level {Level}",
+                    alert.Id,
+                    alert.UserId,
+                    newEscalationLevel
+                );
+            }
 
             _logger.LogDebug("Completed processing alert escalations");
-            return Task.CompletedTask;
         }
         catch (Exception ex)
         {
@@ -420,5 +554,41 @@ public class AlertProcessingService : IAlertProcessingService
             );
             // Don't throw - this is a nice-to-have cleanup
         }
+    }
+
+    private static List<EscalationAttempt> DeserializeEscalationAttempts(string escalationAttempts)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<List<EscalationAttempt>>(escalationAttempts)
+                ?? new List<EscalationAttempt>();
+        }
+        catch
+        {
+            return new List<EscalationAttempt>();
+        }
+    }
+
+    private AlertEvent? CreateAlertEventFromHistory(AlertHistoryEntity alert)
+    {
+        if (!Enum.TryParse<AlertType>(alert.AlertType, out var alertType))
+        {
+            return null;
+        }
+
+        return new AlertEvent
+        {
+            UserId = alert.UserId,
+            AlertRuleId = alert.AlertRuleId ?? Guid.Empty,
+            AlertType = alertType,
+            GlucoseValue = alert.GlucoseValue ?? 0,
+            Threshold = alert.Threshold ?? 0,
+            TriggerTime = alert.TriggerTime,
+            Context = new Dictionary<string, object>
+            {
+                { "EscalationLevel", alert.EscalationLevel + 1 },
+                { "IsEscalation", true },
+            },
+        };
     }
 }

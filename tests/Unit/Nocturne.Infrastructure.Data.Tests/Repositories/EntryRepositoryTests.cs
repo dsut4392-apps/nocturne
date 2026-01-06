@@ -451,28 +451,252 @@ public class EntryRepositoryTests : IDisposable
         reversedOrder.First().Mgdl.Should().Be(100.0);
     }
 
+    #region MongoDB Query Filtering Tests
+
     [Fact]
-    public async Task GetEntriesWithAdvancedFilterAsync_ShouldLogFindQueryParameter_WhenProvided()
+    public async Task GetEntriesWithAdvancedFilterAsync_ShouldFilterByType_WhenTypeQueryProvided()
     {
         // Arrange
         await using var context = new NocturneDbContext(_contextOptions);
         var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
         var repository = new EntryRepository(context, queryParser);
 
-        var entry = CreateTestEntry(sgv: 120.0);
-        await repository.CreateEntriesAsync(new[] { entry });
+        var entries = new[]
+        {
+            CreateTestEntry(sgv: 100.0, type: "sgv"),
+            CreateTestEntry(sgv: 110.0, type: "sgv"),
+            CreateTestEntry(sgv: 120.0, type: "mbg"),
+            CreateTestEntry(sgv: 130.0, type: "cal"),
+        };
+        await repository.CreateEntriesAsync(entries);
 
-        // Act - This should not throw even with MongoDB-style query (not yet implemented)
+        // Act
+        var result = await repository.GetEntriesWithAdvancedFilterAsync(
+            findQuery: "{\"type\":\"sgv\"}"
+        );
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(e => e.Type == "sgv");
+    }
+
+    [Fact]
+    public async Task GetEntriesWithAdvancedFilterAsync_ShouldFilterBySgvRange_WhenGteAndLteProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new EntryRepository(context, queryParser);
+
+        var entries = new[]
+        {
+            CreateTestEntry(sgv: 80.0, type: "sgv"),
+            CreateTestEntry(sgv: 100.0, type: "sgv"),
+            CreateTestEntry(sgv: 150.0, type: "sgv"),
+            CreateTestEntry(sgv: 200.0, type: "sgv"),
+            CreateTestEntry(sgv: 250.0, type: "sgv"),
+        };
+        await repository.CreateEntriesAsync(entries);
+
+        // Act - Filter entries between 100 and 200 inclusive
+        var result = await repository.GetEntriesWithAdvancedFilterAsync(
+            findQuery: "{\"sgv\":{\"$gte\":100,\"$lte\":200}}"
+        );
+
+        // Assert
+        result.Should().HaveCount(3);
+        result.Should().OnlyContain(e => e.Sgv >= 100 && e.Sgv <= 200);
+    }
+
+    [Fact]
+    public async Task GetEntriesWithAdvancedFilterAsync_ShouldFilterByTypeAndSgv_WhenCombinedQueryProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new EntryRepository(context, queryParser);
+
+        var entries = new[]
+        {
+            CreateTestEntry(sgv: 80.0, type: "sgv"),
+            CreateTestEntry(sgv: 120.0, type: "sgv"),
+            CreateTestEntry(sgv: 180.0, type: "sgv"),
+            CreateTestEntry(sgv: 120.0, type: "mbg"), // Same sgv but different type
+        };
+        await repository.CreateEntriesAsync(entries);
+
+        // Act - Filter sgv type with sgv >= 100
         var result = await repository.GetEntriesWithAdvancedFilterAsync(
             findQuery: "{\"type\":\"sgv\",\"sgv\":{\"$gte\":100}}"
         );
 
         // Assert
-        // Since MongoDB query parsing is not implemented, this should return all entries
-        // In the future, this would be parsed and applied as SQL conditions
-        result.Should().HaveCount(1);
-        result.First().Mgdl.Should().Be(120.0);
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(e => e.Type == "sgv" && e.Sgv >= 100);
     }
+
+    [Fact]
+    public async Task GetEntriesWithAdvancedFilterAsync_ShouldFilterWithAndOperator_WhenAndQueryProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new EntryRepository(context, queryParser);
+
+        var entries = new[]
+        {
+            CreateTestEntry(sgv: 90.0, type: "sgv", device: "dexcom"),
+            CreateTestEntry(sgv: 120.0, type: "sgv", device: "dexcom"),
+            CreateTestEntry(sgv: 150.0, type: "sgv", device: "libre"),
+            CreateTestEntry(sgv: 120.0, type: "mbg", device: "dexcom"),
+        };
+        await repository.CreateEntriesAsync(entries);
+
+        // Act - $and: type=sgv AND sgv>=100
+        var result = await repository.GetEntriesWithAdvancedFilterAsync(
+            findQuery: "{\"$and\":[{\"type\":\"sgv\"},{\"sgv\":{\"$gte\":100}}]}"
+        );
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(e => e.Type == "sgv" && e.Sgv >= 100);
+    }
+
+    [Fact]
+    public async Task GetEntriesWithAdvancedFilterAsync_ShouldFilterWithOrOperator_WhenOrQueryProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new EntryRepository(context, queryParser);
+
+        var entries = new[]
+        {
+            CreateTestEntry(sgv: 100.0, type: "sgv"),
+            CreateTestEntry(sgv: 110.0, type: "mbg"),
+            CreateTestEntry(sgv: 120.0, type: "cal"),
+            CreateTestEntry(sgv: 130.0, type: "rawbg"),
+        };
+        await repository.CreateEntriesAsync(entries);
+
+        // Act - $or: type=sgv OR type=mbg
+        var result = await repository.GetEntriesWithAdvancedFilterAsync(
+            findQuery: "{\"$or\":[{\"type\":\"sgv\"},{\"type\":\"mbg\"}]}"
+        );
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(e => e.Type == "sgv" || e.Type == "mbg");
+    }
+
+    [Fact]
+    public async Task GetEntriesWithAdvancedFilterAsync_ShouldFilterWithNestedLogical_WhenComplexQueryProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new EntryRepository(context, queryParser);
+
+        var entries = new[]
+        {
+            CreateTestEntry(sgv: 80.0, type: "sgv", device: "dexcom"),
+            CreateTestEntry(sgv: 120.0, type: "sgv", device: "dexcom"),
+            CreateTestEntry(sgv: 150.0, type: "sgv", device: "libre"),
+            CreateTestEntry(sgv: 120.0, type: "mbg", device: "finger"),
+        };
+        await repository.CreateEntriesAsync(entries);
+
+        // Act - $and with nested $or: (type=sgv) AND (device=dexcom OR device=libre)
+        var result = await repository.GetEntriesWithAdvancedFilterAsync(
+            findQuery: "{\"$and\":[{\"type\":\"sgv\"},{\"$or\":[{\"device\":\"dexcom\"},{\"device\":\"libre\"}]}]}"
+        );
+
+        // Assert
+        result.Should().HaveCount(3);
+        result.Should().OnlyContain(e => e.Type == "sgv" && (e.Device == "dexcom" || e.Device == "libre"));
+    }
+
+    [Fact]
+    public async Task GetEntriesWithAdvancedFilterAsync_ShouldFilterWithUrlEncodedQuery_WhenUrlFormatProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new EntryRepository(context, queryParser);
+
+        var entries = new[]
+        {
+            CreateTestEntry(sgv: 80.0, type: "sgv"),
+            CreateTestEntry(sgv: 120.0, type: "sgv"),
+            CreateTestEntry(sgv: 180.0, type: "sgv"),
+        };
+        await repository.CreateEntriesAsync(entries);
+
+        // Act - URL-encoded format: find[type]=sgv&find[sgv][$gte]=100
+        var result = await repository.GetEntriesWithAdvancedFilterAsync(
+            findQuery: "find[type]=sgv&find[sgv][$gte]=100"
+        );
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(e => e.Type == "sgv" && e.Sgv >= 100);
+    }
+
+    [Fact]
+    public async Task GetEntriesWithAdvancedFilterAsync_ShouldReturnEmpty_WhenNoMatchingEntries()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new EntryRepository(context, queryParser);
+
+        var entries = new[]
+        {
+            CreateTestEntry(sgv: 100.0, type: "sgv"),
+            CreateTestEntry(sgv: 110.0, type: "sgv"),
+        };
+        await repository.CreateEntriesAsync(entries);
+
+        // Act - Query for non-existent type
+        var result = await repository.GetEntriesWithAdvancedFilterAsync(
+            findQuery: "{\"type\":\"nonexistent\"}"
+        );
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetEntriesWithAdvancedFilterAsync_ShouldCombineWithOtherParameters_WhenMultipleFiltersProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new EntryRepository(context, queryParser);
+
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var entries = new[]
+        {
+            CreateTestEntry(sgv: 100.0, type: "sgv", mills: now),
+            CreateTestEntry(sgv: 120.0, type: "sgv", mills: now - 60000),
+            CreateTestEntry(sgv: 140.0, type: "sgv", mills: now - 120000),
+            CreateTestEntry(sgv: 160.0, type: "sgv", mills: now - 180000),
+        };
+        await repository.CreateEntriesAsync(entries);
+
+        // Act - Filter by sgv and limit count
+        var result = await repository.GetEntriesWithAdvancedFilterAsync(
+            findQuery: "{\"sgv\":{\"$gte\":110}}",
+            count: 2
+        );
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(e => e.Sgv >= 110);
+    }
+
+    #endregion
+
 
     [Fact]
     public async Task CountEntriesAsync_ShouldReturnCorrectCount_WhenEntriesExist()

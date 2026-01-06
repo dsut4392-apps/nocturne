@@ -430,28 +430,224 @@ public class TreatmentRepositoryTests : IDisposable
         reversedOrder.First().Insulin.Should().Be(1.0);
     }
 
+    #region MongoDB Query Filtering Tests
+
     [Fact]
-    public async Task GetTreatmentsWithAdvancedFilterAsync_ShouldLogFindQueryParameter_WhenProvided()
+    public async Task GetTreatmentsWithAdvancedFilterAsync_ShouldFilterByEventType_WhenEventTypeQueryProvided()
     {
         // Arrange
         await using var context = new NocturneDbContext(_contextOptions);
         var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
         var repository = new TreatmentRepository(context, queryParser);
 
-        var treatment = CreateTestTreatment(insulin: 2.5, eventType: "Meal Bolus");
-        await repository.CreateTreatmentsAsync(new[] { treatment });
+        var treatments = new[]
+        {
+            CreateTestTreatment(insulin: 2.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 1.5, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 1.0, eventType: "Correction Bolus"),
+            CreateTestTreatment(carbs: 30.0, eventType: "Carb Correction"),
+        };
+        await repository.CreateTreatmentsAsync(treatments);
 
-        // Act - This should not throw even with MongoDB-style query (not yet implemented)
+        // Act
+        var result = await repository.GetTreatmentsWithAdvancedFilterAsync(
+            findQuery: "{\"eventType\":\"Meal Bolus\"}"
+        );
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(t => t.EventType == "Meal Bolus");
+    }
+
+    [Fact]
+    public async Task GetTreatmentsWithAdvancedFilterAsync_ShouldFilterByInsulinRange_WhenGteAndLteProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new TreatmentRepository(context, queryParser);
+
+        var treatments = new[]
+        {
+            CreateTestTreatment(insulin: 0.5, eventType: "Correction Bolus"),
+            CreateTestTreatment(insulin: 1.5, eventType: "Correction Bolus"),
+            CreateTestTreatment(insulin: 2.5, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 4.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 6.0, eventType: "Meal Bolus"),
+        };
+        await repository.CreateTreatmentsAsync(treatments);
+
+        // Act - Filter treatments with insulin between 1.0 and 3.0 inclusive
+        var result = await repository.GetTreatmentsWithAdvancedFilterAsync(
+            findQuery: "{\"insulin\":{\"$gte\":1.0,\"$lte\":3.0}}"
+        );
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(t => t.Insulin >= 1.0 && t.Insulin <= 3.0);
+    }
+
+    [Fact]
+    public async Task GetTreatmentsWithAdvancedFilterAsync_ShouldFilterByEventTypeAndInsulin_WhenCombinedQueryProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new TreatmentRepository(context, queryParser);
+
+        var treatments = new[]
+        {
+            CreateTestTreatment(insulin: 1.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 3.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 5.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 3.0, eventType: "Correction Bolus"),
+        };
+        await repository.CreateTreatmentsAsync(treatments);
+
+        // Act - Filter Meal Bolus with insulin >= 2.0
         var result = await repository.GetTreatmentsWithAdvancedFilterAsync(
             findQuery: "{\"eventType\":\"Meal Bolus\",\"insulin\":{\"$gte\":2.0}}"
         );
 
         // Assert
-        // Since MongoDB query parsing is not implemented, this should return all treatments
-        // In the future, this would be parsed and applied as SQL conditions
-        result.Should().HaveCount(1);
-        result.First().Insulin.Should().Be(2.5);
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(t => t.EventType == "Meal Bolus" && t.Insulin >= 2.0);
     }
+
+    [Fact]
+    public async Task GetTreatmentsWithAdvancedFilterAsync_ShouldFilterWithOrOperator_WhenOrQueryProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new TreatmentRepository(context, queryParser);
+
+        var treatments = new[]
+        {
+            CreateTestTreatment(insulin: 2.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 1.0, eventType: "Correction Bolus"),
+            CreateTestTreatment(carbs: 30.0, eventType: "Carb Correction"),
+            CreateTestTreatment(eventType: "Site Change"),
+        };
+        await repository.CreateTreatmentsAsync(treatments);
+
+        // Act - $or: eventType=Meal Bolus OR eventType=Correction Bolus
+        var result = await repository.GetTreatmentsWithAdvancedFilterAsync(
+            findQuery: "{\"$or\":[{\"eventType\":\"Meal Bolus\"},{\"eventType\":\"Correction Bolus\"}]}"
+        );
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(t => t.EventType == "Meal Bolus" || t.EventType == "Correction Bolus");
+    }
+
+    [Fact]
+    public async Task GetTreatmentsWithAdvancedFilterAsync_ShouldFilterWithAndOperator_WhenAndQueryProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new TreatmentRepository(context, queryParser);
+
+        var treatments = new[]
+        {
+            CreateTestTreatment(insulin: 1.0, carbs: 20.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 2.0, carbs: 40.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 3.0, carbs: 10.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 2.0, eventType: "Correction Bolus"),
+        };
+        await repository.CreateTreatmentsAsync(treatments);
+
+        // Act - $and: insulin >= 2.0 AND carbs >= 30.0
+        var result = await repository.GetTreatmentsWithAdvancedFilterAsync(
+            findQuery: "{\"$and\":[{\"insulin\":{\"$gte\":2.0}},{\"carbs\":{\"$gte\":30.0}}]}"
+        );
+
+        // Assert
+        result.Should().HaveCount(1);
+        result.First().Insulin.Should().Be(2.0);
+        result.First().Carbs.Should().Be(40.0);
+    }
+
+    [Fact]
+    public async Task GetTreatmentsWithAdvancedFilterAsync_ShouldFilterWithUrlEncodedQuery_WhenUrlFormatProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new TreatmentRepository(context, queryParser);
+
+        var treatments = new[]
+        {
+            CreateTestTreatment(insulin: 1.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 3.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 2.0, eventType: "Correction Bolus"),
+        };
+        await repository.CreateTreatmentsAsync(treatments);
+
+        // Act - URL-encoded format: find[eventType]=Meal Bolus&find[insulin][$gte]=2.0
+        var result = await repository.GetTreatmentsWithAdvancedFilterAsync(
+            findQuery: "find[eventType]=Meal Bolus&find[insulin][$gte]=2.0"
+        );
+
+        // Assert
+        result.Should().HaveCount(1);
+        result.First().Insulin.Should().Be(3.0);
+    }
+
+    [Fact]
+    public async Task GetTreatmentsWithAdvancedFilterAsync_ShouldReturnEmpty_WhenNoMatchingTreatments()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new TreatmentRepository(context, queryParser);
+
+        var treatments = new[]
+        {
+            CreateTestTreatment(insulin: 2.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(insulin: 1.0, eventType: "Correction Bolus"),
+        };
+        await repository.CreateTreatmentsAsync(treatments);
+
+        // Act - Query for non-existent event type
+        var result = await repository.GetTreatmentsWithAdvancedFilterAsync(
+            findQuery: "{\"eventType\":\"Nonexistent Type\"}"
+        );
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTreatmentsWithAdvancedFilterAsync_ShouldFilterByCarbsGreaterThan_WhenGtProvided()
+    {
+        // Arrange
+        await using var context = new NocturneDbContext(_contextOptions);
+        var queryParser = new Nocturne.Infrastructure.Data.Services.QueryParser();
+        var repository = new TreatmentRepository(context, queryParser);
+
+        var treatments = new[]
+        {
+            CreateTestTreatment(carbs: 10.0, eventType: "Carb Correction"),
+            CreateTestTreatment(carbs: 30.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(carbs: 50.0, eventType: "Meal Bolus"),
+            CreateTestTreatment(eventType: "Site Change"), // No carbs
+        };
+        await repository.CreateTreatmentsAsync(treatments);
+
+        // Act - Filter for carbs > 20
+        var result = await repository.GetTreatmentsWithAdvancedFilterAsync(
+            findQuery: "{\"carbs\":{\"$gt\":20.0}}"
+        );
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(t => t.Carbs > 20.0);
+    }
+
+    #endregion
+
 
     [Fact]
     public async Task CountTreatmentsAsync_ShouldReturnCorrectCount_WhenTreatmentsExist()

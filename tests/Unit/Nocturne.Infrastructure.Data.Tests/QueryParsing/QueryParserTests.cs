@@ -321,12 +321,12 @@ public class QueryParserTests
     [Fact]
     public void ParseQuery_ShouldHandleUnsupportedOperators_Gracefully()
     {
-        // Arrange - Query with operators not yet implemented
+        // Arrange - Query with operators not yet implemented ($size and $elemMatch are not supported)
         var unsupportedQuery =
             @"{
             ""type"": ""sgv"",
-            ""mgdl"": {""$regex"": ""^1[0-9]{2}$""},
-            ""meta"": {""$exists"": true}
+            ""items"": {""$size"": 3},
+            ""nested"": {""$elemMatch"": {""x"": 1}}
         }";
 
         // Act
@@ -335,8 +335,30 @@ public class QueryParserTests
         // Assert
         result.Should().NotBeNull();
         result.SimpleConditions["type"].Should().Be("sgv");
-        result.UnsupportedOperators.Should().Contain("$regex");
-        result.UnsupportedOperators.Should().Contain("$exists");
+        result.UnsupportedOperators.Should().Contain("$size");
+        result.UnsupportedOperators.Should().Contain("$elemMatch");
+    }
+
+    [Fact]
+    public void ParseQuery_ShouldHandleNowSupportedOperators_NotAsUnsupported()
+    {
+        // Arrange - Query with $regex and $exists which are now supported
+        var supportedQuery =
+            @"{
+            ""type"": ""sgv"",
+            ""mgdl"": {""$regex"": ""^1[0-9]{2}$""},
+            ""meta"": {""$exists"": true}
+        }";
+
+        // Act
+        var result = QueryParser.ParseComplexQuery(supportedQuery);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.SimpleConditions["type"].Should().Be("sgv");
+        // $regex and $exists are now supported, so they should NOT be in unsupported list
+        result.UnsupportedOperators.Should().NotContain("$regex");
+        result.UnsupportedOperators.Should().NotContain("$exists");
     }
 
     #endregion
@@ -355,10 +377,21 @@ public static class QueryParser
         if (string.IsNullOrWhiteSpace(mongoQuery))
             return result;
 
+        // Handle literal "null" or "undefined" strings
+        var trimmed = mongoQuery.Trim();
+        if (trimmed == "null" || trimmed == "undefined")
+            return result;
+
         try
         {
             using var document = JsonDocument.Parse(mongoQuery);
             var root = document.RootElement;
+
+            // Handle JSON null value
+            if (root.ValueKind == JsonValueKind.Null)
+            {
+                return result;
+            }
 
             if (root.ValueKind != JsonValueKind.Object)
             {
@@ -660,7 +693,8 @@ public static class QueryParser
     private static List<string> DetectUnsupportedOperators(string mongoQuery)
     {
         var unsupported = new List<string>();
-        var knownUnsupported = new[] { "$regex", "$exists", "$size", "$elemMatch", "$type" };
+        // $regex and $exists are now supported, removed from this list
+        var knownUnsupported = new[] { "$size", "$elemMatch", "$type" };
 
         foreach (var op in knownUnsupported)
         {

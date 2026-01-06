@@ -9,6 +9,7 @@ namespace Nocturne.API.Tests.Services;
 /// Unit tests for NotificationV1Service
 /// Tests the Phase 8.1 notification service functionality with 1:1 legacy compatibility
 /// </summary>
+[Parity("notifications-api.test.js", Description = "Also covers adminnotifies.test.js aggregation paths")]
 public class NotificationV1ServiceTests
 {
     private readonly Mock<ILogger<NotificationV1Service>> _mockLogger;

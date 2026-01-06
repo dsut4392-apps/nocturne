@@ -18,7 +18,7 @@ namespace Nocturne.API.Tests.Services;
 /// Comprehensive unit tests for StatusService
 /// Tests system status functionality with Nightscout compatibility and caching
 /// </summary>
-[Parity]
+[Parity("api.status.test.js")]
 public class StatusServiceTests
 {
     private readonly Mock<ICacheService> _mockCacheService;

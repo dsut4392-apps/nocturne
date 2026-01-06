@@ -47,6 +47,10 @@ public class OrefProfile
     [JsonPropertyName("carbRatio")]
     public double CarbRatio { get; set; } = 10.0;
 
+    /// <summary>Insulin curve type (bilinear, rapid-acting, ultra-rapid)</summary>
+    [JsonPropertyName("curve")]
+    public string? Curve { get; set; }
+
     /// <summary>Carb absorption rate</summary>
     [JsonPropertyName("carbAbsorptionRate")]
     public double? CarbAbsorptionRate { get; set; }
@@ -290,16 +294,32 @@ public class GlucoseReading
 public class OrefTreatment
 {
     /// <summary>Event type</summary>
-    [JsonPropertyName("eventType")]
-    public string EventType { get; set; } = string.Empty;
+    [JsonPropertyName("_type")]
+    public string? EventType { get; set; }
 
     /// <summary>Timestamp as ISO string</summary>
-    [JsonPropertyName("created_at")]
+    [JsonPropertyName("timestamp")]
+    public string? Timestamp { get; set; }
+
+    /// <summary>Timestamp as ISO string</summary>
+    [JsonPropertyName("startedAt")]
+    public string? StartedAt { get; set; }
+
+    /// <summary>Timestamp as ISO string</summary>
+    [JsonPropertyName("createdAt")]
     public string? CreatedAt { get; set; }
 
     /// <summary>Timestamp as Unix milliseconds</summary>
-    [JsonPropertyName("mills")]
+    [JsonIgnore]
     public long? Mills { get; set; }
+
+    /// <summary>Timestamp as Unix milliseconds</summary>
+    [JsonPropertyName("date")]
+    public long? Date
+    {
+        get => Mills;
+        set => Mills = value;
+    }
 
     /// <summary>Insulin amount (U)</summary>
     [JsonPropertyName("insulin")]

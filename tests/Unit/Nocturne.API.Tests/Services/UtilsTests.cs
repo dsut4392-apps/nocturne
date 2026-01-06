@@ -64,13 +64,27 @@ public static class Utils
     /// </summary>
     public static string ToFixed(double value, int decimals = 2)
     {
+        var fixedValue = value.ToString($"F{decimals}", CultureInfo.InvariantCulture);
+        if (
+            double.TryParse(
+                fixedValue,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var parsedValue
+            )
+            && parsedValue == 0
+            && fixedValue.StartsWith("-", StringComparison.Ordinal)
+        )
+        {
+            fixedValue = fixedValue[1..];
+        }
+
         if (value == 0)
         {
             return "0";
         }
 
-        var fixedValue = value.ToString($"F{decimals}", CultureInfo.InvariantCulture);
-        return fixedValue == "-0.00" ? "0.00" : fixedValue;
+        return fixedValue;
     }
 
     /// <summary>
@@ -98,6 +112,11 @@ public static class Utils
             / factor;
 
         if (double.IsNaN(fixedValue) || double.IsInfinity(fixedValue))
+        {
+            return "0";
+        }
+
+        if (fixedValue == 0)
         {
             return "0";
         }

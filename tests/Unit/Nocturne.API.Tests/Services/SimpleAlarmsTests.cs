@@ -9,6 +9,7 @@ namespace Nocturne.API.Tests.Services;
 /// Tests for simple alarms functionality with 1:1 legacy compatibility
 /// Based on legacy simplealarms.test.js
 /// </summary>
+[Parity("simplealarms.test.js")]
 public class SimpleAlarmsTests
 {
     private readonly Mock<ILogger<SimpleAlarmsService>> _mockLogger;

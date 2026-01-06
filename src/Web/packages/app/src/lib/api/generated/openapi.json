@@ -22488,6 +22488,28 @@
                 "$ref": "#/components/schemas/PumpIob"
               }
             ]
+          },
+          "reservoir_display_override": {
+            "type": "string",
+            "nullable": true
+          },
+          "reservoir_level_override": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "manufacturer": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "extended": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": {}
           }
         }
       },

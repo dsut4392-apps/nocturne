@@ -20,7 +20,7 @@ public static class TreatmentMapper
             Id = string.IsNullOrEmpty(treatment.Id)
                 ? Guid.CreateVersion7()
                 : ParseIdToGuid(treatment.Id),
-            OriginalId = string.IsNullOrEmpty(treatment.Id) ? null : treatment.Id,
+            OriginalId = IsValidMongoObjectId(treatment.Id) ? treatment.Id : null,
             EventType = treatment.EventType,
             Reason = treatment.Reason,
             Glucose = treatment.Glucose,
@@ -239,6 +239,26 @@ public static class TreatmentMapper
             treatment.AdditionalProperties != null
                 ? JsonSerializer.Serialize(treatment.AdditionalProperties)
                 : null;
+    }
+
+    /// <summary>
+    /// Check if string is a valid MongoDB ObjectId (24 hex characters)
+    /// </summary>
+    private static bool IsValidMongoObjectId(string? id)
+    {
+        if (string.IsNullOrEmpty(id) || id.Length != 24)
+            return false;
+
+        foreach (char c in id)
+        {
+            if (!((c >= '0' && c <= '9') ||
+                  (c >= 'a' && c <= 'f') ||
+                  (c >= 'A' && c <= 'F')))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>

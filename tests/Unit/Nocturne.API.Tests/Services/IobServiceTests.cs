@@ -10,6 +10,7 @@ namespace Nocturne.API.Tests.Services;
 /// Tests exact algorithms from ClientApp/mocha-tests/iob.test.js
 /// NO SIMPLIFICATIONS - Must match legacy behavior exactly
 /// </summary>
+[Parity("iob.test.js")]
 public class IobServiceTests
 {
     private readonly IobService _iobService;

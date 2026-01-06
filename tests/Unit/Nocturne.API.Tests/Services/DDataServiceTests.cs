@@ -11,6 +11,7 @@ namespace Nocturne.API.Tests.Services;
 /// <summary>
 /// Tests for DDataService with 1:1 legacy compatibility
 /// </summary>
+[Parity("ddata.test.js")]
 public class DDataServiceTests
 {
     private readonly Mock<IPostgreSqlService> _mockPostgreSqlService;

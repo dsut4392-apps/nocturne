@@ -10,6 +10,7 @@ namespace Nocturne.API.Tests.Services;
 /// Tests for AR2 forecasting with 1:1 legacy JavaScript compatibility
 /// Based on legacy ar2.test.js test cases
 /// </summary>
+[Parity("ar2.test.js")]
 public class Ar2Tests
 {
     private readonly Mock<ILogger<Ar2Service>> _mockLogger;

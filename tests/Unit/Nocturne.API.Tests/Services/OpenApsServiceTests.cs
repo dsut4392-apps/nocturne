@@ -10,6 +10,7 @@ namespace Nocturne.API.Tests.Services;
 /// Tests for OpenApsService with 1:1 legacy compatibility
 /// Tests OpenAPS loop data analysis functionality from legacy openaps.js behavior
 /// </summary>
+[Parity("openaps.test.js")]
 public class OpenApsServiceTests
 {
     private readonly Mock<ILogger<OpenApsService>> _mockLogger;

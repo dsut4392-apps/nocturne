@@ -18347,6 +18347,11 @@ export interface PumpStatus {
     clock?: string | undefined;
     status?: PumpStatusDetails | undefined;
     iob?: PumpIob | undefined;
+    reservoir_display_override?: string | undefined;
+    reservoir_level_override?: number | undefined;
+    manufacturer?: string | undefined;
+    model?: string | undefined;
+    extended?: { [key: string]: any; } | undefined;
 }
 
 export interface PumpBattery {

@@ -15,6 +15,7 @@ namespace Nocturne.API.Tests.Services;
 /// <summary>
 /// Unit tests for EntryService domain service with WebSocket broadcasting
 /// </summary>
+[Parity("api.entries.test.js")]
 public class EntryServiceTests
 {
     private readonly Mock<IPostgreSqlService> _mockPostgreSqlService;

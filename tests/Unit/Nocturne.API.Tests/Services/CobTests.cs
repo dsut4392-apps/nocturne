@@ -11,6 +11,7 @@ namespace Nocturne.API.Tests.Services;
 /// Tests for COB (Carbs on Board) functionality with 1:1 legacy compatibility
 /// Based on legacy cob.test.js
 /// </summary>
+[Parity("cob.test.js")]
 public class CobTests
 {
     private readonly Mock<ILogger<Nocturne.API.Services.CobService>> _mockLogger;

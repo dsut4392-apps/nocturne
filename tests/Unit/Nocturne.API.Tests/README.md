@@ -140,15 +140,15 @@ Legacy tests from the original Nocturne application are marked with the `[Parity
 
 ### List of Legacy Tests still to implement:
 
-[x] - adminnotifies.test.js (✅ COVERED - Notification aggregation functionality tested in NotificationV1ServiceTests)
+[x] - adminnotifies.test.js (NotificationV1ServiceTests)
 [ ] - admintools.test.js
-[ ] - alexa.test.js
-[ ] - devicestatus.test.js
-[ ] - entries.test.js
-[ ] - root.test.js
+[x] - api.alexa.test.js (AlexaServiceTests)
+[x] - api.devicestatus.test.js (DeviceStatusServiceTests)
+[x] - api.entries.test.js (EntryServiceTests)
+[ ] - api.root.test.js
 [ ] - security.test.js
-[ ] - status.test.js
-[ ] - treatments.test.js
+[x] - api.status.test.js (StatusServiceTests)
+[x] - api.treatments.test.js (TreatmentServiceTests)
 [ ] - unauthorized.test.js
 [ ] - verifyauth.test.js
 [ ] - basic.test.js
@@ -162,57 +162,58 @@ Legacy tests from the original Nocturne application are marked with the `[Parity
 [ ] - security.test.js
 [ ] - socket.test.js
 [ ] - update.test.js
-[x] - ar2.test.js (✅ COVERED - AR2 forecasting algorithm with cone generation, notifications, and virtual assistant support tested in Ar2Tests and Ar2Service)
-[ ] - basalprofileplugin.test.js
-[ ] - bgnow.test.js
-[ ] - boluswizardpreview.test.js
+[x] - ar2.test.js (? COVERED - AR2 forecasting algorithm with cone generation, notifications, and virtual assistant support tested in Ar2Tests and Ar2Service)
+[x] - basalprofileplugin.test.js (ProfileServiceTests)
+[x] - bgnow.test.js (BgNowTests)
+[x] - boluswizardpreview.test.js (BolusWizardServiceTests)
 [ ] - bridge.test.js
-[ ] - cannulaage.test.js
+[x] - cannulaage.test.js (CannulaAgeServiceTests, LegacyDeviceAgeServiceThresholdTests)
 [ ] - careportal.test.js
 [ ] - ci.test.env
 [ ] - renderer.test.js
 [ ] - test.js.temporary_removed
-[ ] - cob.test.js
+[x] - cob.test.js (CobServiceTests, CobTests)
 [ ] - calcdelta.test.js
 [ ] - treatmenttocurve.test.js
 [ ] - dateTools.test.js
 [ ] - dbsize.test.js
-[ ] - ddata.test.js
+[x] - ddata.test.js (DDataServiceTests)
 [x] - direction.test.js (DirectionServiceTests)
 [ ] - env.test.js
 [ ] - errorcodes.test.js
 [ ] - expressextensions.test.js
 [ ] - fail.test.js
 [ ] - hashauth.test.js
-[ ] - insulinage.test.js
-[ ] - iob.test.js
+[x] - insulinage.test.js (InsulinAgeServiceTests)
+[x] - iob.test.js (OrefIobParityTests)
 [ ] - language.test.js
 [x] - levels.test.js (LevelsTests)
-[ ] - loop.test.js
+[x] - loop.test.js (LoopServiceTests)
 [ ] - maker.test.js
 [ ] - mmconnect.test.js
 [ ] - storage.test.js
 [ ] - api.test.js
-[ ] - notifications.test.js
+[x] - notifications.test.js (NotificationV2ServiceTests)
+[x] - notifications-api.test.js (NotificationV1ServiceTests)
 [ ] - storage.test.js
-[ ] - openaps.test.js
+[x] - openaps.test.js (OpenApsServiceTests)
 [ ] - pebble.test.js
 [ ] - pluginbase.test.js
 [ ] - plugins.test.js
-[ ] - profile.test.js
+[x] - profile.test.js (ProfileServiceTests)
 [ ] - profileeditor.test.js
-[ ] - pump.test.js
+[x] - pump.test.js (PumpServiceTests)
 [ ] - pushnotify.test.js
-[ ] - pushover.test.js
+[x] - pushover.test.js (PushoverServiceTests)
 [ ] - query.test.js
 [ ] - rawbg.test.js
 [ ] - reports.test.js
 [ ] - reportstorage.test.js
 [ ] - sandbox.test.js
 [ ] - security.test.js
-[ ] - sensorage.test.js
+[x] - sensorage.test.js (SensorAgeServiceTests)
 [ ] - settings.test.js
-[ ] - simplealarms.test.js
+[x] - simplealarms.test.js (SimpleAlarmsTests)
 [x] - timeago.test.js (TimeAgoTests)
 [x] - times.test.js (TimesTests)
 [ ] - treatmentnotify.test.js

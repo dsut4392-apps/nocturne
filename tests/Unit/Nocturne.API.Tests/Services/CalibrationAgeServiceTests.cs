@@ -3,6 +3,7 @@ using Xunit;
 
 namespace Nocturne.API.Tests.Services;
 
+[Parity("insulinage.test.js")]
 public class InsulinAgeServiceTests
 {
     [Fact]

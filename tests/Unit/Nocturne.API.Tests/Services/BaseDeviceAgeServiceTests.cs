@@ -3,6 +3,7 @@ using Xunit;
 
 namespace Nocturne.API.Tests.Services;
 
+[Parity("cannulaage.test.js", Description = "Threshold override scenarios")]
 public class LegacyDeviceAgeServiceThresholdTests
 {
     [Fact]

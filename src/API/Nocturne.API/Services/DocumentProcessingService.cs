@@ -43,6 +43,8 @@ public class DocumentProcessingService : IDocumentProcessingService
         _htmlSanitizer.AllowedSchemes.Add("http");
         _htmlSanitizer.AllowedSchemes.Add("https");
         _htmlSanitizer.AllowedSchemes.Add("mailto");
+
+        _ = _htmlSanitizer.Sanitize("<b>warmup</b>");
     }
 
     /// <inheritdoc />
@@ -98,11 +100,14 @@ public class DocumentProcessingService : IDocumentProcessingService
         try
         {
             var sanitized = _htmlSanitizer.Sanitize(htmlContent);
-            _logger.LogDebug(
-                "Sanitized HTML content: {Original} -> {Sanitized}",
-                htmlContent.Substring(0, Math.Min(htmlContent.Length, 50)),
-                sanitized.Substring(0, Math.Min(sanitized.Length, 50))
-            );
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug(
+                    "Sanitized HTML content: {Original} -> {Sanitized}",
+                    htmlContent.Substring(0, Math.Min(htmlContent.Length, 50)),
+                    sanitized.Substring(0, Math.Min(sanitized.Length, 50))
+                );
+            }
             return sanitized;
         }
         catch (Exception ex)

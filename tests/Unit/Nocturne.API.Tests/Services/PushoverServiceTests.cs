@@ -11,6 +11,7 @@ namespace Nocturne.API.Tests.Services;
 /// Unit tests for PushoverService
 /// Tests the Pushover notification sending functionality with 1:1 legacy compatibility
 /// </summary>
+[Parity("pushover.test.js")]
 public class PushoverServiceTests
 {
     private readonly Mock<HttpClient> _mockHttpClient;

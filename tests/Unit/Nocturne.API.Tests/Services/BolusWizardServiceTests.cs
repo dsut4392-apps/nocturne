@@ -11,6 +11,7 @@ namespace Nocturne.API.Tests.Services;
 /// Based on ClientApp/mocha-tests/boluswizardpreview.test.js test cases
 /// Implements Arrange-Act-Assert pattern with proper line spacing
 /// </summary>
+[Parity("boluswizardpreview.test.js")]
 public class BolusWizardServiceTests
 {
     private readonly Mock<IIobService> _mockIobService;

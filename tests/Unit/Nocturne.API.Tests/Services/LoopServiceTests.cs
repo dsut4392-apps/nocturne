@@ -1,3 +1,4 @@
+using dotAPNS;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -10,19 +11,20 @@ namespace Nocturne.API.Tests.Services;
 /// Tests for LoopService with 1:1 legacy compatibility
 /// Tests APNS integration functionality from legacy loop.js behavior
 /// </summary>
+[Parity("loop.test.js")]
 public class LoopServiceTests
 {
     private readonly Mock<ILogger<LoopService>> _mockLogger;
-    private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
-    private readonly Mock<HttpClient> _mockHttpClient;
+    private readonly Mock<IApnsClientFactory> _mockApnsClientFactory;
+    private readonly Mock<IApnsClient> _mockApnsClient;
     private readonly LoopService _loopService;
     private readonly LoopConfiguration _configuration;
 
     public LoopServiceTests()
     {
         _mockLogger = new Mock<ILogger<LoopService>>();
-        _mockHttpClientFactory = new Mock<IHttpClientFactory>();
-        _mockHttpClient = new Mock<HttpClient>();
+        _mockApnsClientFactory = new Mock<IApnsClientFactory>();
+        _mockApnsClient = new Mock<IApnsClient>();
 
         _configuration = new LoopConfiguration
         {
@@ -34,11 +36,15 @@ public class LoopServiceTests
 
         var options = Options.Create(_configuration);
 
-        _mockHttpClientFactory
-            .Setup(x => x.CreateClient("dotAPNS"))
-            .Returns(_mockHttpClient.Object);
+        _mockApnsClientFactory.SetupGet(x => x.IsConfigured).Returns(false);
+        _mockApnsClientFactory
+            .Setup(x => x.CreateClient(It.IsAny<string>()))
+            .Returns(_mockApnsClient.Object);
+        _mockApnsClient
+            .Setup(x => x.SendAsync(It.IsAny<ApplePush>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ApnsResponse.Successful());
 
-        _loopService = new LoopService(_mockLogger.Object, options, _mockHttpClientFactory.Object);
+        _loopService = new LoopService(_mockLogger.Object, options, _mockApnsClientFactory.Object);
     }
 
     [Parity]
@@ -75,7 +81,7 @@ public class LoopServiceTests
         var invalidLoopService = new LoopService(
             _mockLogger.Object,
             invalidOptions,
-            _mockHttpClientFactory.Object
+            _mockApnsClientFactory.Object
         );
 
         var data = new LoopNotificationData { EventType = "loop-completed" };

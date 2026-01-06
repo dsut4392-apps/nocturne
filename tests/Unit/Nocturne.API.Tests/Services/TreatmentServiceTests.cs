@@ -15,7 +15,7 @@ namespace Nocturne.API.Tests.Services;
 /// <summary>
 /// Unit tests for TreatmentService domain service with WebSocket broadcasting
 /// </summary>
-[Parity]
+[Parity("api.treatments.test.js")]
 public class TreatmentServiceTests
 {
     private readonly Mock<IPostgreSqlService> _mockPostgreSqlService;

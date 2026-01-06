@@ -4,6 +4,7 @@ using Xunit;
 
 namespace Nocturne.API.Tests.Services;
 
+[Parity("cannulaage.test.js")]
 public class CannulaAgeServiceTests
 {
     [Fact]

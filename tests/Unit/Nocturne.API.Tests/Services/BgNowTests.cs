@@ -9,6 +9,7 @@ namespace Nocturne.API.Tests.Services;
 /// Tests for BGNow functionality with 1:1 legacy compatibility
 /// Based on legacy bgnow.test.js
 /// </summary>
+[Parity("bgnow.test.js")]
 public class BgNowTests
 {
     private readonly Mock<ILogger<BgNowService>> _mockLogger;

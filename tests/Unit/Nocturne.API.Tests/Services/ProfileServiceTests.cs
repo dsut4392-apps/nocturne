@@ -11,6 +11,7 @@ namespace Nocturne.API.Tests.Services;
 /// Tests for ProfileService with 1:1 legacy compatibility
 /// Based on legacy profilefunctions.js behavior
 /// </summary>
+[Parity("profile.test.js", Description = "Includes basalprofileplugin.test.js scenarios")]
 public class ProfileServiceTests
 {
     private readonly ProfileService _profileService;
@@ -404,7 +405,7 @@ public class ProfileServiceTests
         };
     }
 
-    [Parity]
+    [Parity("basalprofileplugin.test.js")]
     [Fact]
     public void GetBasalRate_BasalProfilePluginScenario_ShouldMatchLegacy()
     {

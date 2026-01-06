@@ -9,6 +9,7 @@ namespace Nocturne.API.Tests.Services;
 /// Tests the V2 notification service functionality with 1:1 legacy compatibility
 /// Covers Loop notifications, generic notifications, and SignalR integration
 /// </summary>
+[Parity("notifications.test.js")]
 public class NotificationV2ServiceTests
 {
     private readonly Mock<ILogger<NotificationV2Service>> _mockLogger;

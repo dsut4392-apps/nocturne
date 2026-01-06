@@ -12,6 +12,7 @@ namespace Nocturne.API.Tests.Services;
 /// Unit tests for AlexaService
 /// Tests maintain 1:1 compatibility with legacy Alexa implementation
 /// </summary>
+[Parity("api.alexa.test.js")]
 public class AlexaServiceTests
 {
     private readonly Mock<IPostgreSqlService> _mockPostgreSqlService;

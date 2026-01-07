@@ -226,9 +226,10 @@
   const lastBasalSourceTime = $derived.by(() => {
     // Check treatments for temp basals (which indicate active pump communication)
     const lastTempBasal = treatments.find((t) => t.eventType === "Temp Basal");
+    // Duration is in minutes, mills is in milliseconds - convert duration to ms
     const lastTempBasalTime =
       lastTempBasal != null
-        ? (lastTempBasal.mills ?? 0) + (lastTempBasal.duration ?? 0)
+        ? (lastTempBasal.mills ?? 0) + (lastTempBasal.duration ?? 0) * 60 * 1000
         : 0;
 
     return lastTempBasalTime;
@@ -239,13 +240,17 @@
     // If no data at all, nothing to mark
     if (lastBasalSourceTime === 0) return null;
 
-    // Use nowMinute instead of Date.now() to prevent unstable re-computation
-    const timeSinceLastUpdate = nowMinute - lastBasalSourceTime;
+    // Use the display range end time to determine staleness
+    // When viewing historical data, we use the historical end time, not the current time
+    const rangeEndTime = displayDateRange.to.getTime();
+    const timeSinceLastUpdate = rangeEndTime - lastBasalSourceTime;
 
-    if (timeSinceLastUpdate > STALE_THRESHOLD_MS) {
+    // Only show stale marker if data is stale AND the last update is within the visible range
+    const rangeStartTime = displayDateRange.from.getTime();
+    if (timeSinceLastUpdate > STALE_THRESHOLD_MS && lastBasalSourceTime >= rangeStartTime) {
       return {
         start: new Date(lastBasalSourceTime),
-        end: new Date(nowMinute), // Use stable time reference
+        end: new Date(rangeEndTime),
       };
     }
 

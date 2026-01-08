@@ -1,11 +1,8 @@
 <script lang="ts">
     import { wizardStore } from "$lib/stores/wizard.svelte";
-    import {
-        generateConfig,
-        type GenerateRequest,
-    } from "$lib/data/portal.remote";
-    import { Button } from "$lib/components/ui/button";
-    import * as Card from "$lib/components/ui/card";
+    import type { GenerateRequest } from "$lib/data/portal.remote";
+    import { Button } from "@nocturne/app/ui/button";
+    import * as Card from "@nocturne/app/ui/card";
     import { ChevronLeft, Download, CheckCircle } from "@lucide/svelte";
 
     let generating = $state(false);
@@ -28,8 +25,22 @@
                 compatibilityProxy: wizardStore.compatibilityProxy,
             };
 
-            const blob = await generateConfig(request);
+            // Direct fetch call for file download - remote functions can't serialize blobs
+            const response = await fetch("/api/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(request),
+            });
 
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(
+                    errorText ||
+                        `Failed to generate config: ${response.statusText}`,
+                );
+            }
+
+            const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
@@ -131,11 +142,21 @@
                 <Card.Title>Optional Services</Card.Title>
             </Card.Header>
             <Card.Content>
-                <p class="text-muted-foreground">
-                    {wizardStore.optionalServices.watchtower
-                        ? "✓ Watchtower auto-updates enabled"
-                        : "○ Watchtower disabled"}
-                </p>
+                <ul class="space-y-1 text-muted-foreground">
+                    <li>
+                        {wizardStore.optionalServices.watchtower ? "✓" : "○"} Watchtower
+                        auto-updates
+                    </li>
+                    <li>
+                        {wizardStore.optionalServices.includeDashboard
+                            ? "✓"
+                            : "○"} Aspire Dashboard
+                    </li>
+                    <li>
+                        {wizardStore.optionalServices.includeScalar ? "✓" : "○"} Scalar
+                        API docs
+                    </li>
+                </ul>
             </Card.Content>
         </Card.Root>
     </div>

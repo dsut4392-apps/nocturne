@@ -253,6 +253,7 @@ namespace Nocturne.Aspire.SourceGenerators
 
             var sb = new StringBuilder();
             sb.AppendLine("#nullable enable");
+            sb.AppendLine("#pragma warning disable ASPIREPIPELINES003"); // Experimental container image APIs
             sb.AppendLine("using System.IO;"); // Added for Path.Combine
             sb.AppendLine("using Aspire.Hosting;");
             sb.AppendLine("using Aspire.Hosting.ApplicationModel;");
@@ -409,6 +410,13 @@ namespace Nocturne.Aspire.SourceGenerators
             // This allows the API to resolve the connector's endpoint for health checks
             sb.AppendLine();
             sb.AppendLine("            api.WithReference(connector);");
+
+            // Publish as Docker Compose service (called after all other configuration)
+            sb.AppendLine("            connector.PublishAsDockerComposeService((_,_) => { });");
+
+            // Configure remote image from GitHub Container Registry
+            sb.AppendLine($"            connector.WithRemoteImageName(\"ghcr.io/nightscout/nocturne/{connectorNameLower}\");");
+            sb.AppendLine($"            connector.WithRemoteImageTag(\"latest\");");
 
             sb.AppendLine();
             sb.AppendLine("            return builder;");

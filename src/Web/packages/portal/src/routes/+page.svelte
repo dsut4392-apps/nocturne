@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { Button } from "$lib/components/ui/button";
-    import * as Card from "$lib/components/ui/card";
+    import { Button } from "@nocturne/app/ui/button";
+    import * as Card from "@nocturne/app/ui/card";
     import { Plus, ArrowLeftRight, BookOpen } from "@lucide/svelte";
 </script>
 

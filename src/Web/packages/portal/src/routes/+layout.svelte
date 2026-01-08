@@ -1,7 +1,20 @@
 <script lang="ts">
     import "../app.css";
+    import { page } from "$app/state";
+    import StepIndicator from "$lib/components/StepIndicator.svelte";
 
     let { children } = $props();
+
+    // Determine current step from URL path
+    const currentStep = $derived.by(() => {
+        const pathname = page.url.pathname;
+        if (pathname.startsWith("/setup")) return 1;
+        if (pathname.startsWith("/connectors")) return 2;
+        if (pathname.startsWith("/download")) return 3;
+        return 0; // Not in wizard
+    });
+
+    const isInWizard = $derived(currentStep > 0);
 </script>
 
 <div
@@ -22,6 +35,16 @@
             </a>
         </div>
     </header>
+
+    {#if isInWizard}
+        <div class="border-b border-border/40 bg-card/30 backdrop-blur-sm">
+            <div class="container mx-auto px-4 py-6">
+                <div class="max-w-xl mx-auto">
+                    <StepIndicator {currentStep} />
+                </div>
+            </div>
+        </div>
+    {/if}
 
     <main class="container mx-auto px-4 py-8">
         {@render children()}

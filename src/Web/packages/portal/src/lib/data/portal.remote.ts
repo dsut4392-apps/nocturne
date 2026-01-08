@@ -1,4 +1,4 @@
-import { query, command } from "$app/server";
+import { query, command, getRequestEvent } from "$app/server";
 import { z } from "zod";
 
 // Schema definitions
@@ -20,6 +20,8 @@ const generateRequestSchema = z.object({
   }),
   optionalServices: z.object({
     watchtower: z.boolean(),
+    includeDashboard: z.boolean(),
+    includeScalar: z.boolean(),
   }),
   connectors: z.array(z.object({
     type: z.string(),
@@ -37,8 +39,8 @@ const connectorFieldSchema = z.object({
   type: z.enum(["string", "password", "boolean", "select", "number"]),
   required: z.boolean(),
   description: z.string(),
-  default: z.string().optional(),
-  options: z.array(z.string()).optional(),
+  default: z.string().nullable().optional(),
+  options: z.array(z.string()).nullable().optional(),
 });
 
 const connectorMetadataSchema = z.object({
@@ -59,6 +61,7 @@ export type ConnectorMetadata = z.infer<typeof connectorMetadataSchema>;
 
 // Remote functions
 export const getConnectors = query(emptySchema, async () => {
+  const { fetch } = getRequestEvent();
   const response = await fetch("/api/connectors");
   if (!response.ok) {
     throw new Error(`Failed to fetch connectors: ${response.statusText}`);
@@ -69,6 +72,7 @@ export const getConnectors = query(emptySchema, async () => {
 });
 
 export const generateConfig = command(generateRequestSchema, async (request) => {
+  const { fetch } = getRequestEvent();
   const response = await fetch("/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -82,3 +86,103 @@ export const generateConfig = command(generateRequestSchema, async (request) => 
 
   return response.blob();
 });
+
+// Nightscout connection test schemas
+const testNightscoutSchema = z.object({
+  url: z.string(),
+  apiSecret: z.string().optional(),
+});
+
+const nightscoutConnectionResultSchema = z.object({
+  name: z.string().optional(),
+  version: z.string().optional(),
+  units: z.string().optional(),
+  latestSgv: z.number().optional(),
+  latestTime: z.string().optional(),
+});
+
+export type NightscoutConnectionResult = z.infer<typeof nightscoutConnectionResultSchema>;
+
+// SHA1 hash function for API secret (Nightscout requires hashed secrets)
+async function hashApiSecret(secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(secret);
+  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export const testNightscoutConnection = command(testNightscoutSchema, async ({ url, apiSecret }) => {
+  // Normalize URL
+  let baseUrl = url.trim();
+  if (!baseUrl.startsWith("http")) {
+    baseUrl = "https://" + baseUrl;
+  }
+  baseUrl = baseUrl.replace(/\/$/, "");
+
+  // First fetch status endpoint (public, for site info)
+  const statusRes = await fetch(`${baseUrl}/api/v1/status.json`, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!statusRes.ok) {
+    throw new Error(`Server returned ${statusRes.status} - could not connect to Nightscout`);
+  }
+
+  const status = await statusRes.json();
+
+  // If API secret provided, verify it using the verifyauth endpoint with hashed secret
+  if (apiSecret) {
+    const hashedSecret = await hashApiSecret(apiSecret);
+
+    const authRes = await fetch(`${baseUrl}/api/v1/verifyauth`, {
+      headers: {
+        Accept: "application/json",
+        "api-secret": hashedSecret,
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!authRes.ok) {
+      throw new Error("Invalid API secret - authentication failed");
+    }
+
+    const authData = await authRes.json();
+    console.log(authData);
+    // verifyauth returns { status, message: { canRead, canWrite, isAdmin, message, rolefound, permissions } }
+    // The actual auth info is nested inside authData.message
+    const authInfo = authData.message || authData;
+    if (!authInfo.canRead) {
+      throw new Error("Invalid API secret - no read permissions");
+    }
+  }
+
+  // Try to get latest glucose reading
+  let latestSgv: number | undefined;
+  let latestTime: string | undefined;
+  try {
+    const entriesRes = await fetch(
+      `${baseUrl}/api/v1/entries.json?count=1`,
+      { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(5000) },
+    );
+    if (entriesRes.ok) {
+      const entries = await entriesRes.json();
+      if (entries.length > 0) {
+        latestSgv = entries[0].sgv;
+        latestTime = new Date(entries[0].date).toISOString();
+      }
+    }
+  } catch {
+    // Ignore entries fetch errors
+  }
+
+  return {
+    name: status.settings?.customTitle || status.name || "Nightscout",
+    version: status.version,
+    units: status.settings?.units,
+    latestSgv,
+    latestTime,
+  } satisfies NightscoutConnectionResult;
+});
+

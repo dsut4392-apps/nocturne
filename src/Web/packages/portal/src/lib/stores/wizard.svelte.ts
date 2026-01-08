@@ -1,4 +1,4 @@
-// Wizard state management using Svelte 5 class with $state
+import { PersistedState } from "runed";
 
 export interface WizardStateData {
   setupType: 'fresh' | 'migrate' | 'compatibility-proxy';
@@ -16,6 +16,8 @@ export interface WizardStateData {
   };
   optionalServices: {
     watchtower: boolean;
+    includeDashboard: boolean;
+    includeScalar: boolean;
   };
   selectedConnectors: string[];
   connectorConfigs: Record<string, Record<string, string>>;
@@ -26,9 +28,13 @@ class WizardStore {
   migration = $state<WizardStateData['migration']>(undefined);
   compatibilityProxy = $state<WizardStateData['compatibilityProxy']>(undefined);
   postgres = $state<WizardStateData['postgres']>({ useContainer: true });
-  optionalServices = $state<WizardStateData['optionalServices']>({ watchtower: true });
+  optionalServices = $state<WizardStateData['optionalServices']>({
+    watchtower: true,
+    includeDashboard: true,
+    includeScalar: true
+  });
   selectedConnectors = $state<string[]>([]);
-  connectorConfigs = $state<Record<string, Record<string, string>>>({});
+  connectorConfigs = new PersistedState<Record<string, Record<string, string>>>('wizard-connector-configs', {});
 
   setSetupType(type: WizardStateData['setupType']) {
     this.setupType = type;
@@ -53,16 +59,16 @@ class WizardStore {
   toggleConnector(connectorType: string) {
     if (this.selectedConnectors.includes(connectorType)) {
       this.selectedConnectors = this.selectedConnectors.filter(c => c !== connectorType);
-      const { [connectorType]: _, ...rest } = this.connectorConfigs;
-      this.connectorConfigs = rest;
+      const { [connectorType]: _, ...rest } = this.connectorConfigs.current;
+      this.connectorConfigs.current = rest;
     } else {
       this.selectedConnectors = [...this.selectedConnectors, connectorType];
-      this.connectorConfigs = { ...this.connectorConfigs, [connectorType]: {} };
+      this.connectorConfigs.current = { ...this.connectorConfigs.current, [connectorType]: {} };
     }
   }
 
   setConnectorConfig(connectorType: string, config: Record<string, string>) {
-    this.connectorConfigs = { ...this.connectorConfigs, [connectorType]: config };
+    this.connectorConfigs.current = { ...this.connectorConfigs.current, [connectorType]: config };
   }
 
   reset() {
@@ -70,9 +76,9 @@ class WizardStore {
     this.migration = undefined;
     this.compatibilityProxy = undefined;
     this.postgres = { useContainer: true };
-    this.optionalServices = { watchtower: true };
+    this.optionalServices = { watchtower: true, includeDashboard: true, includeScalar: true };
     this.selectedConnectors = [];
-    this.connectorConfigs = {};
+    this.connectorConfigs.current = {};
   }
 }
 

@@ -67,6 +67,16 @@ public class OptionalServicesConfig
     /// Enable Watchtower for auto-updates
     /// </summary>
     public bool Watchtower { get; set; }
+
+    /// <summary>
+    /// Include Aspire Dashboard for telemetry visualization (default: true)
+    /// </summary>
+    public bool IncludeDashboard { get; set; } = true;
+
+    /// <summary>
+    /// Include Scalar API reference documentation (default: true)
+    /// </summary>
+    public bool IncludeScalar { get; set; } = true;
 }
 
 public class ConnectorConfig

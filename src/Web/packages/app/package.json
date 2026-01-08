@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
+  "exports": {
+    "./src/app.css": "./src/app.css",
+    "./ui/*.svelte": "./src/lib/components/ui/*.svelte",
+    "./ui/*": "./src/lib/components/ui/*/index.ts",
+    "./utils": "./src/lib/utils/index.ts"
+  },
   "directories": {
     "lib": "lib"
   },

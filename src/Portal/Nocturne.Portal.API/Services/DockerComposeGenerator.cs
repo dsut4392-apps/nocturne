@@ -54,13 +54,14 @@ public class DockerComposeGenerator
             }
 
             // Read the generated files
-            var dockerComposePath = Path.Combine(tempDir, "docker-compose.yml");
+            var dockerComposePath = Path.Combine(tempDir, "docker-compose.yaml");
             var envPath = Path.Combine(tempDir, ".env");
 
             if (!File.Exists(dockerComposePath))
             {
                 // Try alternate location - aspire might put it in a subdirectory
-                var files = Directory.GetFiles(tempDir, "docker-compose.yml", SearchOption.AllDirectories);
+                var files = Directory.GetFiles(tempDir, "docker-compose.yaml", SearchOption.AllDirectories)
+                    .ToArray();
                 dockerComposePath = files.FirstOrDefault()
                     ?? throw new InvalidOperationException("docker-compose.yml not found in output");
 
@@ -109,7 +110,10 @@ public class DockerComposeGenerator
 
         var config = new Dictionary<string, object>
         {
-            ["PostgreSql:UseRemoteDatabase"] = !request.Postgres.UseContainer
+            ["PostgreSql:UseRemoteDatabase"] = !request.Postgres.UseContainer,
+            // Dashboard and Scalar options
+            ["Parameters:IncludeDashboard"] = request.OptionalServices.IncludeDashboard,
+            ["Parameters:IncludeScalar"] = request.OptionalServices.IncludeScalar
         };
 
         // Add connection string if using external database
@@ -161,12 +165,15 @@ public class DockerComposeGenerator
         var startInfo = new ProcessStartInfo
         {
             FileName = "aspire",
-            Arguments = $"publish --publisher docker-compose -o \"{outputDir}\"",
+            Arguments = $"publish -o \"{outputDir}\" --non-interactive",
             WorkingDirectory = aspireHostPath,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            // Note: CreateNoWindow is intentionally not set to true.
+            // The aspire CLI (using Spectre.Console) needs a valid console handle
+            // to function correctly on Windows, even when running headlessly.
+            // Output redirection already captures all output.
         };
 
         // Add configuration file as environment variable
@@ -194,10 +201,54 @@ public class DockerComposeGenerator
                 return (false, "Aspire publish timed out after 2 minutes");
             }
 
+            var outputText = output.ToString();
+            var errorText = error.ToString();
+
+            _logger.LogInformation("Aspire publish output: {Output}", outputText);
+
+            if (!string.IsNullOrWhiteSpace(errorText))
+            {
+                _logger.LogWarning("Aspire publish stderr: {Error}", errorText);
+            }
+
+            // Check if the pipeline actually succeeded (look for success indicator)
+            var pipelineSucceeded = outputText.Contains("PIPELINE SUCCEEDED", StringComparison.OrdinalIgnoreCase);
+
+            // Check if output files were generated - log what we find for debugging
+            var filesInOutput = Directory.Exists(outputDir)
+                ? Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories)
+                : Array.Empty<string>();
+
+            _logger.LogInformation("Files in output directory {OutputDir}: {Files}",
+                outputDir,
+                filesInOutput.Length > 0 ? string.Join(", ", filesInOutput.Select(Path.GetFileName)) : "(none)");
+
+            var dockerComposeExists = filesInOutput.Any(f => Path.GetFileName(f).Equals("docker-compose.yml", StringComparison.OrdinalIgnoreCase));
+
+            // If pipeline succeeded AND files exist, treat as success even if there's a console error
+            // (The "handle is invalid" error is a known Windows console issue with aspire CLI/Spectre.Console)
+            if (pipelineSucceeded && dockerComposeExists)
+            {
+                if (outputText.Contains("❌") || outputText.Contains("handle is invalid", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("Aspire publish had a console error but files were generated successfully. Ignoring console error.");
+                }
+                _logger.LogInformation("Aspire publish completed successfully");
+                return (true, string.Empty);
+            }
+
+            // Check for actual failures
             if (process.ExitCode != 0)
             {
-                _logger.LogWarning("Aspire publish output: {Output}", output.ToString());
-                return (false, error.ToString());
+                return (false, !string.IsNullOrWhiteSpace(errorText) ? errorText : outputText);
+            }
+
+            // Check stdout for error patterns (real errors, not just console issues)
+            if (outputText.Contains("❌") && !pipelineSucceeded)
+            {
+                var lines = outputText.Split('\n');
+                var errorLine = lines.FirstOrDefault(l => l.Contains("❌"));
+                return (false, errorLine?.Trim() ?? "Unknown error during aspire publish");
             }
 
             _logger.LogInformation("Aspire publish completed successfully");

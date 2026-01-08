@@ -1,3 +1,5 @@
+#pragma warning disable ASPIREPIPELINES003 // Experimental container image APIs
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Aspire.Hosting;
@@ -13,6 +15,16 @@ class Program
     static async Task Main(string[] args)
     {
         var builder = DistributedApplication.CreateBuilder(args);
+
+        // Add Docker Compose publishing support
+        // This enables 'aspire publish' to generate docker-compose.yml files
+        // Using GitHub Container Registry for nightscout/nocturne
+        var includeDashboard = builder.Configuration.GetValue<bool>("Parameters:IncludeDashboard", true);
+        var compose = builder.AddDockerComposeEnvironment("compose");
+        if (!includeDashboard)
+        {
+            compose.WithDashboard(enabled: false);
+        }
 
         // Get the solution root directory
         var solutionRoot = Path.GetFullPath(
@@ -90,6 +102,7 @@ class Program
             }
 
             postgres.WithDataVolume(ServiceNames.Volumes.PostgresData);
+            postgres.PublishAsDockerComposeService((_, _) => { });
 
             managedDatabase = postgres.AddDatabase(
                 ServiceNames.PostgreSql,
@@ -150,7 +163,10 @@ class Program
         var api = builder
             .AddProject<Projects.Nocturne_API>(ServiceNames.NocturneApi)
             .WaitFor(oref)
-            .WithExternalHttpEndpoints();
+            .WithExternalHttpEndpoints()
+            .PublishAsDockerComposeService((_, _) => { })
+            .WithRemoteImageName("ghcr.io/nightscout/nocturne/api")
+            .WithRemoteImageTag("latest");
 
         oref.WithParentRelationship(api);
         // Configure database connection based on mode
@@ -325,7 +341,10 @@ class Program
             .WithEnvironment(
                 "COOKIE_REFRESH_TOKEN_NAME",
                 builder.Configuration["Oidc:Cookie:RefreshTokenName"] ?? ".Nocturne.RefreshToken"
-            );
+            )
+            .PublishAsDockerComposeService((_, _) => { })
+            .WithRemoteImageName("ghcr.io/nightscout/nocturne/web")
+            .WithRemoteImageTag("latest");
 
         #pragma warning restore ASPIRECERTIFICATES001
         apiSecret.WithParentRelationship(web);
@@ -333,20 +352,24 @@ class Program
         bridge.WithParentRelationship(web);
         // Add Scalar API Reference for unified API documentation
         // This provides a single documentation interface for all services in the Aspire dashboard
-        var scalar = builder
-            .AddScalarApiReference(options =>
-            {
-                options.WithTheme(ScalarTheme.Mars);
-            })
-            .WithApiReference(
-                api,
-                options =>
+        var includeScalar = builder.Configuration.GetValue<bool>("Parameters:IncludeScalar", true);
+        if (includeScalar)
+        {
+            builder
+                .AddScalarApiReference(options =>
                 {
-                    options
-                        .AddDocument("v1", "Nocturne API")
-                        .WithOpenApiRoutePattern("/openapi/{documentName}.json");
-                }
-            );
+                    options.WithTheme(ScalarTheme.Mars);
+                })
+                .WithApiReference(
+                    api,
+                    options =>
+                    {
+                        options
+                            .AddDocument("v1", "Nocturne API")
+                            .WithOpenApiRoutePattern("/openapi/{documentName}.json");
+                    }
+                );
+        }
 
         // Add conditional notification services (if configured in appsettings.json)
         // Note: Actual notification service projects would be added here when they exist

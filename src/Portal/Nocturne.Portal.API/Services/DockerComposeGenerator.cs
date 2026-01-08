@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Nocturne.Portal.API.Models;
@@ -262,26 +263,147 @@ public class DockerComposeGenerator
 
     private string InjectUserValues(string envFile, GenerateRequest request)
     {
-        var sb = new StringBuilder(envFile);
+        // Build a dictionary of values to inject
+        var valuesToInject = BuildValuesDictionary(request);
 
-        // Ensure user-provided values are in the env file
+        // Parse existing env file and update values
+        var lines = envFile.Split('\n');
+        var result = new StringBuilder();
+        var processedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.TrimEnd('\r');
+
+            // Skip empty lines and comments, preserve them as-is
+            if (string.IsNullOrWhiteSpace(trimmedLine) || trimmedLine.StartsWith('#'))
+            {
+                result.AppendLine(trimmedLine);
+                continue;
+            }
+
+            // Parse KEY=VALUE format
+            var equalsIndex = trimmedLine.IndexOf('=');
+            if (equalsIndex <= 0)
+            {
+                result.AppendLine(trimmedLine);
+                continue;
+            }
+
+            var key = trimmedLine[..equalsIndex].Trim();
+            var existingValue = trimmedLine[(equalsIndex + 1)..];
+
+            processedKeys.Add(key);
+
+            // If we have a value to inject and the existing value is empty, inject it
+            if (valuesToInject.TryGetValue(key, out var newValue))
+            {
+                if (string.IsNullOrEmpty(existingValue))
+                {
+                    result.AppendLine($"{key}={newValue}");
+                    _logger.LogDebug("Injected value for {Key}", key);
+                }
+                else
+                {
+                    // Keep existing non-empty value
+                    result.AppendLine(trimmedLine);
+                }
+            }
+            else
+            {
+                result.AppendLine(trimmedLine);
+            }
+        }
+
+        // Add any values that weren't in the original file
+        var missingKeys = valuesToInject.Keys
+            .Where(k => !processedKeys.Contains(k))
+            .ToList();
+
+        if (missingKeys.Count > 0)
+        {
+            result.AppendLine();
+            result.AppendLine("# Additional configuration");
+            foreach (var key in missingKeys)
+            {
+                result.AppendLine($"{key}={valuesToInject[key]}");
+                _logger.LogDebug("Added missing env var {Key}", key);
+            }
+        }
+
+        return result.ToString();
+    }
+
+    private Dictionary<string, string> BuildValuesDictionary(GenerateRequest request)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Container images - core services
+        values["NOCTURNE_API_IMAGE"] = "ghcr.io/nightscout/nocturne/api:latest";
+        values["NOCTURNE_WEB_IMAGE"] = "ghcr.io/nightscout/nocturne/web:latest";
+
+        // Default ports
+        values["NOCTURNE_API_PORT"] = "8080";
+        values["NOCTURNE_WEB_PORT"] = "5173";
+
+        // Add connector images and ports
+        // The env var pattern is: {SERVICE_NAME}_IMAGE and {SERVICE_NAME}_PORT
+        // where SERVICE_NAME is derived from connector type (e.g., NIGHTSCOUT_CONNECTOR)
         foreach (var connector in request.Connectors)
         {
-            foreach (var (key, value) in connector.Config)
+            var servicePrefix = connector.Type.ToUpperInvariant().Replace("-", "_");
+            var imageEnvVar = $"{servicePrefix}_CONNECTOR_IMAGE";
+            var portEnvVar = $"{servicePrefix}_CONNECTOR_PORT";
+            var imageName = $"ghcr.io/nightscout/nocturne/{connector.Type.ToLowerInvariant()}-connector:latest";
+
+            values[imageEnvVar] = imageName;
+            values[portEnvVar] = "8080";
+        }
+
+        // Database configuration
+        if (request.Postgres.UseContainer)
+        {
+            var password = GenerateSecurePassword();
+            values["POSTGRES_USERNAME"] = "nocturne";
+            values["POSTGRES_PASSWORD"] = password;
+            values["NOCTURNE_POSTGRES"] = $"Host=nocturne-postgres-server;Port=5432;Username=nocturne;Password={password};Database=nocturne";
+        }
+        else if (!string.IsNullOrEmpty(request.Postgres.ConnectionString))
+        {
+            values["NOCTURNE_POSTGRES"] = request.Postgres.ConnectionString;
+        }
+
+        // API Secret - generate if not provided
+        values["API_SECRET"] = GenerateSecurePassword();
+
+        // Connector configuration - keys are already env var names from frontend
+        foreach (var connector in request.Connectors)
+        {
+            foreach (var (envVarName, value) in connector.Config)
             {
                 if (!string.IsNullOrEmpty(value))
                 {
-                    var envVarName = $"CONNECT_{connector.Type.ToUpperInvariant()}_{key.ToUpperInvariant()}";
-                    // Only add if not already present
-                    if (!envFile.Contains(envVarName))
-                    {
-                        sb.AppendLine($"{envVarName}={value}");
-                    }
+                    values[envVarName] = value;
                 }
             }
         }
 
-        return sb.ToString();
+        // Migration/Nightscout connector source configuration
+        if (request.SetupType == "migrate" && request.Migration != null)
+        {
+            values["CONNECT_NS_URL"] = request.Migration.NightscoutUrl;
+            values["CONNECT_NS_API_SECRET"] = request.Migration.NightscoutApiSecret;
+        }
+
+        // Compatibility proxy configuration
+        if (request.SetupType == "compatibility-proxy" && request.CompatibilityProxy != null)
+        {
+            values["COMPAT_PROXY_ENABLED"] = "true";
+            values["COMPAT_PROXY_NIGHTSCOUT_URL"] = request.CompatibilityProxy.NightscoutUrl;
+            values["COMPAT_PROXY_NIGHTSCOUT_SECRET"] = request.CompatibilityProxy.NightscoutApiSecret;
+        }
+
+        return values;
     }
 
     private string GenerateEnvFile(GenerateRequest request)
@@ -307,13 +429,12 @@ public class DockerComposeGenerator
         }
         sb.AppendLine();
 
-        // Connector configurations
+        // Connector configurations - keys are already env var names
         foreach (var connector in request.Connectors)
         {
             sb.AppendLine($"# {connector.Type} Connector");
-            foreach (var (key, value) in connector.Config)
+            foreach (var (envVarName, value) in connector.Config)
             {
-                var envVarName = $"CONNECT_{connector.Type.ToUpperInvariant()}_{key.ToUpperInvariant()}";
                 sb.AppendLine($"{envVarName}={value}");
             }
             sb.AppendLine();
@@ -324,9 +445,17 @@ public class DockerComposeGenerator
 
     private static string GenerateSecurePassword()
     {
+        // Use cryptographically secure random number generator
         const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        var random = new Random();
-        return new string(Enumerable.Repeat(chars, 24)
-            .Select(s => s[random.Next(s.Length)]).ToArray());
+        var result = new char[24];
+        var bytes = new byte[24];
+        RandomNumberGenerator.Fill(bytes);
+
+        for (int i = 0; i < 24; i++)
+        {
+            result[i] = chars[bytes[i] % chars.Length];
+        }
+
+        return new string(result);
     }
 }

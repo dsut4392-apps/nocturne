@@ -87,7 +87,9 @@ public class ConnectorConfig
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
-    /// Configuration values as key-value pairs
+    /// Configuration values keyed by environment variable name.
+    /// The frontend should use the EnvVar values from /api/connectors as keys.
+    /// Example: { "CONNECT_DEXCOM_USERNAME": "user@example.com", "CONNECT_DEXCOM_PASSWORD": "secret" }
     /// </summary>
     public Dictionary<string, string> Config { get; set; } = [];
 }

@@ -32,6 +32,7 @@ using Nocturne.Infrastructure.Data.Extensions;
 using NSwag;
 using OpenTelemetry.Logs;
 using Polly;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -420,6 +421,9 @@ builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddHttpClient(ConnectorHealthService.HttpClientName).AddServiceDiscovery();
 builder.Services.AddScoped<IConnectorHealthService, ConnectorHealthService>();
 
+// Register migration job service for data migration from Nightscout
+builder.Services.AddSingleton<Nocturne.API.Services.Migration.IMigrationJobService, Nocturne.API.Services.Migration.MigrationJobService>();
+
 var app = builder.Build();
 
 // Configure middleware pipeline
@@ -444,8 +448,14 @@ app.MapHub<AlarmHub>("/hubs/alarms");
 
 // Note: Using NSwag instead of Microsoft.AspNetCore.OpenApi for better compatibility
 // OpenAPI documents are served at /openapi/{documentName}.json
-// Scalar API Reference is provided via Scalar.Aspire in the Aspire Host
 app.MapOpenApi();
+
+// Scalar API Reference provides interactive API documentation at /scalar
+app.MapScalarApiReference(options =>
+{
+    options.WithTitle("Nocturne API Documentation");
+    options.WithTheme(Scalar.AspNetCore.ScalarTheme.Mars);
+});
 
 // Add root endpoint to serve a basic info page
 app.MapGet(

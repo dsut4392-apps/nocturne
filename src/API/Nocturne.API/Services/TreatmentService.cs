@@ -41,76 +41,7 @@ public class TreatmentService : ITreatmentService
         _logger = logger;
     }
 
-    /// <summary>
-    /// Builds a find query that filters by demo mode.
-    /// This ensures filtering happens at the database level for efficiency.
-    /// </summary>
-    /// <param name="existingQuery">Optional existing query to merge with</param>
-    /// <returns>A JSON find query string with data_source filter</returns>
-    private string BuildDemoModeFilterQuery(string? existingQuery = null)
-    {
-        // Check if existing query is JSON
-        bool isJson =
-            !string.IsNullOrWhiteSpace(existingQuery)
-            && existingQuery.Trim().StartsWith("{")
-            && existingQuery.Trim().EndsWith("}");
-
-        if (isJson)
-        {
-            // JSON Logic
-            string demoFilter;
-            if (_demoModeService.IsEnabled)
-            {
-                demoFilter = $"\"data_source\":\"{Core.Constants.DataSources.DemoService}\"";
-            }
-            else
-            {
-                demoFilter =
-                    $"\"data_source\":{{\"$ne\":\"{Core.Constants.DataSources.DemoService}\"}}";
-            }
-
-            if (string.IsNullOrWhiteSpace(existingQuery) || existingQuery == "{}")
-            {
-                return "{" + demoFilter + "}";
-            }
-
-            var trimmed = existingQuery!.Trim();
-            var inner = trimmed.Substring(1, trimmed.Length - 2).Trim();
-            return string.IsNullOrEmpty(inner)
-                ? "{" + demoFilter + "}"
-                : "{" + demoFilter + "," + inner + "}";
-        }
-        else
-        {
-            // URL Params Logic
-            var demoParamResponse = "";
-            if (_demoModeService.IsEnabled)
-            {
-                // find[data_source]=demo-service
-                demoParamResponse = $"find[data_source]={Core.Constants.DataSources.DemoService}";
-            }
-            else
-            {
-                // find[data_source][$ne]=demo-service
-                demoParamResponse =
-                    $"find[data_source][$ne]={Core.Constants.DataSources.DemoService}";
-            }
-
-            if (string.IsNullOrWhiteSpace(existingQuery))
-            {
-                return "{"
-                    + (
-                        _demoModeService.IsEnabled
-                            ? $"\"data_source\":\"{Core.Constants.DataSources.DemoService}\""
-                            : $"\"data_source\":{{\"$ne\":\"{Core.Constants.DataSources.DemoService}\"}}"
-                    )
-                    + "}";
-            }
-
-            // Append to existing URL params
-            return $"{existingQuery}&{demoParamResponse}";
-        }
-    }
+    // BuildDemoModeFilterQuery removed - relying on database isolation
 
     /// <inheritdoc />
     public async Task<IEnumerable<Treatment>> GetTreatmentsAsync(
@@ -123,8 +54,8 @@ public class TreatmentService : ITreatmentService
         var actualCount = count ?? 10;
         var actualSkip = skip ?? 0;
 
-        // Build query with demo mode filter at database level
-        var findQuery = BuildDemoModeFilterQuery(find);
+        // Use find query directly (no application-level demo filter needed due to DB isolation)
+        var findQuery = find;
 
         // If find query is provided, use advanced filtering (no caching for filtered queries)
         if (!string.IsNullOrEmpty(find))
@@ -203,8 +134,8 @@ public class TreatmentService : ITreatmentService
         CancellationToken cancellationToken = default
     )
     {
-        // Build query with demo mode filter at database level
-        var findQuery = BuildDemoModeFilterQuery(null);
+        // Use null find query (no application-level demo filter needed due to DB isolation)
+        string? findQuery = null;
 
         // Cache recent treatments for common queries (skip = 0 and common counts)
         // Include demo mode in cache key to avoid mixing demo/non-demo data

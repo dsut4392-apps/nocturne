@@ -18,6 +18,11 @@ public class DemoModeConfiguration
     public int IntervalMinutes { get; set; } = 5;
 
     /// <summary>
+    /// Interval in minutes between full demo data resets. Set to 0 to disable.
+    /// </summary>
+    public int ResetIntervalMinutes { get; set; } = 0;
+
+    /// <summary>
     /// Initial glucose value in mg/dL.
     /// </summary>
     public int InitialGlucose { get; set; } = 120;

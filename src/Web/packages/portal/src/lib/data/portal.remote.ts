@@ -13,6 +13,7 @@ const generateRequestSchema = z.object({
   compatibilityProxy: z.object({
     nightscoutUrl: z.string(),
     nightscoutApiSecret: z.string(),
+    enableDetailedLogging: z.boolean().optional(),
   }).optional(),
   postgres: z.object({
     useContainer: z.boolean(),

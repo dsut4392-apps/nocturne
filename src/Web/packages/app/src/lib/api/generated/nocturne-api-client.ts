@@ -5664,6 +5664,237 @@ export class FoodsClient {
     }
 }
 
+export class MigrationClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Test a migration source connection
+     */
+    testConnection(request: TestMigrationConnectionRequest, signal?: AbortSignal): Promise<TestMigrationConnectionResult> {
+        let url_ = this.baseUrl + "/api/v4/migration/test";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processTestConnection(_response);
+        });
+    }
+
+    protected processTestConnection(response: Response): Promise<TestMigrationConnectionResult> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TestMigrationConnectionResult;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TestMigrationConnectionResult>(null as any);
+    }
+
+    /**
+     * Start a new migration job
+     */
+    startMigration(request: StartMigrationRequest, signal?: AbortSignal): Promise<MigrationJobInfo> {
+        let url_ = this.baseUrl + "/api/v4/migration/start";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processStartMigration(_response);
+        });
+    }
+
+    protected processStartMigration(response: Response): Promise<MigrationJobInfo> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 202) {
+            return response.text().then((_responseText) => {
+            let result202: any = null;
+            result202 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as MigrationJobInfo;
+            return result202;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MigrationJobInfo>(null as any);
+    }
+
+    /**
+     * Get the status of a migration job
+     */
+    getStatus(jobId: string, signal?: AbortSignal): Promise<MigrationJobStatus> {
+        let url_ = this.baseUrl + "/api/v4/migration/{jobId}/status";
+        if (jobId === undefined || jobId === null)
+            throw new globalThis.Error("The parameter 'jobId' must be defined.");
+        url_ = url_.replace("{jobId}", encodeURIComponent("" + jobId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetStatus(_response);
+        });
+    }
+
+    protected processGetStatus(response: Response): Promise<MigrationJobStatus> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as MigrationJobStatus;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MigrationJobStatus>(null as any);
+    }
+
+    /**
+     * Cancel a running migration job
+     */
+    cancelMigration(jobId: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/v4/migration/{jobId}/cancel";
+        if (jobId === undefined || jobId === null)
+            throw new globalThis.Error("The parameter 'jobId' must be defined.");
+        url_ = url_.replace("{jobId}", encodeURIComponent("" + jobId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCancelMigration(_response);
+        });
+    }
+
+    protected processCancelMigration(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Get migration job history
+     */
+    getHistory(signal?: AbortSignal): Promise<MigrationJobInfo[]> {
+        let url_ = this.baseUrl + "/api/v4/migration/history";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetHistory(_response);
+        });
+    }
+
+    protected processGetHistory(response: Response): Promise<MigrationJobInfo[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as MigrationJobInfo[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MigrationJobInfo[]>(null as any);
+    }
+}
+
 export class MyFitnessPalSettingsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -17292,6 +17523,92 @@ export interface ForwardedDiscrepancyDto {
     sourceId?: string;
     receivedAt?: Date;
     analysis?: DiscrepancyAnalysisDto;
+}
+
+/** Result of testing a migration connection */
+export interface TestMigrationConnectionResult {
+    isSuccess?: boolean;
+    errorMessage?: string | undefined;
+    siteName?: string | undefined;
+    version?: string | undefined;
+    entryCount?: number | undefined;
+    treatmentCount?: number | undefined;
+    availableCollections?: string[];
+}
+
+/** Request to test a Nightscout connection */
+export interface TestMigrationConnectionRequest {
+    mode?: MigrationMode;
+    nightscoutUrl?: string | undefined;
+    nightscoutApiSecret?: string | undefined;
+    mongoConnectionString?: string | undefined;
+    mongoDatabaseName?: string | undefined;
+}
+
+/** Enumerates the modes for data migration */
+export enum MigrationMode {
+    Api = 0,
+    MongoDb = 1,
+}
+
+/** Information about a migration job */
+export interface MigrationJobInfo {
+    id?: string;
+    mode?: MigrationMode;
+    createdAt?: Date;
+    sourceDescription?: string | undefined;
+}
+
+/** Request to start a new migration job */
+export interface StartMigrationRequest {
+    /** Migration mode (API or MongoDB) */
+    mode?: MigrationMode;
+    /** Nightscout URL (for API mode) */
+    nightscoutUrl?: string | undefined;
+    /** Nightscout API secret (for API mode) */
+    nightscoutApiSecret?: string | undefined;
+    /** MongoDB connection string (for MongoDB mode) */
+    mongoConnectionString?: string | undefined;
+    /** MongoDB database name (for MongoDB mode) */
+    mongoDatabaseName?: string | undefined;
+    /** Collections to migrate. Empty means all. */
+    collections?: string[];
+    /** Start date for migration (optional) */
+    startDate?: Date | undefined;
+    /** End date for migration (optional) */
+    endDate?: Date | undefined;
+}
+
+/** Status of a migration job including progress */
+export interface MigrationJobStatus {
+    jobId?: string;
+    state?: MigrationJobState;
+    progressPercentage?: number;
+    currentOperation?: string | undefined;
+    errorMessage?: string | undefined;
+    startedAt?: Date;
+    completedAt?: Date | undefined;
+    estimatedTimeRemaining?: string | undefined;
+    collectionProgress?: { [key: string]: CollectionProgress; };
+}
+
+/** Current state of a migration job */
+export enum MigrationJobState {
+    Pending = 0,
+    Validating = 1,
+    Running = 2,
+    Completed = 3,
+    Failed = 4,
+    Cancelled = 5,
+}
+
+/** Progress for a specific collection */
+export interface CollectionProgress {
+    collectionName?: string;
+    totalDocuments?: number;
+    documentsMigrated?: number;
+    documentsFailed?: number;
+    isComplete?: boolean;
 }
 
 export interface MyFitnessPalMatchingSettings {

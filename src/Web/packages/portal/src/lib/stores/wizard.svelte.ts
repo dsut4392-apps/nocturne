@@ -9,6 +9,7 @@ export interface WizardStateData {
   compatibilityProxy?: {
     nightscoutUrl: string;
     nightscoutApiSecret: string;
+    enableDetailedLogging?: boolean;
   };
   postgres: {
     useContainer: boolean;

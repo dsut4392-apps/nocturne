@@ -40,6 +40,7 @@ import {
   ChartDataClient,
   StateSpansClient,
   SystemEventsClient,
+  MigrationClient,
 } from "./generated/nocturne-api-client";
 
 /**
@@ -92,6 +93,7 @@ export class ApiClient {
   public readonly chartData: ChartDataClient;
   public readonly stateSpans: StateSpansClient;
   public readonly systemEvents: SystemEventsClient;
+  public readonly migration: MigrationClient;
 
   constructor(
     baseUrl: string,
@@ -143,6 +145,7 @@ export class ApiClient {
     this.chartData = new ChartDataClient(apiBaseUrl, http);
     this.stateSpans = new StateSpansClient(apiBaseUrl, http);
     this.systemEvents = new SystemEventsClient(apiBaseUrl, http);
+    this.migration = new MigrationClient(apiBaseUrl, http);
   }
 
   /** Get the underlying main client for direct access if needed */

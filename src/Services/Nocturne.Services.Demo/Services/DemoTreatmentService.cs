@@ -39,6 +39,12 @@ public class DemoTreatmentService : IDemoTreatmentService
         if (!treatmentList.Any())
             return;
 
+        // Ensure all treatments are tagged as demo data
+        foreach (var treatment in treatmentList)
+        {
+            treatment.DataSource = DataSources.DemoService;
+        }
+
         await _postgreSqlService.CreateTreatmentsAsync(treatmentList, cancellationToken);
         _logger.LogDebug("Created {Count} demo treatments", treatmentList.Count);
     }

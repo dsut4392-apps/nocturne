@@ -4489,6 +4489,195 @@
         }
       }
     },
+    "/api/v4/migration/test": {
+      "post": {
+        "tags": [
+          "Migration"
+        ],
+        "summary": "Test a migration source connection",
+        "operationId": "Migration_TestConnection",
+        "requestBody": {
+          "x-name": "request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestMigrationConnectionRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestMigrationConnectionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/migration/start": {
+      "post": {
+        "tags": [
+          "Migration"
+        ],
+        "summary": "Start a new migration job",
+        "operationId": "Migration_StartMigration",
+        "requestBody": {
+          "x-name": "request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartMigrationRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationJobInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/migration/{jobId}/status": {
+      "get": {
+        "tags": [
+          "Migration"
+        ],
+        "summary": "Get the status of a migration job",
+        "operationId": "Migration_GetStatus",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationJobStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/migration/{jobId}/cancel": {
+      "post": {
+        "tags": [
+          "Migration"
+        ],
+        "summary": "Cancel a running migration job",
+        "operationId": "Migration_CancelMigration",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/migration/history": {
+      "get": {
+        "tags": [
+          "Migration"
+        ],
+        "summary": "Get migration job history",
+        "operationId": "Migration_GetHistory",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MigrationJobInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v4/connectors/myfitnesspal/settings": {
       "get": {
         "tags": [
@@ -19153,6 +19342,249 @@
           },
           "analysis": {
             "$ref": "#/components/schemas/DiscrepancyAnalysisDto"
+          }
+        }
+      },
+      "TestMigrationConnectionResult": {
+        "type": "object",
+        "description": "Result of testing a migration connection",
+        "additionalProperties": false,
+        "properties": {
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          },
+          "siteName": {
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "nullable": true
+          },
+          "entryCount": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "treatmentCount": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "availableCollections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TestMigrationConnectionRequest": {
+        "type": "object",
+        "description": "Request to test a Nightscout connection",
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/MigrationMode"
+          },
+          "nightscoutUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "nightscoutApiSecret": {
+            "type": "string",
+            "nullable": true
+          },
+          "mongoConnectionString": {
+            "type": "string",
+            "nullable": true
+          },
+          "mongoDatabaseName": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "MigrationMode": {
+        "type": "integer",
+        "description": "Enumerates the modes for data migration",
+        "x-enumNames": [
+          "Api",
+          "MongoDb"
+        ],
+        "enum": [
+          0,
+          1
+        ]
+      },
+      "MigrationJobInfo": {
+        "type": "object",
+        "description": "Information about a migration job",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/MigrationMode"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sourceDescription": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "StartMigrationRequest": {
+        "type": "object",
+        "description": "Request to start a new migration job",
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "description": "Migration mode (API or MongoDB)",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MigrationMode"
+              }
+            ]
+          },
+          "nightscoutUrl": {
+            "type": "string",
+            "description": "Nightscout URL (for API mode)",
+            "nullable": true
+          },
+          "nightscoutApiSecret": {
+            "type": "string",
+            "description": "Nightscout API secret (for API mode)",
+            "nullable": true
+          },
+          "mongoConnectionString": {
+            "type": "string",
+            "description": "MongoDB connection string (for MongoDB mode)",
+            "nullable": true
+          },
+          "mongoDatabaseName": {
+            "type": "string",
+            "description": "MongoDB database name (for MongoDB mode)",
+            "nullable": true
+          },
+          "collections": {
+            "type": "array",
+            "description": "Collections to migrate. Empty means all.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startDate": {
+            "type": "string",
+            "description": "Start date for migration (optional)",
+            "format": "date-time",
+            "nullable": true
+          },
+          "endDate": {
+            "type": "string",
+            "description": "End date for migration (optional)",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "MigrationJobStatus": {
+        "type": "object",
+        "description": "Status of a migration job including progress",
+        "additionalProperties": false,
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "state": {
+            "$ref": "#/components/schemas/MigrationJobState"
+          },
+          "progressPercentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "currentOperation": {
+            "type": "string",
+            "nullable": true
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "estimatedTimeRemaining": {
+            "type": "string",
+            "format": "duration",
+            "nullable": true
+          },
+          "collectionProgress": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CollectionProgress"
+            }
+          }
+        }
+      },
+      "MigrationJobState": {
+        "type": "integer",
+        "description": "Current state of a migration job",
+        "x-enumNames": [
+          "Pending",
+          "Validating",
+          "Running",
+          "Completed",
+          "Failed",
+          "Cancelled"
+        ],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "CollectionProgress": {
+        "type": "object",
+        "description": "Progress for a specific collection",
+        "additionalProperties": false,
+        "properties": {
+          "collectionName": {
+            "type": "string"
+          },
+          "totalDocuments": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "documentsMigrated": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "documentsFailed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "isComplete": {
+            "type": "boolean"
           }
         }
       },

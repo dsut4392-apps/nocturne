@@ -27,6 +27,16 @@ public interface IDemoDataGenerator
     Entry GenerateCurrentEntry();
 
     /// <summary>
+    /// Generates current treatments based on the latest entry.
+    /// </summary>
+    IEnumerable<Treatment> GenerateCurrentTreatments(Entry entry);
+
+    /// <summary>
+    /// Seeds the current glucose from the latest backfill entry.
+    /// </summary>
+    void SeedCurrentGlucose(double glucose);
+
+    /// <summary>
     /// Generates historical entries using streaming/yield pattern to minimize memory usage.
     /// </summary>
     IEnumerable<Entry> GenerateHistoricalEntries();
@@ -57,6 +67,16 @@ public class DemoDataGenerator : IDemoDataGenerator
     private readonly Random _random = new();
     private double _currentGlucose;
     private readonly object _lock = new();
+    private const double PumpBolusIncrementUnits = 0.1;
+    private const double PumpBasalIncrementUnits = 0.05;
+    private const double PumpMaxBolusUnits = 25.0;
+    private const double PumpMaxBasalRateUnitsPerHour = 5.0;
+    private const int TrendStepsMin = 3;
+    private const int TrendStepsMax = 8;
+    private static readonly double[] TrendStepMultipliers = { 0.3, 0.6, 1.0, 1.3, 1.6, 2.0 };
+    private double _trendTargetGlucose;
+    private int _trendStepsRemaining;
+    private DateTime? _lastTempBasalIssuedAt;
 
     private enum DayScenario
     {
@@ -113,11 +133,9 @@ public class DemoDataGenerator : IDemoDataGenerator
     {
         lock (_lock)
         {
-            var change = GenerateRandomWalk();
-            _currentGlucose = Math.Max(
-                _config.MinGlucose,
-                Math.Min(_config.MaxGlucose, _currentGlucose + change)
-            );
+            var nextGlucose = GetNextTrendGlucose();
+            var change = nextGlucose - _currentGlucose;
+            _currentGlucose = nextGlucose;
 
             var now = DateTime.UtcNow;
             var mills = new DateTimeOffset(now).ToUnixTimeMilliseconds();
@@ -142,6 +160,55 @@ public class DemoDataGenerator : IDemoDataGenerator
                 CreatedAt = now.ToString("o"),
                 ModifiedAt = now,
             };
+        }
+    }
+
+    public IEnumerable<Treatment> GenerateCurrentTreatments(Entry entry)
+    {
+        var tempBasalDuration = Math.Max(5, _config.TempBasalDurationMinutes);
+        var entryTime = entry.Date ?? DateTime.UtcNow;
+
+        if (!CanIssueTempBasal(entryTime, tempBasalDuration))
+        {
+            yield break;
+        }
+
+        var glucose = entry.Sgv ?? entry.Mgdl;
+        var delta = entry.Delta ?? 0;
+        var targetGlucose = _config.TargetGlucose;
+
+        if (glucose > targetGlucose + 10)
+        {
+            var glucoseAboveTarget = glucose - targetGlucose;
+            var tempBasalMultiplier = 1.1 + Math.Min(0.3, glucoseAboveTarget / 150.0);
+            var highTempRate = NormalizeBasalRate(_config.BasalRate * tempBasalMultiplier);
+            if (highTempRate > _config.BasalRate)
+            {
+                yield return MarkTempBasal(entryTime, highTempRate, tempBasalDuration);
+            }
+        }
+        else if (glucose < 90 || (glucose < 100 && delta < -2))
+        {
+            var reductionFactor =
+                glucose < 75 ? 0.0
+                : glucose < 85 ? 0.2
+                : 0.4;
+            var reducedRate = NormalizeBasalRate(_config.BasalRate * reductionFactor);
+            if (reducedRate < _config.BasalRate)
+            {
+                yield return MarkTempBasal(entryTime, reducedRate, tempBasalDuration);
+            }
+        }
+    }
+
+    public void SeedCurrentGlucose(double glucose)
+    {
+        lock (_lock)
+        {
+            _currentGlucose = glucose;
+            _trendTargetGlucose = 0;
+            _trendStepsRemaining = 0;
+            _lastTempBasalIssuedAt = null;
         }
     }
 
@@ -242,18 +309,22 @@ public class DemoDataGenerator : IDemoDataGenerator
             double estimatedIob = 0;
             var targetGlucose = _config.TargetGlucose;
             var currentTime = currentDay;
-            var endTime = currentDay.AddDays(1);
+            // Cap endTime to now to prevent generating future data
+            var endTime = currentDay.Date == endDate.Date
+                ? endDate
+                : currentDay.AddDays(1);
 
             while (currentTime < endTime)
             {
                 var basalAdj = basalAdjustments.FirstOrDefault(b =>
                     Math.Abs((b.Time - currentTime).TotalMinutes) < 2.5
                 );
-                if (basalAdj.Rate > 0 || basalAdj.Duration > 0)
+                var adjustedRate = NormalizeBasalRate(basalAdj.Rate);
+                if (adjustedRate > 0 || basalAdj.Duration > 0)
                 {
                     simulator.AddInsulinDose(
                         currentTime,
-                        basalAdj.Rate * basalAdj.Duration / 60.0,
+                        adjustedRate * basalAdj.Duration / 60.0,
                         isTempBasal: true,
                         duration: basalAdj.Duration
                     );
@@ -295,15 +366,19 @@ public class DemoDataGenerator : IDemoDataGenerator
                     if (currentTime.Minute == 0 || currentTime.Minute == 30)
                     {
                         var tempBasalMultiplier = 1.1 + Math.Min(0.3, glucoseAboveTarget / 150.0);
-                        var highTempRate = _config.BasalRate * tempBasalMultiplier;
-                        var extraInsulin = (highTempRate - _config.BasalRate) * (30 / 60.0);
-                        simulator.AddInsulinDose(
-                            currentTime,
-                            extraInsulin,
-                            isTempBasal: true,
-                            duration: 30
-                        );
-                        estimatedIob += extraInsulin;
+                        var highTempRate = NormalizeBasalRate(_config.BasalRate * tempBasalMultiplier);
+                        var extraInsulin =
+                            Math.Max(0, highTempRate - _config.BasalRate) * (30 / 60.0);
+                        if (extraInsulin > 0)
+                        {
+                            simulator.AddInsulinDose(
+                                currentTime,
+                                extraInsulin,
+                                isTempBasal: true,
+                                duration: 30
+                            );
+                            estimatedIob += extraInsulin;
+                        }
                     }
 
                     if (
@@ -313,7 +388,7 @@ public class DemoDataGenerator : IDemoDataGenerator
                     )
                     {
                         var correctionBolus = insulinToDeliver * (0.5 + _random.NextDouble() * 0.2);
-                        correctionBolus = Math.Clamp(correctionBolus, 0.1, 4.0);
+                        correctionBolus = NormalizeBolus(Math.Clamp(correctionBolus, 0.1, 4.0));
                         simulator.AddInsulinDose(currentTime, correctionBolus);
                         estimatedIob += correctionBolus;
                     }
@@ -399,24 +474,28 @@ public class DemoDataGenerator : IDemoDataGenerator
             double estimatedIob = 0;
             var targetGlucose = _config.TargetGlucose;
             var currentTime = currentDay;
-            var endTime = currentDay.AddDays(1);
+            // Cap endTime to now to prevent generating future data
+            var endTime = currentDay.Date == endDate.Date
+                ? endDate
+                : currentDay.AddDays(1);
 
             while (currentTime < endTime)
             {
                 var basalAdj = basalAdjustments.FirstOrDefault(b =>
                     Math.Abs((b.Time - currentTime).TotalMinutes) < 2.5
                 );
-                if (basalAdj.Rate > 0 || basalAdj.Duration > 0)
+                var adjustedRate = NormalizeBasalRate(basalAdj.Rate);
+                if (adjustedRate > 0 || basalAdj.Duration > 0)
                 {
                     yield return CreateTempBasalTreatment(
                         currentTime,
-                        basalAdj.Rate,
+                        adjustedRate,
                         basalAdj.Duration
                     );
                     totalTreatments++;
                     simulator.AddInsulinDose(
                         currentTime,
-                        basalAdj.Rate * basalAdj.Duration / 60.0,
+                        adjustedRate * basalAdj.Duration / 60.0,
                         isTempBasal: true,
                         duration: basalAdj.Duration
                     );
@@ -461,21 +540,25 @@ public class DemoDataGenerator : IDemoDataGenerator
                     if (currentTime.Minute == 0 || currentTime.Minute == 30)
                     {
                         var tempBasalMultiplier = 1.1 + Math.Min(0.3, glucoseAboveTarget / 150.0);
-                        var highTempRate = _config.BasalRate * tempBasalMultiplier;
+                        var highTempRate = NormalizeBasalRate(_config.BasalRate * tempBasalMultiplier);
                         yield return CreateTempBasalTreatment(
                             currentTime,
-                            Math.Round(highTempRate, 2),
+                            highTempRate,
                             30
                         );
                         totalTreatments++;
-                        var extraInsulin = (highTempRate - _config.BasalRate) * (30 / 60.0);
-                        simulator.AddInsulinDose(
-                            currentTime,
-                            extraInsulin,
-                            isTempBasal: true,
-                            duration: 30
-                        );
-                        estimatedIob += extraInsulin;
+                        var extraInsulin =
+                            Math.Max(0, highTempRate - _config.BasalRate) * (30 / 60.0);
+                        if (extraInsulin > 0)
+                        {
+                            simulator.AddInsulinDose(
+                                currentTime,
+                                extraInsulin,
+                                isTempBasal: true,
+                                duration: 30
+                            );
+                            estimatedIob += extraInsulin;
+                        }
                     }
 
                     if (
@@ -485,10 +568,12 @@ public class DemoDataGenerator : IDemoDataGenerator
                     )
                     {
                         var manualCorrectionBolus = glucoseAboveTarget / effectiveIsf;
-                        manualCorrectionBolus = Math.Clamp(manualCorrectionBolus, 0.5, 6.0);
+                        manualCorrectionBolus = NormalizeBolus(
+                            Math.Clamp(manualCorrectionBolus, 0.5, 6.0)
+                        );
                         yield return CreateManualCorrectionBolusTreatment(
                             currentTime,
-                            Math.Round(manualCorrectionBolus, 1)
+                            manualCorrectionBolus
                         );
                         totalTreatments++;
                         simulator.AddInsulinDose(currentTime, manualCorrectionBolus);
@@ -501,10 +586,10 @@ public class DemoDataGenerator : IDemoDataGenerator
                     )
                     {
                         var correctionBolus = insulinToDeliver * (0.5 + _random.NextDouble() * 0.2);
-                        correctionBolus = Math.Clamp(correctionBolus, 0.1, 4.0);
+                        correctionBolus = NormalizeBolus(Math.Clamp(correctionBolus, 0.1, 4.0));
                         yield return CreateCorrectionBolusTreatment(
                             currentTime,
-                            Math.Round(correctionBolus, 1)
+                            correctionBolus
                         );
                         totalTreatments++;
                         simulator.AddInsulinDose(currentTime, correctionBolus);
@@ -512,13 +597,14 @@ public class DemoDataGenerator : IDemoDataGenerator
                     }
                     else if (glucose > targetGlucose + 10 && insulinToDeliver > 0.05)
                     {
-                        var microBolus = insulinToDeliver * 0.25;
-                        microBolus = Math.Clamp(microBolus, 0.05, 1.2);
-                        if (microBolus >= 0.05)
+                        var microBolus = NormalizeBolus(
+                            Math.Clamp(insulinToDeliver * 0.25, 0.05, 1.2)
+                        );
+                        if (microBolus >= PumpBolusIncrementUnits)
                         {
                             yield return CreateMicroBolusTreatment(
                                 currentTime,
-                                Math.Round(microBolus, 2)
+                                microBolus
                             );
                             totalTreatments++;
                         }
@@ -532,13 +618,13 @@ public class DemoDataGenerator : IDemoDataGenerator
                         glucose < 75 ? 0.0
                         : glucose < 85 ? 0.2
                         : 0.4;
-                    var reducedRate = _config.BasalRate * reductionFactor;
+                    var reducedRate = NormalizeBasalRate(_config.BasalRate * reductionFactor);
 
                     if (currentTime.Minute == 0 || currentTime.Minute == 30)
                     {
                         yield return CreateTempBasalTreatment(
                             currentTime,
-                            Math.Round(reducedRate, 2),
+                            reducedRate,
                             30
                         );
                         totalTreatments++;
@@ -635,7 +721,11 @@ public class DemoDataGenerator : IDemoDataGenerator
         }
 
         var currentTime = date;
-        var endTime = date.AddDays(1);
+        // Cap endTime to now on the final day to prevent generating future data
+        var now = DateTime.UtcNow;
+        var endTime = date.Date == now.Date
+            ? now
+            : date.AddDays(1);
 
         var mealPlan = GenerateMealPlan(date, scenario);
         var basalAdjustments = GenerateBasalAdjustments(date, scenario);
@@ -674,15 +764,16 @@ public class DemoDataGenerator : IDemoDataGenerator
             var basalAdj = basalAdjustments.FirstOrDefault(b =>
                 Math.Abs((b.Time - currentTime).TotalMinutes) < 2.5
             );
-            if (basalAdj.Rate > 0 || basalAdj.Duration > 0)
+            var adjustedRate = NormalizeBasalRate(basalAdj.Rate);
+            if (adjustedRate > 0 || basalAdj.Duration > 0)
             {
                 treatments.Add(
-                    CreateTempBasalTreatment(currentTime, basalAdj.Rate, basalAdj.Duration)
+                    CreateTempBasalTreatment(currentTime, adjustedRate, basalAdj.Duration)
                 );
                 // Add temp basal to simulator
                 simulator.AddInsulinDose(
                     currentTime,
-                    basalAdj.Rate * basalAdj.Duration / 60.0,
+                    adjustedRate * basalAdj.Duration / 60.0,
                     isTempBasal: true,
                     duration: basalAdj.Duration
                 );
@@ -739,20 +830,23 @@ public class DemoDataGenerator : IDemoDataGenerator
                 {
                     // Scale from 1.1x to 1.4x basal rate based on how high glucose is
                     var tempBasalMultiplier = 1.1 + Math.Min(0.3, glucoseAboveTarget / 150.0);
-                    var highTempRate = _config.BasalRate * tempBasalMultiplier;
+                    var highTempRate = NormalizeBasalRate(_config.BasalRate * tempBasalMultiplier);
 
                     treatments.Add(
-                        CreateTempBasalTreatment(currentTime, Math.Round(highTempRate, 2), 30)
+                        CreateTempBasalTreatment(currentTime, highTempRate, 30)
                     );
                     // Add to simulator for glucose effect (only the extra insulin above scheduled)
-                    var extraInsulin = (highTempRate - _config.BasalRate) * (30 / 60.0);
-                    simulator.AddInsulinDose(
-                        currentTime,
-                        extraInsulin,
-                        isTempBasal: true,
-                        duration: 30
-                    );
-                    estimatedIob += extraInsulin;
+                    var extraInsulin = Math.Max(0, highTempRate - _config.BasalRate) * (30 / 60.0);
+                    if (extraInsulin > 0)
+                    {
+                        simulator.AddInsulinDose(
+                            currentTime,
+                            extraInsulin,
+                            isTempBasal: true,
+                            duration: 30
+                        );
+                        estimatedIob += extraInsulin;
+                    }
                 }
 
                 // MANUAL CORRECTION BOLUS - during waking hours, user may manually correct
@@ -760,12 +854,14 @@ public class DemoDataGenerator : IDemoDataGenerator
                 {
                     // Manual correction uses exact ISF formula
                     var manualCorrectionBolus = glucoseAboveTarget / effectiveIsf;
-                    manualCorrectionBolus = Math.Clamp(manualCorrectionBolus, 0.5, 6.0); // 0.5 to 6 units
+                    manualCorrectionBolus = NormalizeBolus(
+                        Math.Clamp(manualCorrectionBolus, 0.5, 6.0)
+                    );
 
                     treatments.Add(
                         CreateManualCorrectionBolusTreatment(
                             currentTime,
-                            Math.Round(manualCorrectionBolus, 1)
+                            manualCorrectionBolus
                         )
                     );
                     simulator.AddInsulinDose(currentTime, manualCorrectionBolus);
@@ -780,10 +876,10 @@ public class DemoDataGenerator : IDemoDataGenerator
                 {
                     // Deliver 50-70% of needed correction as a bolus
                     var correctionBolus = insulinToDeliver * (0.5 + _random.NextDouble() * 0.2);
-                    correctionBolus = Math.Clamp(correctionBolus, 0.1, 4.0); // 0.1 to 4 units max
+                    correctionBolus = NormalizeBolus(Math.Clamp(correctionBolus, 0.1, 4.0));
 
                     treatments.Add(
-                        CreateCorrectionBolusTreatment(currentTime, Math.Round(correctionBolus, 1))
+                        CreateCorrectionBolusTreatment(currentTime, correctionBolus)
                     );
                     simulator.AddInsulinDose(currentTime, correctionBolus);
                     estimatedIob += correctionBolus;
@@ -791,13 +887,14 @@ public class DemoDataGenerator : IDemoDataGenerator
                 // SMBs every 5 minutes for fine-tuning when moderately high
                 else if (glucose > targetGlucose + 10 && insulinToDeliver > 0.05)
                 {
-                    var microBolus = insulinToDeliver * 0.25;
-                    microBolus = Math.Clamp(microBolus, 0.05, 1.2);
+                    var microBolus = NormalizeBolus(
+                        Math.Clamp(insulinToDeliver * 0.25, 0.05, 1.2)
+                    );
 
-                    if (microBolus >= 0.05)
+                    if (microBolus >= PumpBolusIncrementUnits)
                     {
                         treatments.Add(
-                            CreateMicroBolusTreatment(currentTime, Math.Round(microBolus, 2))
+                            CreateMicroBolusTreatment(currentTime, microBolus)
                         );
                     }
                     simulator.AddInsulinDose(currentTime, microBolus);
@@ -812,16 +909,17 @@ public class DemoDataGenerator : IDemoDataGenerator
                     glucose < 75 ? 0.0
                     : glucose < 85 ? 0.2
                     : 0.4;
-                var reducedRate = _config.BasalRate * reductionFactor;
+                var reducedRate = NormalizeBasalRate(_config.BasalRate * reductionFactor);
 
                 // Apply reduced temp basal every 30 minutes
                 if (currentTime.Minute == 0 || currentTime.Minute == 30)
                 {
                     treatments.Add(
-                        CreateTempBasalTreatment(currentTime, Math.Round(reducedRate, 2), 30)
+                        CreateTempBasalTreatment(currentTime, reducedRate, 30)
                     );
                     // Add to simulator for reduced basal effect (negative = less insulin)
-                    var insulinReduction = -(_config.BasalRate - reducedRate) * (30 / 60.0);
+                    var insulinReduction =
+                        -(Math.Max(0, _config.BasalRate - reducedRate)) * (30 / 60.0);
                     simulator.AddInsulinDose(
                         currentTime,
                         insulinReduction,
@@ -1183,19 +1281,25 @@ public class DemoDataGenerator : IDemoDataGenerator
         if (scenario == DayScenario.Exercise)
         {
             var exerciseHour = _random.Next(16, 20);
-            adjustments.Add((date.AddHours(exerciseHour - 1), _config.BasalRate * 0.5, 120));
+            adjustments.Add(
+                (date.AddHours(exerciseHour - 1), NormalizeBasalRate(_config.BasalRate * 0.5), 120)
+            );
         }
 
         if (scenario == DayScenario.LowDay && _random.NextDouble() < 0.5)
         {
             var lowHour = _random.Next(10, 16);
-            adjustments.Add((date.AddHours(lowHour), _config.BasalRate * 0.6, 60));
+            adjustments.Add(
+                (date.AddHours(lowHour), NormalizeBasalRate(_config.BasalRate * 0.6), 60)
+            );
         }
 
         if (scenario == DayScenario.HighDay && _random.NextDouble() < 0.5)
         {
             var highHour = _random.Next(10, 18);
-            adjustments.Add((date.AddHours(highHour), _config.BasalRate * 1.3, 120));
+            adjustments.Add(
+                (date.AddHours(highHour), NormalizeBasalRate(_config.BasalRate * 1.3), 120)
+            );
         }
 
         return adjustments;
@@ -1217,7 +1321,7 @@ public class DemoDataGenerator : IDemoDataGenerator
                 _ => 1.0,
             };
 
-            var rate = Math.Round(baseRate * circadianMultiplier, 2);
+            var rate = NormalizeBasalRate(baseRate * circadianMultiplier);
             var time = date.AddHours(hour);
             var mills = new DateTimeOffset(time).ToUnixTimeMilliseconds();
 
@@ -1277,7 +1381,7 @@ public class DemoDataGenerator : IDemoDataGenerator
         else if (_random.NextDouble() < 0.01)
             totalBolus *= 1.3 + _random.NextDouble() * 0.2; // Over-bolused slightly (130-150%) - rare
 
-        return Math.Max(0.1, Math.Round(totalBolus, 1)); // Minimum 0.1u delivery
+        return NormalizeBolus(totalBolus);
     }
 
     private Entry CreateEntry(DateTime time, double glucose, double? delta)
@@ -1399,6 +1503,113 @@ public class DemoDataGenerator : IDemoDataGenerator
             EnteredBy = "demo-pump",
             DataSource = DataSources.DemoService,
         };
+    }
+
+    private Treatment MarkTempBasal(DateTime time, double rate, int duration)
+    {
+        _lastTempBasalIssuedAt = time;
+        return CreateTempBasalTreatment(time, rate, duration);
+    }
+
+    private bool CanIssueTempBasal(DateTime time, int durationMinutes)
+    {
+        if (durationMinutes <= 0)
+        {
+            return false;
+        }
+
+        return !_lastTempBasalIssuedAt.HasValue
+            || (time - _lastTempBasalIssuedAt.Value).TotalMinutes >= durationMinutes;
+    }
+
+    private double GetNextTrendGlucose()
+    {
+        if (_trendStepsRemaining <= 0)
+        {
+            SetNewTrendTarget();
+            _trendStepsRemaining = _random.Next(TrendStepsMin, TrendStepsMax + 1);
+        }
+
+        var step = CalculateTrendStep(_currentGlucose, _trendTargetGlucose, _trendStepsRemaining);
+        _trendStepsRemaining--;
+
+        if (_trendStepsRemaining == 0)
+        {
+            SetNewTrendTarget();
+            _trendStepsRemaining = _random.Next(TrendStepsMin, TrendStepsMax + 1);
+        }
+
+        return Math.Clamp(_currentGlucose + step, _config.MinGlucose, _config.MaxGlucose);
+    }
+
+    private void SetNewTrendTarget()
+    {
+        if (_trendTargetGlucose <= 0)
+        {
+            _trendTargetGlucose = GetInitialTrendTarget();
+            return;
+        }
+
+        var difference = _random.NextDouble() < 0.5
+            ? -_random.Next(20, 51)
+            : _random.Next(20, 51);
+        var nextTarget = _trendTargetGlucose + difference;
+        _trendTargetGlucose = Math.Clamp(nextTarget, _config.MinGlucose, _config.MaxGlucose);
+    }
+
+    private double GetInitialTrendTarget()
+    {
+        var minTarget = Math.Max((double)_config.MinGlucose, 80);
+        var maxTarget = Math.Min((double)_config.MaxGlucose, 110);
+        if (minTarget >= maxTarget)
+        {
+            minTarget = _config.MinGlucose;
+            maxTarget = _config.MaxGlucose;
+        }
+
+        return minTarget + _random.NextDouble() * (maxTarget - minTarget);
+    }
+
+    private double CalculateTrendStep(double currentGlucose, double targetGlucose, int stepsRemaining)
+    {
+        var stepBase = (targetGlucose - currentGlucose) / Math.Max(1, stepsRemaining);
+        var multiplier = TrendStepMultipliers[_random.Next(TrendStepMultipliers.Length)];
+        var step = stepBase * multiplier;
+
+        if (Math.Abs(step) < 0.5 && Math.Abs(targetGlucose - currentGlucose) >= 1)
+        {
+            step = Math.Sign(targetGlucose - currentGlucose);
+        }
+
+        return step;
+    }
+
+    private double RoundToIncrement(double value, double increment)
+    {
+        if (increment <= 0)
+        {
+            return value;
+        }
+
+        return Math.Round(value / increment, MidpointRounding.AwayFromZero) * increment;
+    }
+
+    private double NormalizeBolus(double units)
+    {
+        if (units <= 0)
+        {
+            return 0;
+        }
+
+        var clamped = Math.Min(units, PumpMaxBolusUnits);
+        var rounded = RoundToIncrement(clamped, PumpBolusIncrementUnits);
+        return Math.Clamp(rounded, PumpBolusIncrementUnits, PumpMaxBolusUnits);
+    }
+
+    private double NormalizeBasalRate(double unitsPerHour)
+    {
+        var clamped = Math.Clamp(unitsPerHour, 0, PumpMaxBasalRateUnitsPerHour);
+        return RoundToIncrement(clamped, PumpBasalIncrementUnits);
     }
 
     private double GenerateRandomWalk(double variance = 0)

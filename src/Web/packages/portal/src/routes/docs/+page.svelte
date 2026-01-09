@@ -1,6 +1,17 @@
 <script lang="ts">
     import { Button } from "@nocturne/app/ui/button";
-    import { ArrowRight, Book, Rocket, Download, Settings } from "@lucide/svelte";
+    import {
+        ArrowRight,
+        Book,
+        Rocket,
+        Download,
+        Settings,
+        Code2,
+        ExternalLink,
+    } from "@lucide/svelte";
+    import { DEMO_ENABLED, getDemoScalarUrl } from "$lib/config";
+
+    const scalarUrl = getDemoScalarUrl();
 </script>
 
 <div class="max-w-3xl">
@@ -53,7 +64,8 @@
                         Installation Guide
                     </h2>
                     <p class="text-sm text-muted-foreground">
-                        Detailed instructions for installing Nocturne on various platforms.
+                        Detailed instructions for installing Nocturne on various
+                        platforms.
                     </p>
                 </div>
                 <ArrowRight
@@ -79,7 +91,8 @@
                         Configuration Guide
                     </h2>
                     <p class="text-sm text-muted-foreground">
-                        Learn how to configure connectors, settings, and customize your instance.
+                        Learn how to configure connectors, settings, and
+                        customize your instance.
                     </p>
                 </div>
                 <ArrowRight
@@ -87,18 +100,82 @@
                 />
             </div>
         </a>
+
+        {#if DEMO_ENABLED}
+            <a
+                href={scalarUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="p-6 rounded-xl border border-border/60 bg-card/50 hover:bg-card hover:border-primary/30 transition-colors group"
+            >
+                <div class="flex items-start gap-4">
+                    <div
+                        class="w-12 h-12 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0"
+                    >
+                        <Code2 class="w-6 h-6 text-orange-500" />
+                    </div>
+                    <div class="flex-1">
+                        <h2
+                            class="text-lg font-semibold mb-1 group-hover:text-primary transition-colors flex items-center gap-2"
+                        >
+                            API Reference
+                            <ExternalLink class="w-4 h-4" />
+                        </h2>
+                        <p class="text-sm text-muted-foreground">
+                            Interactive API documentation powered by Scalar. Explore
+                            endpoints, test requests, and integrate with Nocturne.
+                        </p>
+                    </div>
+                    <ArrowRight
+                        class="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors"
+                    />
+                </div>
+            </a>
+        {:else}
+            <div
+                class="p-6 rounded-xl border border-border/60 bg-card/50 transition-colors"
+            >
+                <div class="flex items-start gap-4">
+                    <div
+                        class="w-12 h-12 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0"
+                    >
+                        <Code2 class="w-6 h-6 text-orange-500" />
+                    </div>
+                    <div class="flex-1">
+                        <h2
+                            class="text-lg font-semibold mb-1 flex items-center gap-2"
+                        >
+                            API Reference
+                        </h2>
+                        <p class="text-sm text-muted-foreground mb-3">
+                            Interactive API documentation powered by Scalar. Explore
+                            endpoints, test requests, and integrate with Nocturne.
+                        </p>
+                        <p
+                            class="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded inline-block"
+                        >
+                            Available at <span class="text-primary">/scalar</span> on
+                            your Nocturne API
+                        </p>
+                    </div>
+                </div>
+            </div>
+        {/if}
     </div>
 
     <div class="mt-12 p-6 rounded-xl border border-amber-500/30 bg-amber-500/5">
         <div class="flex items-start gap-3">
             <Book class="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
             <div>
-                <h3 class="font-semibold text-amber-700 dark:text-amber-400 mb-1">
+                <h3
+                    class="font-semibold text-amber-700 dark:text-amber-400 mb-1"
+                >
                     Documentation In Progress
                 </h3>
                 <p class="text-sm text-muted-foreground">
-                    We're actively working on expanding the documentation. Check back soon
-                    for more guides and tutorials, or contribute on GitHub!
+                    We're actively working on expanding the documentation. Check
+                    back soon for more guides and tutorials, or contribute on
+                    GitHub!
                 </p>
             </div>
         </div>

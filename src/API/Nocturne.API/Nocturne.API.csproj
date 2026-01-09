@@ -34,6 +34,7 @@
     <PackageReference Include="ShiroTrie" />
     <PackageReference Include="Wasmtime" />
     <PackageReference Include="Yarp.ReverseProxy" />
+    <PackageReference Include="MongoDB.Driver" />
   </ItemGroup>
   <ItemGroup>
     <Content

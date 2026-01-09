@@ -1,6 +1,11 @@
 using Aspire.Hosting;
+using Microsoft.Extensions.Configuration;
+using Nocturne.Aspire.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
+
+// Export developer certificate for Vite HTTPS (runs before resources start)
+builder.AddDeveloperCertificateExport();
 
 // Add the Portal API service
 #pragma warning disable ASPIRECERTIFICATES001
@@ -9,55 +14,87 @@ var api = builder
     .WithHttpsDeveloperCertificate()
     .WithHttpsEndpoint(port: 1610);
 
-// Export the ASP.NET Core developer certificate to a file so Vite can use it
-// TODO: This works, but isn't very pretty, and could be refactored, probably. Would be nice to do things the Aspire way, I'm sure that there's a better way, but couldn't figure it out.
-var tempDir = Path.GetTempPath();
-var certPath = Path.Combine(tempDir, "nocturne-portal.pem");
-var keyPath = Path.Combine(tempDir, "nocturne-portal.key");
-var exportCert = true;
 
-if (File.Exists(certPath) && File.Exists(keyPath))
+// Conditional demo instance (Nocturne API + Web with demo data)
+var demoEnabled = builder.Configuration.GetValue<bool>("Parameters:DemoApi:Enabled", false);
+
+IResourceBuilder<ProjectResource>? demoApi = null;
+IResourceBuilder<ExecutableResource>? demoWeb = null;
+
+if (demoEnabled)
 {
-    var certInfo = new FileInfo(certPath);
-    // If cert is younger than 1 day, reuse it
-    if (certInfo.CreationTime > DateTime.Now.AddDays(-1))
-    {
-        exportCert = false;
-    }
-}
+    Console.WriteLine("[Portal] Demo API enabled - adding demo instance");
 
-if (exportCert)
-{
-    // Check if "dotnet dev-certs" is available
-    var psi = new System.Diagnostics.ProcessStartInfo("dotnet", $"dev-certs https --export-path \"{certPath}\" --format Pem --no-password")
-    {
-        RedirectStandardOutput = true,
-        RedirectStandardError = true,
-        UseShellExecute = false,
-        CreateNoWindow = true
-    };
+    // Add dedicated PostgreSQL for demo
+    var demoPostgres = builder.AddPostgres("demo-postgres")
+        .WithLifetime(ContainerLifetime.Persistent)
+        .WithDataVolume("demo-postgres-data");
 
-    var process = System.Diagnostics.Process.Start(psi);
-    process?.WaitForExit();
+    var demoDatabase = demoPostgres.AddDatabase("nocturne-postgres", "nocturne_demo");
 
-    if (process?.ExitCode != 0)
-    {
-        // Fallback or log warning - for now we'll just continue and hope for the best or that the user fixes it
-        // In a real scenario we might want to fail fast
-    }
+
+    // Add Nocturne API in demo mode
+    // Note: We pass launchProfileName: null to avoid port conflicts with the default
+    // launchSettings.json ports (1612/7209) which may already be in use by other instances
+    demoApi = builder.AddProject<Projects.Nocturne_API>("demo-api", launchProfileName: null)
+        .WithReference(demoDatabase)
+        .WaitFor(demoDatabase)
+        .WithHttpsDeveloperCertificate()
+        .WithHttpsEndpoint(name: "demo-api-https", port: 1622)
+        .WithEnvironment("DemoService__Enabled", "true");
+
+    // Add Demo Data Service
+    var demoService = builder.AddProject<Projects.Nocturne_Services_Demo>("demo-service")
+        .WithReference(demoDatabase)
+        .WaitFor(demoDatabase)
+        .WaitFor(demoApi)
+        .WithHttpsEndpoint(name: "demo-service-https", port: 1624)
+        .WithEnvironment("DemoMode__Enabled", "true")
+        .WithEnvironment("DemoMode__ClearOnStartup", "true")
+        .WithEnvironment("DemoMode__RegenerateOnStartup", "true")
+        .WithEnvironment("DemoMode__BackfillDays", "90")
+        .WithEnvironment("DemoMode__IntervalMinutes", "5")
+        .WithEnvironment("DemoMode__ResetIntervalMinutes", "20");
+
+    demoApi
+        .WithEnvironment("DemoService__Url", demoService.GetEndpoint("demo-service-https"));
+
+    // Add Nocturne Web pointing to demo API
+    demoWeb = builder.AddViteApp("demo-web", "../../Web/packages/app")
+        .WithReference(demoApi)
+        .WaitFor(demoApi)
+        .WithEnvironment("PUBLIC_API_URL", demoApi.GetEndpoint("demo-api-https"))
+        .WithEnvironment("NOCTURNE_API_URL", demoApi.GetEndpoint("demo-api-https"))
+        .WithDeveloperCertificateForVite()
+        .WithHttpsEndpoint(env: "PORT", port: 1621, name: "https")
+        .WithHttpsDeveloperCertificate()
+        .WithDeveloperCertificateTrust(true);
 }
 
 // Add the Portal Web frontend
-builder.AddViteApp("portal-web", "../../Web/packages/portal")
+var portalWeb = builder.AddViteApp("portal-web", "../../Web/packages/portal")
     .WithReference(api)
     .WaitFor(api)
     .WithEnvironment("VITE_PORTAL_API_URL", api.GetEndpoint("https"))
-    .WithEnvironment("SSL_CRT_FILE", certPath)
-    .WithEnvironment("SSL_KEY_FILE", keyPath)
+    .WithDeveloperCertificateForVite()
     .WithHttpsEndpoint(env: "PORT", port: 1611)
     .WithHttpsDeveloperCertificate()
     .WithDeveloperCertificateTrust(true)
     .PublishAsDockerFile();
+
+// Pass demo URLs to portal web when demo is enabled
+if (demoEnabled && demoApi != null && demoWeb != null)
+{
+    portalWeb
+        .WithEnvironment("VITE_DEMO_ENABLED", "true")
+        .WithEnvironment("VITE_DEMO_API_URL", demoApi.GetEndpoint("demo-api-https"))
+        .WithEnvironment("VITE_DEMO_WEB_URL", demoWeb.GetEndpoint("https"));
+}
+else
+{
+    portalWeb.WithEnvironment("VITE_DEMO_ENABLED", "false");
+}
+
 #pragma warning restore ASPIRECERTIFICATES001
 
 var app = builder.Build();

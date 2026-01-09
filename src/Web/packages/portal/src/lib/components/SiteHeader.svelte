@@ -2,14 +2,22 @@
     import { page } from "$app/state";
     import { Button } from "@nocturne/app/ui/button";
     import { Menu, X } from "@lucide/svelte";
+    import {
+        DEMO_ENABLED,
+    } from "$lib/config";
 
     let mobileMenuOpen = $state(false);
 
-    const navLinks = [
+    const baseNavLinks = [
         { href: "/features", label: "Features" },
         { href: "/docs", label: "Docs" },
         { href: "/faq", label: "FAQ" },
     ];
+
+    // Add Demo link when demo is enabled
+    const navLinks = DEMO_ENABLED
+        ? [...baseNavLinks.slice(0, 2), { href: "/demo", label: "Demo" }, ...baseNavLinks.slice(2)]
+        : baseNavLinks;
 
     const isActive = (href: string) => {
         return page.url.pathname === href || page.url.pathname.startsWith(href + "/");

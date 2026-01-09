@@ -55,15 +55,58 @@ public class DemoDataHostedService : BackgroundService
             // Generate initial entry immediately
             await GenerateAndSaveEntryAsync(stoppingToken);
 
-            // Set up timer for regular generation
-            var interval = TimeSpan.FromMinutes(_config.IntervalMinutes);
+            // Schedule generation and optional reset intervals.
+            var generationInterval = TimeSpan.FromMinutes(_config.IntervalMinutes);
+            var resetInterval = _config.ResetIntervalMinutes > 0
+                ? TimeSpan.FromMinutes(_config.ResetIntervalMinutes)
+                : (TimeSpan?)null;
+
+            var nextGenerationUtc = DateTime.UtcNow.Add(generationInterval);
+            DateTime? nextResetUtc = resetInterval.HasValue
+                ? DateTime.UtcNow.Add(resetInterval.Value)
+                : null;
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                var now = DateTime.UtcNow;
+                var nextWakeUtc = nextGenerationUtc;
+                if (nextResetUtc.HasValue && nextResetUtc.Value < nextWakeUtc)
+                {
+                    nextWakeUtc = nextResetUtc.Value;
+                }
+
+                var delay = nextWakeUtc - now;
+                if (delay < TimeSpan.Zero)
+                {
+                    delay = TimeSpan.Zero;
+                }
+
                 try
                 {
-                    await Task.Delay(interval, stoppingToken);
-                    await GenerateAndSaveEntryAsync(stoppingToken);
+                    await Task.Delay(delay, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Demo data generation service is stopping");
+                    break;
+                }
+
+                try
+                {
+                    now = DateTime.UtcNow;
+
+                    if (nextResetUtc.HasValue && now >= nextResetUtc.Value)
+                    {
+                        await RegenerateDataAsync(stoppingToken);
+                        now = DateTime.UtcNow;
+                        nextResetUtc = now.Add(resetInterval!.Value);
+                    }
+
+                    if (now >= nextGenerationUtc)
+                    {
+                        await GenerateAndSaveEntryAsync(stoppingToken);
+                        nextGenerationUtc = now.Add(generationInterval);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -120,11 +163,13 @@ public class DemoDataHostedService : BackgroundService
         // Stream and save entries in batches
         var entryCount = 0;
         var entryBatch = new List<Entry>(batchSize);
+        Entry? latestEntry = null;
 
         foreach (var entry in _generator.GenerateHistoricalEntries())
         {
             cancellationToken.ThrowIfCancellationRequested();
             entryBatch.Add(entry);
+            latestEntry = entry;
 
             if (entryBatch.Count >= batchSize)
             {
@@ -140,6 +185,12 @@ public class DemoDataHostedService : BackgroundService
             await entryService.CreateEntriesAsync(entryBatch, cancellationToken);
             entryCount += entryBatch.Count;
             entryBatch.Clear();
+        }
+
+        if (latestEntry is not null)
+        {
+            var seedGlucose = latestEntry.Sgv ?? latestEntry.Mgdl;
+            _generator.SeedCurrentGlucose(seedGlucose);
         }
 
         _logger.LogInformation("Saved {Count} entries using streaming pattern", entryCount);
@@ -184,6 +235,7 @@ public class DemoDataHostedService : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var entryService = scope.ServiceProvider.GetRequiredService<IDemoEntryService>();
+        var treatmentService = scope.ServiceProvider.GetRequiredService<IDemoTreatmentService>();
 
         try
         {
@@ -196,6 +248,12 @@ public class DemoDataHostedService : BackgroundService
             );
 
             await entryService.CreateEntriesAsync(new[] { entry }, cancellationToken);
+
+            var treatments = _generator.GenerateCurrentTreatments(entry).ToList();
+            if (treatments.Count > 0)
+            {
+                await treatmentService.CreateTreatmentsAsync(treatments, cancellationToken);
+            }
         }
         catch (Exception ex)
         {

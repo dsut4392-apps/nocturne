@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Nocturne.Core.Constants;
 using Nocturne.Core.Contracts;
@@ -51,9 +52,13 @@ public class Program
         );
 
         // Configure demo mode settings
-        builder.Services.Configure<DemoModeConfiguration>(
-            builder.Configuration.GetSection("DemoMode")
-        );
+        var demoModeSection = builder.Configuration.GetSection("DemoMode");
+        if (!demoModeSection.Exists())
+        {
+            demoModeSection = builder.Configuration.GetSection("Parameters:DemoMode");
+        }
+
+        builder.Services.Configure<DemoModeConfiguration>(demoModeSection);
 
         // Register demo data generation service
         builder.Services.AddSingleton<IDemoDataGenerator, DemoDataGenerator>();
@@ -80,11 +85,8 @@ public class Program
 
         var app = builder.Build();
 
-        // Map default health check endpoints (only works in Development)
+        // Map default health check endpoints (includes /health, /alive, /ready)
         app.MapDefaultEndpoints();
-
-        // Always expose health endpoint for monitoring (regardless of environment)
-        app.MapHealthChecks("/health");
 
         // Map demo service control endpoints
         app.MapGet(

@@ -46,6 +46,7 @@ public class CompatibilityProxyConfig
 {
     public string NightscoutUrl { get; set; } = string.Empty;
     public string NightscoutApiSecret { get; set; } = string.Empty;
+    public bool EnableDetailedLogging { get; set; } = false;
 }
 
 public class PostgresConfig

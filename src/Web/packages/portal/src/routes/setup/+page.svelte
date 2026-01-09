@@ -28,15 +28,20 @@
 
     // Schema for the setup type URL parameter
     const SetupParamsSchema = z.object({
-        type: z
-            .enum(["fresh", "migrate", "compatibility-proxy"])
-            .optional(),
+        type: z.enum(["fresh", "migrate", "compatibility-proxy"]).optional(),
     });
 
     const params = useSearchParams(SetupParamsSchema);
 
     // Reactive setup type from URL params - undefined means show type selection
-    const setupType = $derived(params.type);
+    let setupType = $state<
+        "fresh" | "migrate" | "compatibility-proxy" | undefined
+    >(undefined);
+
+    // Sync setupType from URL params
+    $effect(() => {
+        setupType = params.type;
+    });
 
     // Track if user has selected a type (to show configuration)
     const hasSelectedType = $derived(setupType !== undefined);
@@ -49,6 +54,7 @@
 
     let nightscoutUrl = $state("");
     let nightscoutApiSecret = $state("");
+    let enableDetailedLogging = $state(false);
     let useContainer = $state(true);
     let connectionString = $state("");
     let watchtower = $state(true);
@@ -130,6 +136,7 @@
             wizardStore.setCompatibilityProxy({
                 nightscoutUrl,
                 nightscoutApiSecret,
+                enableDetailedLogging,
             });
         }
 
@@ -188,7 +195,9 @@
                         <Plus size={24} />
                     </div>
                     <div>
-                        <h2 class="text-xl font-semibold mb-1">Fresh Install</h2>
+                        <h2 class="text-xl font-semibold mb-1">
+                            Fresh Install
+                        </h2>
                         <p class="text-muted-foreground font-normal">
                             New Nocturne instance with no existing data
                         </p>
@@ -234,8 +243,8 @@
                             Compatibility Proxy
                         </h2>
                         <p class="text-muted-foreground font-normal">
-                            Try Nocturne alongside your existing Nightscout - "try
-                            before you buy"
+                            Try Nocturne alongside your existing Nightscout -
+                            "try before you buy"
                         </p>
                     </div>
                 </div>
@@ -260,9 +269,181 @@
             <p class="text-lg text-muted-foreground">{pageDescription}</p>
         </div>
 
-    <div class="space-y-6">
-        <!-- Nightscout Configuration (for migrate/proxy modes) -->
-        {#if setupType !== "fresh"}
+        <div class="space-y-6">
+            <!-- Nightscout Configuration (for migrate/proxy modes) -->
+            {#if setupType !== "fresh"}
+                <section
+                    class="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden"
+                >
+                    <div
+                        class="px-6 py-5 border-b border-border/40 bg-muted/30 flex items-center gap-3"
+                    >
+                        <div
+                            class="w-10 h-10 rounded-lg bg-orange-500/15 flex items-center justify-center"
+                        >
+                            <Server class="w-5 h-5 text-orange-500" />
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-semibold">
+                                {setupType === "migrate"
+                                    ? "Source Nightscout Instance"
+                                    : "Target Nightscout Instance"}
+                            </h2>
+                            <p class="text-sm text-muted-foreground">
+                                {setupType === "migrate"
+                                    ? "Your existing Nightscout instance to import data from"
+                                    : "Your production Nightscout instance"}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-5">
+                        <div class="space-y-2">
+                            <Label
+                                for="nightscoutUrl"
+                                class="text-sm font-medium"
+                                >Nightscout URL</Label
+                            >
+                            <Input
+                                id="nightscoutUrl"
+                                type="url"
+                                bind:value={nightscoutUrl}
+                                placeholder="https://my-site.herokuapp.com"
+                                class="h-11"
+                            />
+                        </div>
+                        <div class="space-y-2">
+                            <Label
+                                for="nightscoutApiSecret"
+                                class="text-sm font-medium">API Secret</Label
+                            >
+                            <Input
+                                id="nightscoutApiSecret"
+                                type="password"
+                                bind:value={nightscoutApiSecret}
+                                placeholder="Your API secret"
+                                class="h-11"
+                            />
+                        </div>
+
+                        <!-- Test Connection Button -->
+                        <div class="pt-2">
+                            <Button
+                                variant="outline"
+                                onclick={testConnection}
+                                disabled={connectionTest.status === "testing"}
+                                class="gap-2"
+                            >
+                                {#if connectionTest.status === "testing"}
+                                    <Loader2 class="w-4 h-4 animate-spin" />
+                                    Testing...
+                                {:else}
+                                    <Server class="w-4 h-4" />
+                                    Test Connection
+                                {/if}
+                            </Button>
+                        </div>
+
+                        <!-- Connection Result -->
+                        {#if connectionTest.status === "success"}
+                            <div
+                                class="p-4 rounded-lg bg-green-500/10 border border-green-500/30"
+                            >
+                                <div class="flex items-start gap-3">
+                                    <CheckCircle2
+                                        class="w-5 h-5 text-green-500 shrink-0 mt-0.5"
+                                    />
+                                    <div class="space-y-2 flex-1">
+                                        <div
+                                            class="font-medium text-green-700 dark:text-green-400"
+                                        >
+                                            Connection Successful
+                                        </div>
+                                        <div
+                                            class="text-sm space-y-1 text-muted-foreground"
+                                        >
+                                            <div>
+                                                <span class="font-medium"
+                                                    >Site:</span
+                                                >
+                                                {connectionTest.data.name}
+                                            </div>
+                                            {#if connectionTest.data.version}
+                                                <div>
+                                                    <span class="font-medium"
+                                                        >Version:</span
+                                                    >
+                                                    {connectionTest.data
+                                                        .version}
+                                                </div>
+                                            {/if}
+                                            {#if connectionTest.data.units}
+                                                <div>
+                                                    <span class="font-medium"
+                                                        >Units:</span
+                                                    >
+                                                    {connectionTest.data
+                                                        .units === "mmol"
+                                                        ? "mmol/L"
+                                                        : "mg/dL"}
+                                                </div>
+                                            {/if}
+                                            {#if connectionTest.data.latestSgv}
+                                                <div
+                                                    class="flex items-center gap-1.5 pt-1"
+                                                >
+                                                    <Droplet
+                                                        class="w-4 h-4 text-blue-500"
+                                                    />
+                                                    <span class="font-medium"
+                                                        >Latest reading:</span
+                                                    >
+                                                    {formatGlucose(
+                                                        connectionTest.data
+                                                            .latestSgv,
+                                                        connectionTest.data
+                                                            .units,
+                                                    )}
+                                                    {#if connectionTest.data.latestTime}
+                                                        <span class="text-xs">
+                                                            ({connectionTest
+                                                                .data
+                                                                .latestTime})
+                                                        </span>
+                                                    {/if}
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {:else if connectionTest.status === "error"}
+                            <div
+                                class="p-4 rounded-lg bg-red-500/10 border border-red-500/30"
+                            >
+                                <div class="flex items-start gap-3">
+                                    <AlertCircle
+                                        class="w-5 h-5 text-red-500 shrink-0 mt-0.5"
+                                    />
+                                    <div>
+                                        <div
+                                            class="font-medium text-red-700 dark:text-red-400"
+                                        >
+                                            Connection Failed
+                                        </div>
+                                        <div
+                                            class="text-sm text-muted-foreground"
+                                        >
+                                            {connectionTest.error}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {/if}
+                    </div>
+                </section>
+            {/if}
+
+            <!-- Database Configuration -->
             <section
                 class="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden"
             >
@@ -270,387 +451,255 @@
                     class="px-6 py-5 border-b border-border/40 bg-muted/30 flex items-center gap-3"
                 >
                     <div
-                        class="w-10 h-10 rounded-lg bg-orange-500/15 flex items-center justify-center"
+                        class="w-10 h-10 rounded-lg bg-blue-500/15 flex items-center justify-center"
                     >
-                        <Server class="w-5 h-5 text-orange-500" />
+                        <Database class="w-5 h-5 text-blue-500" />
                     </div>
                     <div>
                         <h2 class="text-lg font-semibold">
-                            {setupType === "migrate"
-                                ? "Source Nightscout Instance"
-                                : "Target Nightscout Instance"}
+                            Database Configuration
                         </h2>
                         <p class="text-sm text-muted-foreground">
-                            {setupType === "migrate"
-                                ? "Your existing Nightscout instance to import data from"
-                                : "Your production Nightscout instance"}
+                            Choose how to store your data
                         </p>
                     </div>
                 </div>
-                <div class="p-6 space-y-5">
-                    <div class="space-y-2">
-                        <Label for="nightscoutUrl" class="text-sm font-medium"
-                            >Nightscout URL</Label
-                        >
-                        <Input
-                            id="nightscoutUrl"
-                            type="url"
-                            bind:value={nightscoutUrl}
-                            placeholder="https://my-site.herokuapp.com"
-                            class="h-11"
-                        />
-                    </div>
-                    <div class="space-y-2">
-                        <Label
-                            for="nightscoutApiSecret"
-                            class="text-sm font-medium">API Secret</Label
-                        >
-                        <Input
-                            id="nightscoutApiSecret"
-                            type="password"
-                            bind:value={nightscoutApiSecret}
-                            placeholder="Your API secret"
-                            class="h-11"
-                        />
-                    </div>
-
-                    <!-- Test Connection Button -->
-                    <div class="pt-2">
-                        <Button
-                            variant="outline"
-                            onclick={testConnection}
-                            disabled={connectionTest.status === "testing"}
-                            class="gap-2"
-                        >
-                            {#if connectionTest.status === "testing"}
-                                <Loader2 class="w-4 h-4 animate-spin" />
-                                Testing...
-                            {:else}
-                                <Server class="w-4 h-4" />
-                                Test Connection
-                            {/if}
-                        </Button>
-                    </div>
-
-                    <!-- Connection Result -->
-                    {#if connectionTest.status === "success"}
-                        <div
-                            class="p-4 rounded-lg bg-green-500/10 border border-green-500/30"
-                        >
-                            <div class="flex items-start gap-3">
-                                <CheckCircle2
-                                    class="w-5 h-5 text-green-500 shrink-0 mt-0.5"
+                <div class="p-6 space-y-4">
+                    <!-- Container Option -->
+                    <button
+                        type="button"
+                        onclick={() => (useContainer = true)}
+                        class="w-full text-left p-5 rounded-lg border-2 transition-all duration-200 {useContainer
+                            ? 'border-primary bg-primary/5 shadow-sm'
+                            : 'border-border/60 hover:border-border hover:bg-muted/30'}"
+                    >
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 {useContainer
+                                    ? 'bg-primary/15'
+                                    : 'bg-muted'}"
+                            >
+                                <Cloud
+                                    class="w-5 h-5 {useContainer
+                                        ? 'text-primary'
+                                        : 'text-muted-foreground'}"
                                 />
-                                <div class="space-y-2 flex-1">
-                                    <div
-                                        class="font-medium text-green-700 dark:text-green-400"
-                                    >
-                                        Connection Successful
-                                    </div>
-                                    <div
-                                        class="text-sm space-y-1 text-muted-foreground"
-                                    >
-                                        <div>
-                                            <span class="font-medium"
-                                                >Site:</span
-                                            >
-                                            {connectionTest.data.name}
-                                        </div>
-                                        {#if connectionTest.data.version}
-                                            <div>
-                                                <span class="font-medium"
-                                                    >Version:</span
-                                                >
-                                                {connectionTest.data.version}
-                                            </div>
-                                        {/if}
-                                        {#if connectionTest.data.units}
-                                            <div>
-                                                <span class="font-medium"
-                                                    >Units:</span
-                                                >
-                                                {connectionTest.data.units ===
-                                                "mmol"
-                                                    ? "mmol/L"
-                                                    : "mg/dL"}
-                                            </div>
-                                        {/if}
-                                        {#if connectionTest.data.latestSgv}
-                                            <div
-                                                class="flex items-center gap-1.5 pt-1"
-                                            >
-                                                <Droplet
-                                                    class="w-4 h-4 text-blue-500"
-                                                />
-                                                <span class="font-medium"
-                                                    >Latest reading:</span
-                                                >
-                                                {formatGlucose(
-                                                    connectionTest.data
-                                                        .latestSgv,
-                                                    connectionTest.data.units,
-                                                )}
-                                                {#if connectionTest.data.latestTime}
-                                                    <span class="text-xs">
-                                                        ({connectionTest.data
-                                                            .latestTime})
-                                                    </span>
-                                                {/if}
-                                            </div>
-                                        {/if}
-                                    </div>
-                                </div>
                             </div>
-                        </div>
-                    {:else if connectionTest.status === "error"}
-                        <div
-                            class="p-4 rounded-lg bg-red-500/10 border border-red-500/30"
-                        >
-                            <div class="flex items-start gap-3">
-                                <AlertCircle
-                                    class="w-5 h-5 text-red-500 shrink-0 mt-0.5"
-                                />
-                                <div>
-                                    <div
-                                        class="font-medium text-red-700 dark:text-red-400"
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="font-semibold"
+                                        >Included PostgreSQL Container</span
                                     >
-                                        Connection Failed
+                                    <span
+                                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-500/15 text-green-600"
+                                        >Recommended</span
+                                    >
+                                </div>
+                                <p class="text-sm text-muted-foreground">
+                                    We'll set up and manage everything for you
+                                    automatically
+                                </p>
+                            </div>
+                            {#if useContainer}
+                                <div
+                                    class="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0"
+                                >
+                                    <Check
+                                        class="w-4 h-4 text-primary-foreground"
+                                    />
+                                </div>
+                            {/if}
+                        </div>
+                    </button>
+
+                    <!-- External DB Option -->
+                    <button
+                        type="button"
+                        onclick={() => (useContainer = false)}
+                        class="w-full text-left p-5 rounded-lg border-2 transition-all duration-200 {!useContainer
+                            ? 'border-primary bg-primary/5 shadow-sm'
+                            : 'border-border/60 hover:border-border hover:bg-muted/30'}"
+                    >
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 {!useContainer
+                                    ? 'bg-primary/15'
+                                    : 'bg-muted'}"
+                            >
+                                <HardDrive
+                                    class="w-5 h-5 {!useContainer
+                                        ? 'text-primary'
+                                        : 'text-muted-foreground'}"
+                                />
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <span class="font-semibold"
+                                    >External PostgreSQL Database</span
+                                >
+                                <p class="text-sm text-muted-foreground mt-1">
+                                    Connect to your own managed database
+                                    instance
+                                </p>
+                            </div>
+                            {#if !useContainer}
+                                <div
+                                    class="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0"
+                                >
+                                    <Check
+                                        class="w-4 h-4 text-primary-foreground"
+                                    />
+                                </div>
+                            {/if}
+                        </div>
+                    </button>
+
+                    <!-- Connection String Input -->
+                    {#if !useContainer}
+                        <div class="pt-4 pl-14 space-y-2">
+                            <Label
+                                for="connectionString"
+                                class="text-sm font-medium"
+                                >Connection String</Label
+                            >
+                            <Input
+                                id="connectionString"
+                                bind:value={connectionString}
+                                placeholder="Host=...;Port=5432;Database=..."
+                                class="font-mono text-sm h-11"
+                            />
+                            <p class="text-xs text-muted-foreground">
+                                PostgreSQL connection string in key=value format
+                            </p>
+                        </div>
+                    {/if}
+
+                    <!-- Detailed Logging Toggle (only for compatibility-proxy mode) -->
+                    {#if setupType === "compatibility-proxy"}
+                        <div
+                            class="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/40 mt-4"
+                        >
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="w-10 h-10 rounded-lg bg-background flex items-center justify-center"
+                                >
+                                    <BookOpen
+                                        class="w-5 h-5 text-muted-foreground"
+                                    />
+                                </div>
+                                <div>
+                                    <div class="font-medium">
+                                        Detailed Logging
                                     </div>
                                     <div class="text-sm text-muted-foreground">
-                                        {connectionTest.error}
+                                        Log detailed request/response
+                                        comparisons for debugging
                                     </div>
                                 </div>
                             </div>
+                            <Switch bind:checked={enableDetailedLogging} />
                         </div>
                     {/if}
                 </div>
             </section>
-        {/if}
 
-        <!-- Database Configuration -->
-        <section
-            class="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden"
-        >
-            <div
-                class="px-6 py-5 border-b border-border/40 bg-muted/30 flex items-center gap-3"
+            <!-- Optional Services -->
+            <section
+                class="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden"
             >
                 <div
-                    class="w-10 h-10 rounded-lg bg-blue-500/15 flex items-center justify-center"
+                    class="px-6 py-5 border-b border-border/40 bg-muted/30 flex items-center gap-3"
                 >
-                    <Database class="w-5 h-5 text-blue-500" />
-                </div>
-                <div>
-                    <h2 class="text-lg font-semibold">
-                        Database Configuration
-                    </h2>
-                    <p class="text-sm text-muted-foreground">
-                        Choose how to store your data
-                    </p>
-                </div>
-            </div>
-            <div class="p-6 space-y-4">
-                <!-- Container Option -->
-                <button
-                    type="button"
-                    onclick={() => (useContainer = true)}
-                    class="w-full text-left p-5 rounded-lg border-2 transition-all duration-200 {useContainer
-                        ? 'border-primary bg-primary/5 shadow-sm'
-                        : 'border-border/60 hover:border-border hover:bg-muted/30'}"
-                >
-                    <div class="flex items-start gap-4">
-                        <div
-                            class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 {useContainer
-                                ? 'bg-primary/15'
-                                : 'bg-muted'}"
-                        >
-                            <Cloud
-                                class="w-5 h-5 {useContainer
-                                    ? 'text-primary'
-                                    : 'text-muted-foreground'}"
-                            />
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="font-semibold"
-                                    >Included PostgreSQL Container</span
-                                >
-                                <span
-                                    class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-500/15 text-green-600"
-                                    >Recommended</span
-                                >
-                            </div>
-                            <p class="text-sm text-muted-foreground">
-                                We'll set up and manage everything for you
-                                automatically
-                            </p>
-                        </div>
-                        {#if useContainer}
-                            <div
-                                class="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0"
-                            >
-                                <Check
-                                    class="w-4 h-4 text-primary-foreground"
-                                />
-                            </div>
-                        {/if}
+                    <div
+                        class="w-10 h-10 rounded-lg bg-purple-500/15 flex items-center justify-center"
+                    >
+                        <RefreshCw class="w-5 h-5 text-purple-500" />
                     </div>
-                </button>
-
-                <!-- External DB Option -->
-                <button
-                    type="button"
-                    onclick={() => (useContainer = false)}
-                    class="w-full text-left p-5 rounded-lg border-2 transition-all duration-200 {!useContainer
-                        ? 'border-primary bg-primary/5 shadow-sm'
-                        : 'border-border/60 hover:border-border hover:bg-muted/30'}"
-                >
-                    <div class="flex items-start gap-4">
-                        <div
-                            class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 {!useContainer
-                                ? 'bg-primary/15'
-                                : 'bg-muted'}"
-                        >
-                            <HardDrive
-                                class="w-5 h-5 {!useContainer
-                                    ? 'text-primary'
-                                    : 'text-muted-foreground'}"
-                            />
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <span class="font-semibold"
-                                >External PostgreSQL Database</span
-                            >
-                            <p class="text-sm text-muted-foreground mt-1">
-                                Connect to your own managed database instance
-                            </p>
-                        </div>
-                        {#if !useContainer}
-                            <div
-                                class="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0"
-                            >
-                                <Check
-                                    class="w-4 h-4 text-primary-foreground"
-                                />
-                            </div>
-                        {/if}
-                    </div>
-                </button>
-
-                <!-- Connection String Input -->
-                {#if !useContainer}
-                    <div class="pt-4 pl-14 space-y-2">
-                        <Label
-                            for="connectionString"
-                            class="text-sm font-medium">Connection String</Label
-                        >
-                        <Input
-                            id="connectionString"
-                            bind:value={connectionString}
-                            placeholder="Host=...;Port=5432;Database=..."
-                            class="font-mono text-sm h-11"
-                        />
-                        <p class="text-xs text-muted-foreground">
-                            PostgreSQL connection string in key=value format
+                    <div>
+                        <h2 class="text-lg font-semibold">Optional Services</h2>
+                        <p class="text-sm text-muted-foreground">
+                            Additional features to enhance your setup
                         </p>
                     </div>
-                {/if}
-            </div>
-        </section>
-
-        <!-- Optional Services -->
-        <section
-            class="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden"
-        >
-            <div
-                class="px-6 py-5 border-b border-border/40 bg-muted/30 flex items-center gap-3"
-            >
-                <div
-                    class="w-10 h-10 rounded-lg bg-purple-500/15 flex items-center justify-center"
-                >
-                    <RefreshCw class="w-5 h-5 text-purple-500" />
                 </div>
-                <div>
-                    <h2 class="text-lg font-semibold">Optional Services</h2>
-                    <p class="text-sm text-muted-foreground">
-                        Additional features to enhance your setup
-                    </p>
-                </div>
-            </div>
-            <div class="p-6 space-y-3">
-                <div
-                    class="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/40"
-                >
-                    <div class="flex items-center gap-4">
-                        <div
-                            class="w-10 h-10 rounded-lg bg-background flex items-center justify-center"
-                        >
-                            <RefreshCw class="w-5 h-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                            <div class="font-medium">
-                                Watchtower Auto-Updates
+                <div class="p-6 space-y-3">
+                    <div
+                        class="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/40"
+                    >
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-10 h-10 rounded-lg bg-background flex items-center justify-center"
+                            >
+                                <RefreshCw
+                                    class="w-5 h-5 text-muted-foreground"
+                                />
                             </div>
-                            <div class="text-sm text-muted-foreground">
-                                Automatically keep containers up to date
+                            <div>
+                                <div class="font-medium">
+                                    Watchtower Auto-Updates
+                                </div>
+                                <div class="text-sm text-muted-foreground">
+                                    Automatically keep containers up to date
+                                </div>
                             </div>
                         </div>
+                        <Switch bind:checked={watchtower} />
                     </div>
-                    <Switch bind:checked={watchtower} />
-                </div>
 
-                <div
-                    class="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/40"
-                >
-                    <div class="flex items-center gap-4">
-                        <div
-                            class="w-10 h-10 rounded-lg bg-background flex items-center justify-center"
-                        >
-                            <Server class="w-5 h-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                            <div class="font-medium">Aspire Dashboard</div>
-                            <div class="text-sm text-muted-foreground">
-                                Telemetry visualization and monitoring UI
+                    <div
+                        class="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/40"
+                    >
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-10 h-10 rounded-lg bg-background flex items-center justify-center"
+                            >
+                                <Server class="w-5 h-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <div class="font-medium">Aspire Dashboard</div>
+                                <div class="text-sm text-muted-foreground">
+                                    Telemetry visualization and monitoring UI
+                                </div>
                             </div>
                         </div>
+                        <Switch bind:checked={includeDashboard} />
                     </div>
-                    <Switch bind:checked={includeDashboard} />
-                </div>
 
-                <div
-                    class="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/40"
-                >
-                    <div class="flex items-center gap-4">
-                        <div
-                            class="w-10 h-10 rounded-lg bg-background flex items-center justify-center"
-                        >
-                            <Database class="w-5 h-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                            <div class="font-medium">
-                                Scalar API Documentation
+                    <div
+                        class="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/40"
+                    >
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-10 h-10 rounded-lg bg-background flex items-center justify-center"
+                            >
+                                <Database
+                                    class="w-5 h-5 text-muted-foreground"
+                                />
                             </div>
-                            <div class="text-sm text-muted-foreground">
-                                Interactive API reference documentation
+                            <div>
+                                <div class="font-medium">
+                                    Scalar API Documentation
+                                </div>
+                                <div class="text-sm text-muted-foreground">
+                                    Interactive API reference documentation
+                                </div>
                             </div>
                         </div>
+                        <Switch bind:checked={includeScalar} />
                     </div>
-                    <Switch bind:checked={includeScalar} />
                 </div>
+            </section>
+
+            <!-- Continue Button -->
+            <div class="flex justify-end pt-4">
+                <Button
+                    onclick={handleContinue}
+                    size="lg"
+                    class="gap-2 px-6 h-12 text-base font-medium shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                >
+                    Continue to Connectors
+                    <ChevronRight size={20} />
+                </Button>
             </div>
-        </section>
-
-        <!-- Continue Button -->
-        <div class="flex justify-end pt-4">
-            <Button
-                onclick={handleContinue}
-                size="lg"
-                class="gap-2 px-6 h-12 text-base font-medium shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
-            >
-                Continue to Connectors
-                <ChevronRight size={20} />
-            </Button>
         </div>
-    </div>
     {/if}
 </div>

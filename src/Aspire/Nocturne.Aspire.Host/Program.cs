@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Aspire.Hosting;
 using Nocturne.Aspire.Host.Extensions;
+using Nocturne.Aspire.Hosting;
 
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Core.Constants;
@@ -15,6 +16,9 @@ class Program
     static async Task Main(string[] args)
     {
         var builder = DistributedApplication.CreateBuilder(args);
+
+        // Export developer certificate for Vite HTTPS (runs before resources start)
+        builder.AddDeveloperCertificateExport();
 
         // Add Docker Compose publishing support
         // This enables 'aspire publish' to generate docker-compose.yml files
@@ -160,13 +164,16 @@ class Program
 
         // Add the Nocturne API service (without embedded connectors)
         // Aspire will auto-generate a Dockerfile during publish
+        #pragma warning disable ASPIRECERTIFICATES001
         var api = builder
-            .AddProject<Projects.Nocturne_API>(ServiceNames.NocturneApi)
+            .AddProject<Projects.Nocturne_API>(ServiceNames.NocturneApi, launchProfileName: null)
             .WaitFor(oref)
-            .WithExternalHttpEndpoints()
+            .WithHttpsEndpoint( port: 1612, name: "api")
+            .WithHttpsDeveloperCertificate()
             .PublishAsDockerComposeService((_, _) => { })
             .WithRemoteImageName("ghcr.io/nightscout/nocturne/api")
             .WithRemoteImageTag("latest");
+        #pragma warning restore ASPIRECERTIFICATES001
 
         oref.WithParentRelationship(api);
         // Configure database connection based on mode
@@ -204,63 +211,12 @@ class Program
         builder.AddTConnectSyncConnector(api, apiSecret);
 
         // Add Demo Data Service (optional, for demonstrations and testing)
-        var demoEnabled = builder.Configuration.GetValue<bool>(
-            "Parameters:DemoMode:Enabled",
-            false
+        // Uses shared extension from Nocturne.Aspire.Hosting
+        var demoService = builder.AddDemoService<Projects.Nocturne_Services_Demo>(
+            api,
+            managedDatabase ?? remoteDatabase,
+            options => options.Port = 1614
         );
-        IResourceBuilder<ProjectResource>? demoService = null;
-
-        if (demoEnabled)
-        {
-            Console.WriteLine("[Aspire] Demo mode enabled - adding Demo Data Service");
-
-            demoService = builder
-                .AddProject<Projects.Nocturne_Services_Demo>(ServiceNames.DemoService)
-                .WithHttpEndpoint(port: 0, name: "http")
-                .WaitFor(
-                    managedDatabase
-                        ?? (IResourceBuilder<IResourceWithConnectionString>)remoteDatabase!
-                );
-
-            // Configure database connection for demo service
-            if (managedDatabase != null)
-            {
-                demoService.WithReference(managedDatabase);
-            }
-            else if (remoteDatabase != null)
-            {
-                demoService.WithReference(remoteDatabase);
-            }
-
-            // Pass demo configuration
-            demoService
-                .WithEnvironment("DemoMode__Enabled", "true")
-                .WithEnvironment(
-                    "DemoMode__ClearOnStartup",
-                    builder.Configuration["Parameters:DemoMode:ClearOnStartup"] ?? "true"
-                )
-                .WithEnvironment(
-                    "DemoMode__RegenerateOnStartup",
-                    builder.Configuration["Parameters:DemoMode:RegenerateOnStartup"] ?? "true"
-                )
-                .WithEnvironment(
-                    "DemoMode__BackfillDays",
-                    builder.Configuration["Parameters:DemoMode:BackfillDays"] ?? "90"
-                )
-                .WithEnvironment(
-                    "DemoMode__IntervalMinutes",
-                    builder.Configuration["Parameters:DemoMode:IntervalMinutes"] ?? "5"
-                );
-
-            // API should reference demo service for health monitoring
-            api.WithEnvironment("DemoService__Url", demoService.GetEndpoint("http"))
-                .WithEnvironment("DemoService__Enabled", "true");
-        }
-        else
-        {
-            // Tell API that demo mode is disabled
-            api.WithEnvironment("DemoService__Enabled", "false");
-        }
 
         // Compatibility Proxy parameters (for "try before you buy" migration testing)
         var compatProxyEnabled = builder.Configuration.GetValue<bool>(
@@ -303,15 +259,15 @@ class Program
         #pragma warning disable ASPIRECERTIFICATES001
         var web = Aspire.Hosting.JavaScriptHostingExtensions.AddViteApp(builder, ServiceNames.NocturneWeb, webPackagePath)
             .WithPnpm()
-            .WithExternalHttpEndpoints()
-            .WithHttpsEndpoint()
+            .WithHttpsEndpoint(env: "PORT", port: 1613, name: "web")
             .WithHttpsDeveloperCertificate()
+            .WithDeveloperCertificateForVite()
             .WaitFor(api)
             .WaitFor(bridge)
             .WithReference(api)
             .WithReference(bridge)
-            .WithEnvironment("PUBLIC_API_URL", api.GetEndpoint("http"))
-            .WithEnvironment("NOCTURNE_API_URL", api.GetEndpoint("http"))
+            .WithEnvironment("PUBLIC_API_URL", api.GetEndpoint("api"))
+            .WithEnvironment("NOCTURNE_API_URL", api.GetEndpoint("api"))
             .WithEnvironment(ServiceNames.ConfigKeys.ApiSecret, apiSecret)
             .WithEnvironment(
                 "PUBLIC_WEBSOCKET_RECONNECT_ATTEMPTS",

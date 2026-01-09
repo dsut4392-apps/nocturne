@@ -12,7 +12,9 @@
         Settings,
         Download,
         Server,
+        Play,
     } from "@lucide/svelte";
+    import { DEMO_ENABLED } from "$lib/config";
 </script>
 
 <!-- Hero Section -->
@@ -39,9 +41,16 @@
                     Get Started
                     <ArrowRight class="w-4 h-4" />
                 </Button>
-                <Button href="/features" variant="outline" size="lg" class="text-base">
-                    Explore Features
-                </Button>
+                {#if DEMO_ENABLED}
+                    <Button href="/demo" variant="outline" size="lg" class="gap-2 text-base">
+                        <Play class="w-4 h-4" />
+                        See it in Action
+                    </Button>
+                {:else}
+                    <Button href="/features" variant="outline" size="lg" class="text-base">
+                        Explore Features
+                    </Button>
+                {/if}
             </div>
         </div>
     </div>

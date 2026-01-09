@@ -3,6 +3,7 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import commonjs from "vite-plugin-commonjs";
 import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "path";
+import fs from "fs";
 import { setupBridge } from "@nocturne/bridge";
 
 export default defineConfig(({ mode }) => {
@@ -60,6 +61,10 @@ export default defineConfig(({ mode }) => {
       },
     ],
     server: {
+      https: process.env.SSL_CRT_FILE && process.env.SSL_KEY_FILE ? {
+        cert: fs.readFileSync(process.env.SSL_CRT_FILE),
+        key: fs.readFileSync(process.env.SSL_KEY_FILE),
+      } : undefined,
       host: "0.0.0.0",
       watch: {
         ignored: ["**/node_modules/**", "**/.git/**"],

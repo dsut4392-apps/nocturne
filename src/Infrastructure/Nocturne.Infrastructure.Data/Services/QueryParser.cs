@@ -62,10 +62,17 @@ public class QueryParser : IQueryParser
             return Task.FromResult(queryable);
         }
 
+        Console.WriteLine($"[QueryParser] ApplyQueryAsync called with findQuery: {findQuery}");
+
         var filter = ParseFilterAsync<T>(findQuery, options, cancellationToken).Result;
         if (filter != null)
         {
+            Console.WriteLine($"[QueryParser] Filter expression created successfully for type {typeof(T).Name}");
             queryable = queryable.Where(filter);
+        }
+        else
+        {
+            Console.WriteLine($"[QueryParser] WARNING: Filter parsing returned null for query: {findQuery}");
         }
 
         return Task.FromResult(queryable);
@@ -125,8 +132,12 @@ public class QueryParser : IQueryParser
 
             return Task.FromResult(result);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Log the parsing failure for debugging
+            Console.WriteLine($"[QueryParser] ERROR: Failed to parse filter query: {findQuery}");
+            Console.WriteLine($"[QueryParser] Exception: {ex.Message}");
+            Console.WriteLine($"[QueryParser] Stack: {ex.StackTrace}");
             // If parsing fails, return null to avoid breaking queries
             return Task.FromResult<Expression<Func<T, bool>>?>(null);
         }

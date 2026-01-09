@@ -142,11 +142,11 @@ namespace Nocturne.Aspire.SourceGenerators
                  if (connectorAttr.ConstructorArguments[10].Value is int typeVal)
                     type = typeVal == 1 ? "PythonApp" : "CSharpProject";
                  else
-                    type = connectorAttr.ConstructorArguments[10].Value.ToString();
+                    type = connectorAttr.ConstructorArguments[10].Value?.ToString() ?? "CSharpProject";
             }
             if (connectorAttr.ConstructorArguments.Length > 11 && connectorAttr.ConstructorArguments[11].Value != null)
             {
-                scriptPath = connectorAttr.ConstructorArguments[11].Value.ToString();
+                scriptPath = connectorAttr.ConstructorArguments[11].Value?.ToString();
             }
 
             if (
@@ -346,7 +346,7 @@ namespace Nocturne.Aspire.SourceGenerators
                 // Python Connector Generation
                 // Resolve path relative to AppHost directory
                 // Assumes ScriptPath is something like "../../Connectors/Nocturne.Connectors.TConnectSync"
-                sb.AppendLine($"            var scriptPath = Path.Combine(builder.AppHostDirectory, \"{connector.ScriptPath.Replace("\\", "\\\\")}\");");
+                sb.AppendLine($"            var scriptPath = Path.Combine(builder.AppHostDirectory, \"{connector.ScriptPath!.Replace("\\", "\\\\")}\");");
                 sb.AppendLine("            var connector = builder");
                 sb.AppendLine(
                     $"                .AddUvicornApp(\"{EscapeString(connector.ServiceName)}\", scriptPath, \"main:app\")"

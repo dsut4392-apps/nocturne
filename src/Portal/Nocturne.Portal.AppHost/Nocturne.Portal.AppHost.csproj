@@ -8,6 +8,7 @@
     <UserSecretsId>nocturne-portal-host</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.NodeJS.Extensions" />
   </ItemGroup>
   <ItemGroup>
@@ -15,5 +16,9 @@
     <ProjectReference Include="..\..\Aspire\Nocturne.Aspire.ServiceDefaults\Nocturne.Aspire.ServiceDefaults.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="..\..\Connectors\Nocturne.Connectors.Configurations\Nocturne.Connectors.Configurations.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="..\..\Connectors\Nocturne.Connectors.Core\Nocturne.Connectors.Core.csproj" IsAspireProjectResource="false" />
+    <!-- Demo instance dependencies (via Hosting library) -->
+    <ProjectReference Include="..\..\Aspire\Nocturne.Aspire.Hosting\Nocturne.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\..\API\Nocturne.API\Nocturne.API.csproj" />
+    <ProjectReference Include="..\..\Services\Nocturne.Services.Demo\Nocturne.Services.Demo.csproj" />
   </ItemGroup>
 </Project>

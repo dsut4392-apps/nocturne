@@ -144,6 +144,7 @@ public class DockerComposeGenerator
             config["Parameters:CompatibilityProxy:Enabled"] = true;
             config["Parameters:CompatibilityProxy:NightscoutUrl"] = request.CompatibilityProxy.NightscoutUrl;
             config["Parameters:CompatibilityProxy:NightscoutApiSecret"] = request.CompatibilityProxy.NightscoutApiSecret;
+            config["Parameters:CompatibilityProxy:EnableDetailedLogging"] = request.CompatibilityProxy.EnableDetailedLogging;
         }
 
         // Migration settings - enable Nightscout connector
@@ -401,6 +402,7 @@ public class DockerComposeGenerator
             values["COMPAT_PROXY_ENABLED"] = "true";
             values["COMPAT_PROXY_NIGHTSCOUT_URL"] = request.CompatibilityProxy.NightscoutUrl;
             values["COMPAT_PROXY_NIGHTSCOUT_SECRET"] = request.CompatibilityProxy.NightscoutApiSecret;
+            values["COMPAT_PROXY_DETAILED_LOGGING"] = request.CompatibilityProxy.EnableDetailedLogging ? "true" : "false";
         }
 
         return values;

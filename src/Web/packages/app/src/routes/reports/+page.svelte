@@ -112,40 +112,54 @@
   import ReportsSkeleton from "$lib/components/reports/ReportsSkeleton.svelte";
   import SiteChangeIcon from "$lib/components/icons/SiteChangeIcon.svelte";
 
-  // Build date range input from URL parameters
+  // Get date range params - uses memoized dateRangeInput to prevent infinite loops
   const reportsParams = useDateParams();
-  const dateRangeInput = $derived(reportsParams.getDateRangeInput());
 
-  // Query for reports data - automatically re-fetches when dateRangeInput changes
-  const reportsQuery = $derived(getReportsData(dateRangeInput));
+  // Query for reports data - uses the stable memoized dateRangeInput
+  // This prevents re-creating the query on every render
+  const reportsQuery = $derived(getReportsData(reportsParams.dateRangeInput));
 
   // Unwrap the data from the query with null safety
-  const data = $derived({
-    entries: reportsQuery.current?.entries ?? [],
-    treatments: reportsQuery.current?.treatments ?? [],
-    analysis: reportsQuery.current?.analysis,
-    summary: reportsQuery.current?.summary,
-    averagedStats: reportsQuery.current?.averagedStats,
-    dateRange: reportsQuery.current?.dateRange ?? {
+  // Use a single $derived to minimize reactive recalculations
+  const queryData = $derived(reportsQuery.current);
+
+  // Stable accessors for the data - these are simple property accesses, not new objects
+  const entries = $derived(queryData?.entries ?? []);
+  const treatments = $derived(queryData?.treatments ?? []);
+  const analysis = $derived(queryData?.analysis);
+  const summary = $derived(queryData?.summary);
+  const averagedStats = $derived(queryData?.averagedStats);
+  const dateRange = $derived(
+    queryData?.dateRange ?? {
       from: new Date().toISOString(),
       to: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
-    },
+    }
+  );
+
+  // Get units preference and derived formatting - consolidated into single reactive block
+  const units = $derived(glucoseUnits.current);
+
+  // Compute all glucose formatting in one place to minimize reactive overhead
+  const glucoseFormatting = $derived({
+    unitLabel: getUnitLabel(units),
+    targetRangeDisplay: formatGlucoseRange(70, 180, units),
+    lowThresholdDisplay: formatGlucoseValue(70, units),
+    severeLowThresholdDisplay: formatGlucoseValue(54, units),
   });
 
-  // Get units preference
-  const units = $derived(glucoseUnits.current);
-  const unitLabel = $derived(getUnitLabel(units));
-  const targetRangeDisplay = $derived(formatGlucoseRange(70, 180, units));
-  const lowThresholdDisplay = $derived(formatGlucoseValue(70, units));
-  const severeLowThresholdDisplay = $derived(formatGlucoseValue(54, units));
+  // Extract analysis sub-objects for cleaner template access
+  const tir = $derived(analysis?.timeInRange?.percentages);
+  const variability = $derived(analysis?.glycemicVariability);
+  const stats = $derived(analysis?.basicStats);
+  const quality = $derived(analysis?.dataQuality);
 
-  // Helper functions for status determination
-  function getTIRStatus(tir: number): ScoreCardStatus {
-    if (tir >= 70) return "excellent";
-    if (tir >= 60) return "good";
-    if (tir >= 50) return "fair";
-    if (tir >= 40) return "needs-attention";
+  // Helper functions for status determination (pure functions, no reactivity)
+  function getTIRStatus(tirValue: number): ScoreCardStatus {
+    if (tirValue >= 70) return "excellent";
+    if (tirValue >= 60) return "good";
+    if (tirValue >= 50) return "fair";
+    if (tirValue >= 40) return "needs-attention";
     return "critical";
   }
 
@@ -404,10 +418,7 @@
           <p class="text-sm text-muted-foreground">
             {error instanceof Error ? error.message : "An error occurred"}
           </p>
-          <Button
-            variant="outline"
-            onclick={() => getReportsData(dateRangeInput).refresh()}
-          >
+          <Button variant="outline" onclick={() => reportsQuery.refresh()}>
             Try again
           </Button>
         </div>
@@ -423,12 +434,12 @@
       >
         <Calendar class="h-4 w-4" />
         <span>
-          {new Date(data.dateRange.from).toLocaleDateString()} – {new Date(
-            data.dateRange.to
+          {new Date(dateRange.from).toLocaleDateString()} – {new Date(
+            dateRange.to
           ).toLocaleDateString()}
         </span>
         <span class="text-muted-foreground/50">•</span>
-        <span>{data.entries.length.toLocaleString()} readings</span>
+        <span>{entries.length.toLocaleString()} readings</span>
       </div>
       <h1 class="text-4xl font-bold">Your Glucose Report</h1>
       <p class="mx-auto max-w-2xl text-lg text-muted-foreground">
@@ -468,12 +479,7 @@
     </div>
 
     <!-- Main Dashboard Section -->
-    {#await data.analysis then analysis}
-      {@const tir = analysis?.timeInRange?.percentages}
-      {@const variability = analysis?.glycemicVariability}
-      {@const stats = analysis?.basicStats}
-      {@const quality = analysis?.dataQuality}
-
+    {#if analysis}
       <!-- Score Cards - The Key Numbers -->
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <GlucoseScoreCard
@@ -481,7 +487,7 @@
           value={tir?.target?.toFixed(0) ?? "–"}
           unit="%"
           status={getTIRStatus(tir?.target ?? 0)}
-          explanation={`This is how much time your glucose stays in your target zone (${targetRangeDisplay}). Higher is better!`}
+          explanation={`This is how much time your glucose stays in your target zone (${glucoseFormatting.targetRangeDisplay}). Higher is better!`}
           clinicalContext="ADA recommends >70% TIR for most adults with diabetes. Each 5% improvement is clinically meaningful."
           targetRange={{ optimal: 70 }}
           colorClass="text-green-600"
@@ -527,7 +533,7 @@
           unit="%"
           status={getLowStatus((tir?.low ?? 0) + (tir?.severeLow ?? 0))}
           explanation="Time spent with low blood sugar. Less is better — lows can be dangerous and feel awful."
-          clinicalContext={`Target <4% time below ${lowThresholdDisplay} ${unitLabel} and <1% below ${severeLowThresholdDisplay} ${unitLabel}. Prioritize reducing lows, especially in elderly.`}
+          clinicalContext={`Target <4% time below ${glucoseFormatting.lowThresholdDisplay} ${glucoseFormatting.unitLabel} and <1% below ${glucoseFormatting.severeLowThresholdDisplay} ${glucoseFormatting.unitLabel}. Prioritize reducing lows, especially in elderly.`}
           targetRange={{ max: 4 }}
           colorClass="text-red-500"
         >
@@ -578,15 +584,13 @@
             </div>
           </CardHeader>
           <CardContent class="h-64">
-            <AmbulatoryGlucoseProfile averagedStats={data.averagedStats} />
+            <AmbulatoryGlucoseProfile {averagedStats} />
           </CardContent>
         </Card>
       </div>
 
       <!-- AI Insights Section -->
-      {#if analysis}
-        <ClinicalInsights {analysis} showClinicalNotes={true} maxInsights={4} />
-      {/if}
+      <ClinicalInsights {analysis} showClinicalNotes={true} maxInsights={4} />
 
       <!-- Recent Glucose Preview -->
       <Card class="border">
@@ -614,11 +618,11 @@
         </CardHeader>
         <CardContent class="h-72 md:h-96">
           <GlucoseChart
-            entries={data.entries}
-            treatments={data.treatments}
+            {entries}
+            {treatments}
             dateRange={{
-              from: new Date(data.dateRange.from),
-              to: new Date(data.dateRange.to),
+              from: new Date(dateRange.from),
+              to: new Date(dateRange.to),
             }}
           />
         </CardContent>
@@ -631,28 +635,36 @@
             {stats?.mean ? formatGlucoseValue(stats.mean, units) : "–"}
           </div>
           <div class="text-xs font-medium text-muted-foreground">Average</div>
-          <div class="text-[10px] text-muted-foreground/60">{unitLabel}</div>
+          <div class="text-[10px] text-muted-foreground/60">
+            {glucoseFormatting.unitLabel}
+          </div>
         </Card>
         <Card class="border bg-card p-4 text-center">
           <div class="text-2xl font-bold tabular-nums">
             {stats?.median ? formatGlucoseValue(stats.median, units) : "–"}
           </div>
           <div class="text-xs font-medium text-muted-foreground">Median</div>
-          <div class="text-[10px] text-muted-foreground/60">{unitLabel}</div>
+          <div class="text-[10px] text-muted-foreground/60">
+            {glucoseFormatting.unitLabel}
+          </div>
         </Card>
         <Card class="border bg-card p-4 text-center">
           <div class="text-2xl font-bold tabular-nums">
             {stats?.min ? formatGlucoseValue(stats.min, units) : "–"}
           </div>
           <div class="text-xs font-medium text-muted-foreground">Lowest</div>
-          <div class="text-[10px] text-muted-foreground/60">{unitLabel}</div>
+          <div class="text-[10px] text-muted-foreground/60">
+            {glucoseFormatting.unitLabel}
+          </div>
         </Card>
         <Card class="border bg-card p-4 text-center">
           <div class="text-2xl font-bold tabular-nums">
             {stats?.max ? formatGlucoseValue(stats.max, units) : "–"}
           </div>
           <div class="text-xs font-medium text-muted-foreground">Highest</div>
-          <div class="text-[10px] text-muted-foreground/60">{unitLabel}</div>
+          <div class="text-[10px] text-muted-foreground/60">
+            {glucoseFormatting.unitLabel}
+          </div>
         </Card>
         <Card class="border bg-card p-4 text-center">
           <div class="text-2xl font-bold tabular-nums">
@@ -661,7 +673,9 @@
               : "–"}
           </div>
           <div class="text-xs font-medium text-muted-foreground">Std Dev</div>
-          <div class="text-[10px] text-muted-foreground/60">{unitLabel}</div>
+          <div class="text-[10px] text-muted-foreground/60">
+            {glucoseFormatting.unitLabel}
+          </div>
         </Card>
         <Card class="border bg-card p-4 text-center">
           <div class="text-2xl font-bold tabular-nums">
@@ -673,32 +687,25 @@
           <div class="text-[10px] text-muted-foreground/60">data quality</div>
         </Card>
       </div>
-    {:catch error}
+    {:else if reportsQuery.isPending}
+      <ReportsSkeleton />
+    {:else}
       <Card class="border border-destructive/50 bg-destructive/5">
         <CardHeader>
           <CardTitle class="flex items-center gap-2 text-destructive">
             <AlertTriangle class="h-5 w-5" />
-            Error Loading Analytics
+            No Data Available
           </CardTitle>
         </CardHeader>
         <CardContent class="space-y-3">
           <p class="text-sm text-muted-foreground">
-            There was an error generating your analytics report. This usually
-            means there is not enough data in the selected time range to perform
-            the necessary calculations.
+            There is not enough data in the selected time range to generate
+            analytics. Please select a larger date range or ensure you have
+            sufficient glucose readings.
           </p>
-          <p class="text-sm text-muted-foreground">
-            Please select a larger date range or ensure you have sufficient
-            glucose readings.
-          </p>
-          <pre
-            class="overflow-auto rounded-md border bg-muted/50 p-3 text-xs"> {error instanceof
-            Error
-              ? error.message
-              : "An error occurred"}</pre>
         </CardContent>
       </Card>
-    {/await}
+    {/if}
 
     <Separator class="my-8" />
 
@@ -924,13 +931,13 @@
     <!-- Footer -->
     <div class="space-y-1 text-center text-xs text-muted-foreground">
       <p>
-        Report generated from {data.entries.length.toLocaleString()} glucose readings
-        between {new Date(data.dateRange.from).toLocaleDateString()} and {new Date(
-          data.dateRange.to
+        Report generated from {entries.length.toLocaleString()} glucose readings between
+        {new Date(dateRange.from).toLocaleDateString()} and {new Date(
+          dateRange.to
         ).toLocaleDateString()}
       </p>
       <p>
-        Last updated: {new Date(data.dateRange.lastUpdated).toLocaleString()}
+        Last updated: {new Date(dateRange.lastUpdated).toLocaleString()}
       </p>
       <p class="text-muted-foreground/60">
         This report is for informational purposes only. Always consult your

@@ -3,10 +3,14 @@ import { PersistedState } from "runed";
 export interface WizardStateData {
   setupType: 'fresh' | 'migrate' | 'compatibility-proxy';
   migration?: {
+    mode: 'Api' | 'MongoDb';
     nightscoutUrl: string;
     nightscoutApiSecret: string;
+    mongoConnectionString?: string;
+    mongoDatabaseName?: string;
   };
   compatibilityProxy?: {
+
     nightscoutUrl: string;
     nightscoutApiSecret: string;
     enableDetailedLogging?: boolean;

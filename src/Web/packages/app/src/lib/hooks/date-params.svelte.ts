@@ -1,6 +1,11 @@
 /**
  * Centralized reports URL parameters using runed's useSearchParams.
  * This is the single source of truth for all report date range filtering.
+ *
+ * IMPORTANT: This hook is designed to avoid infinite update cycles by:
+ * 1. Using stable string representations for date range input (not new objects)
+ * 2. Using $state.snapshot for memoization
+ * 3. Carefully guarding effect execution with initialization flags
  */
 import { useSearchParams } from "runed/kit";
 import { z } from "zod";
@@ -44,7 +49,17 @@ export function useDateParams(defaultDays = 7) {
   // showDefaults: true ensures all params are shown in URL, not just non-default ones
   // This is critical because runed by default omits params that match schema defaults
   const params = useSearchParams(ReportsParamsSchema, { showDefaults: true });
-  let initialized = false;
+
+  // Track initialization to prevent infinite loops
+  let initialized = $state(false);
+
+  // Stable memoized date range input - only changes when actual values change
+  // This prevents downstream $derived statements from recreating queries
+  let memoizedInput = $state<DateRangeInput>({
+    days: undefined,
+    from: undefined,
+    to: undefined,
+  });
 
   // Auto-adjust to report's default if current params are defaults and differ
   // Use $effect.pre with guards to prevent infinite update cycles
@@ -61,7 +76,6 @@ export function useDateParams(defaultDays = 7) {
       // This is a default that differs from this report's needs - adjust
       const endDate = today(getLocalTimeZone());
       const startDate = endDate.subtract({ days: defaultDays - 1 });
-      initialized = true;
 
       // Use untrack to prevent this write from creating a dependency cycle
       untrack(() => {
@@ -69,21 +83,65 @@ export function useDateParams(defaultDays = 7) {
         params.from = startDate.toString();
         params.to = endDate.toString();
         params.isDefault = true;
+        initialized = true;
+
+        // Update memoized input
+        memoizedInput = {
+          days: defaultDays,
+          from: startDate.toString(),
+          to: endDate.toString(),
+        };
       });
     } else if (!currentDays && !currentFrom && !currentTo) {
       // No params at all - initialize with defaults
       const endDate = today(getLocalTimeZone());
       const startDate = endDate.subtract({ days: defaultDays - 1 });
-      initialized = true;
 
       untrack(() => {
         params.days = defaultDays;
         params.from = startDate.toString();
         params.to = endDate.toString();
         params.isDefault = true;
+        initialized = true;
+
+        // Update memoized input
+        memoizedInput = {
+          days: defaultDays,
+          from: startDate.toString(),
+          to: endDate.toString(),
+        };
       });
     } else {
+      // Params already set - just mark as initialized and sync memoized input
       initialized = true;
+      memoizedInput = {
+        days: currentDays,
+        from: currentFrom,
+        to: currentTo,
+      };
+    }
+  });
+
+  // Sync memoized input when params change AFTER initialization
+  // This is a separate effect to avoid the initialization logic
+  $effect(() => {
+    if (!initialized) return;
+
+    const currentDays = params.days;
+    const currentFrom = params.from;
+    const currentTo = params.to;
+
+    // Only update if values actually changed (compare primitives, not objects)
+    if (
+      memoizedInput.days !== currentDays ||
+      memoizedInput.from !== currentFrom ||
+      memoizedInput.to !== currentTo
+    ) {
+      memoizedInput = {
+        days: currentDays,
+        from: currentFrom,
+        to: currentTo,
+      };
     }
   });
 
@@ -120,17 +178,6 @@ export function useDateParams(defaultDays = 7) {
    */
   function reset() {
     setDayRange(defaultDays);
-  }
-
-  /**
-   * Get the date range input for remote functions.
-   */
-  function getDateRangeInput(): DateRangeInput {
-    return {
-      days: params.days,
-      from: params.from,
-      to: params.to,
-    };
   }
 
   /**
@@ -176,12 +223,26 @@ export function useDateParams(defaultDays = 7) {
       return params.isDefault;
     },
 
+    // STABLE date range input - use this for queries to avoid infinite loops
+    // This is a getter that returns the memoized $state, not a new object
+    get dateRangeInput(): DateRangeInput {
+      return memoizedInput;
+    },
+
     // Helper methods
     setDayRange,
     setCustomRange,
     reset,
-    getDateRangeInput,
     getDateRange,
+
+    /**
+     * Get the date range input for remote functions.
+     * Returns the memoized state for stability (prevents infinite update loops).
+     * @deprecated Use the `dateRangeInput` getter property instead for cleaner syntax
+     */
+    getDateRangeInput(): DateRangeInput {
+      return memoizedInput;
+    },
 
     // Access to underlying params for advanced use
     update: params.update.bind(params),

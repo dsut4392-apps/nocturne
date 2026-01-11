@@ -1,10 +1,13 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { wizardStore } from "$lib/stores/wizard.svelte";
     import { Button } from "@nocturne/app/ui/button";
     import { Input } from "@nocturne/app/ui/input";
     import { Label } from "@nocturne/app/ui/label";
     import { Switch } from "@nocturne/app/ui/switch";
+    import * as Card from "@nocturne/app/ui/card";
+    import * as Dialog from "../../../../app/src/lib/components/ui/dialog";
+    import * as Select from "../../../../app/src/lib/components/ui/select";
+    import * as ConnectorToggleGroup from "@nocturne/app/ui/connector-toggle-group";
     import {
         ChevronLeft,
         ChevronRight,
@@ -24,44 +27,47 @@
     } from "@lucide/svelte";
     import { useSearchParams } from "runed/kit";
     import { z } from "zod";
-    import { testNightscoutConnection } from "$lib/data/portal.remote";
+    import {
+        testNightscoutConnection,
+        getConnectors,
+        type ConnectorMetadata,
+    } from "$lib/data/portal.remote";
 
-    // Schema for the setup type URL parameter
+    // Unified schema for all setup state in URL
     const SetupParamsSchema = z.object({
+        step: z.coerce.number().default(0),
         type: z.enum(["fresh", "migrate", "compatibility-proxy"]).optional(),
+        // Database config
+        useContainer: z.coerce.boolean().default(true),
+        connectionString: z.string().optional(),
+        // Optional services
+        watchtower: z.coerce.boolean().default(true),
+        includeDashboard: z.coerce.boolean().default(true),
+        includeScalar: z.coerce.boolean().default(true),
+        // Nightscout config (for migrate/proxy)
+        nightscoutUrl: z.string().optional(),
+        nightscoutApiSecret: z.string().optional(),
+        enableDetailedLogging: z.coerce.boolean().default(false),
+        // Migration-specific: MongoDB connection
+        migrationMode: z.enum(["Api", "MongoDb"]).default("Api"),
+        mongoConnectionString: z.string().optional(),
+        mongoDatabaseName: z.string().optional(),
+        // Connectors (comma-separated list)
+        connectors: z.string().optional(),
     });
 
-    const params = useSearchParams(SetupParamsSchema);
-
-    // Reactive setup type from URL params - undefined means show type selection
-    let setupType = $state<
-        "fresh" | "migrate" | "compatibility-proxy" | undefined
-    >(undefined);
-
-    // Sync setupType from URL params
-    $effect(() => {
-        setupType = params.type;
+    const params = useSearchParams(SetupParamsSchema, {
+        pushHistory: false,
+        debounce: 100,
+        noScroll: true, // Prevent scroll to top on URL updates
     });
 
-    // Track if user has selected a type (to show configuration)
+    // Derived state from URL params
+    const currentStep = $derived(params.step);
+    const setupType = $derived(params.type);
     const hasSelectedType = $derived(setupType !== undefined);
 
-    $effect(() => {
-        if (setupType) {
-            wizardStore.setSetupType(setupType);
-        }
-    });
-
-    let nightscoutUrl = $state("");
-    let nightscoutApiSecret = $state("");
-    let enableDetailedLogging = $state(false);
-    let useContainer = $state(true);
-    let connectionString = $state("");
-    let watchtower = $state(true);
-    let includeDashboard = $state(true);
-    let includeScalar = $state(true);
-
-    // Connection test state - using a single state object for the query
+    // Connection test state
     type ConnectionTestState =
         | { status: "idle" }
         | { status: "testing" }
@@ -79,8 +85,67 @@
 
     let connectionTest = $state<ConnectionTestState>({ status: "idle" });
 
+    // Connector configuration dialog state
+    let configuringConnector = $state<ConnectorMetadata | null>(null);
+    let isConfigDialogOpen = $state(false);
+    let configValues = $state<Record<string, string>>({});
+    // Store connector configs in memory (complex nested objects don't serialize well to URL)
+    let connectorConfigs = $state<Record<string, Record<string, string>>>({});
+
+    // Load connectors
+    const connectorsQuery = getConnectors({});
+
+    // Parse selected connectors from URL
+    let selectedConnectors = $state<string[]>(
+        params.connectors?.split(",").filter(Boolean) ?? [],
+    );
+
+    // Update URL and configs when selectedConnectors changes
+    function handleConnectorChange(newValue: string[]) {
+        selectedConnectors = newValue;
+        params.connectors =
+            newValue.length > 0 ? newValue.join(",") : undefined;
+
+        // Update configs for newly added connectors
+        newValue.forEach((type) => {
+            if (!connectorConfigs[type]) {
+                connectorConfigs = { ...connectorConfigs, [type]: {} };
+            }
+        });
+
+        // Remove configs for removed connectors
+        Object.keys(connectorConfigs).forEach((type) => {
+            if (!newValue.includes(type)) {
+                const { [type]: _, ...rest } = connectorConfigs;
+                connectorConfigs = rest;
+            }
+        });
+    }
+
+    // Reset config values when dialog opens with new connector
+    $effect(() => {
+        if (isConfigDialogOpen && configuringConnector) {
+            const initial: Record<string, string> =
+                connectorConfigs[configuringConnector.type] || {};
+
+            // Apply defaults
+            configuringConnector.fields.forEach((field) => {
+                if (
+                    initial[field.envVar] === undefined ||
+                    initial[field.envVar] === ""
+                ) {
+                    if (field.default) {
+                        initial[field.envVar] = field.default;
+                    }
+                }
+            });
+            configValues = { ...initial };
+        }
+    });
+
     async function testConnection() {
-        if (!nightscoutUrl) {
+        const url = params.nightscoutUrl;
+        if (!url) {
             connectionTest = {
                 status: "error",
                 error: "Please enter a Nightscout URL",
@@ -92,8 +157,8 @@
 
         try {
             const result = await testNightscoutConnection({
-                url: nightscoutUrl,
-                apiSecret: nightscoutApiSecret || undefined,
+                url,
+                apiSecret: params.nightscoutApiSecret || undefined,
             });
 
             connectionTest = {
@@ -119,28 +184,50 @@
         }
     }
 
-    function handleContinue() {
-        wizardStore.setPostgres({
-            useContainer,
-            connectionString: useContainer ? undefined : connectionString,
-        });
-        wizardStore.setOptionalServices({
-            watchtower,
-            includeDashboard,
-            includeScalar,
-        });
+    function selectSetupType(
+        type: "fresh" | "migrate" | "compatibility-proxy",
+    ) {
+        params.type = type;
+        params.step = 1;
+    }
 
-        if (setupType === "migrate") {
-            wizardStore.setMigration({ nightscoutUrl, nightscoutApiSecret });
-        } else if (setupType === "compatibility-proxy") {
-            wizardStore.setCompatibilityProxy({
-                nightscoutUrl,
-                nightscoutApiSecret,
-                enableDetailedLogging,
-            });
+    function goToConnectors() {
+        params.step = 2;
+    }
+
+    function goBackToConfig() {
+        params.step = 1;
+    }
+
+    function goBackToTypeSelection() {
+        params.step = 0;
+        params.type = undefined;
+    }
+
+    function goToDownload() {
+        // Build query string from current params and navigate
+        const searchParams = params.toURLSearchParams();
+        goto(`/download?${searchParams.toString()}`);
+    }
+
+    function openConfig(connector: ConnectorMetadata, e?: Event) {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
         }
+        configuringConnector = connector;
+        isConfigDialogOpen = true;
+    }
 
-        goto("/connectors");
+    function handleSaveConfig() {
+        if (configuringConnector) {
+            connectorConfigs = {
+                ...connectorConfigs,
+                [configuringConnector.type]: configValues,
+            };
+            isConfigDialogOpen = false;
+            configuringConnector = null;
+        }
     }
 
     const pageTitle = $derived(
@@ -159,7 +246,6 @@
               : "Run Nocturne alongside your existing Nightscout",
     );
 
-    // Format glucose value based on units
     function formatGlucose(sgv: number, units?: string): string {
         if (units === "mmol") {
             return (sgv / 18).toFixed(1) + " mmol/L";
@@ -169,8 +255,8 @@
 </script>
 
 <div class="max-w-3xl mx-auto pb-12">
-    {#if !hasSelectedType}
-        <!-- Type Selection Screen -->
+    {#if currentStep === 0 && !hasSelectedType}
+        <!-- Step 0: Type Selection Screen -->
         <div class="text-center mb-12">
             <h1
                 class="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
@@ -184,7 +270,7 @@
 
         <div class="grid gap-4">
             <Button
-                href="/setup?type=fresh"
+                onclick={() => selectSetupType("fresh")}
                 variant="ghost"
                 class="h-auto p-6 justify-start text-left border border-border/50 bg-card/50 hover:bg-card hover:border-primary/50"
             >
@@ -206,7 +292,7 @@
             </Button>
 
             <Button
-                href="/setup?type=migrate"
+                onclick={() => selectSetupType("migrate")}
                 variant="ghost"
                 class="h-auto p-6 justify-start text-left border border-border/50 bg-card/50 hover:bg-card hover:border-blue-500/50"
             >
@@ -228,7 +314,7 @@
             </Button>
 
             <Button
-                href="/setup?type=compatibility-proxy"
+                onclick={() => selectSetupType("compatibility-proxy")}
                 variant="ghost"
                 class="h-auto p-6 justify-start text-left border border-border/50 bg-card/50 hover:bg-card hover:border-amber-500/50"
             >
@@ -250,11 +336,10 @@
                 </div>
             </Button>
         </div>
-    {:else}
-        <!-- Configuration Screen -->
-        <!-- Back Button -->
+    {:else if currentStep === 1}
+        <!-- Step 1: Configuration Screen -->
         <Button
-            href="/setup"
+            onclick={goBackToTypeSelection}
             variant="ghost"
             size="sm"
             class="mb-6 gap-1.5 text-muted-foreground hover:text-foreground transition-colors -ml-2"
@@ -263,7 +348,6 @@
             Back to setup types
         </Button>
 
-        <!-- Header Section -->
         <div class="mb-10">
             <h1 class="text-4xl font-bold tracking-tight mb-3">{pageTitle}</h1>
             <p class="text-lg text-muted-foreground">{pageDescription}</p>
@@ -297,146 +381,238 @@
                         </div>
                     </div>
                     <div class="p-6 space-y-5">
-                        <div class="space-y-2">
-                            <Label
-                                for="nightscoutUrl"
-                                class="text-sm font-medium"
-                                >Nightscout URL</Label
-                            >
-                            <Input
-                                id="nightscoutUrl"
-                                type="url"
-                                bind:value={nightscoutUrl}
-                                placeholder="https://my-site.herokuapp.com"
-                                class="h-11"
-                            />
-                        </div>
-                        <div class="space-y-2">
-                            <Label
-                                for="nightscoutApiSecret"
-                                class="text-sm font-medium">API Secret</Label
-                            >
-                            <Input
-                                id="nightscoutApiSecret"
-                                type="password"
-                                bind:value={nightscoutApiSecret}
-                                placeholder="Your API secret"
-                                class="h-11"
-                            />
-                        </div>
-
-                        <!-- Test Connection Button -->
-                        <div class="pt-2">
-                            <Button
-                                variant="outline"
-                                onclick={testConnection}
-                                disabled={connectionTest.status === "testing"}
-                                class="gap-2"
-                            >
-                                {#if connectionTest.status === "testing"}
-                                    <Loader2 class="w-4 h-4 animate-spin" />
-                                    Testing...
-                                {:else}
-                                    <Server class="w-4 h-4" />
-                                    Test Connection
-                                {/if}
-                            </Button>
-                        </div>
-
-                        <!-- Connection Result -->
-                        {#if connectionTest.status === "success"}
-                            <div
-                                class="p-4 rounded-lg bg-green-500/10 border border-green-500/30"
-                            >
-                                <div class="flex items-start gap-3">
-                                    <CheckCircle2
-                                        class="w-5 h-5 text-green-500 shrink-0 mt-0.5"
-                                    />
-                                    <div class="space-y-2 flex-1">
-                                        <div
-                                            class="font-medium text-green-700 dark:text-green-400"
-                                        >
-                                            Connection Successful
+                        {#if setupType === "migrate"}
+                            <!-- Migration Mode Selection -->
+                            <div class="space-y-3">
+                                <Label class="text-sm font-medium"
+                                    >Migration Method</Label
+                                >
+                                <div class="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onclick={() =>
+                                            (params.migrationMode = "Api")}
+                                        class="p-4 rounded-lg border-2 transition-all text-left {params.migrationMode ===
+                                        'Api'
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-border/60 hover:border-border'}"
+                                    >
+                                        <div class="font-medium mb-1">
+                                            API Migration
                                         </div>
                                         <div
-                                            class="text-sm space-y-1 text-muted-foreground"
+                                            class="text-xs text-muted-foreground"
                                         >
-                                            <div>
-                                                <span class="font-medium"
-                                                    >Site:</span
-                                                >
-                                                {connectionTest.data.name}
-                                            </div>
-                                            {#if connectionTest.data.version}
-                                                <div>
-                                                    <span class="font-medium"
-                                                        >Version:</span
-                                                    >
-                                                    {connectionTest.data
-                                                        .version}
-                                                </div>
-                                            {/if}
-                                            {#if connectionTest.data.units}
-                                                <div>
-                                                    <span class="font-medium"
-                                                        >Units:</span
-                                                    >
-                                                    {connectionTest.data
-                                                        .units === "mmol"
-                                                        ? "mmol/L"
-                                                        : "mg/dL"}
-                                                </div>
-                                            {/if}
-                                            {#if connectionTest.data.latestSgv}
-                                                <div
-                                                    class="flex items-center gap-1.5 pt-1"
-                                                >
-                                                    <Droplet
-                                                        class="w-4 h-4 text-blue-500"
-                                                    />
-                                                    <span class="font-medium"
-                                                        >Latest reading:</span
-                                                    >
-                                                    {formatGlucose(
-                                                        connectionTest.data
-                                                            .latestSgv,
-                                                        connectionTest.data
-                                                            .units,
-                                                    )}
-                                                    {#if connectionTest.data.latestTime}
-                                                        <span class="text-xs">
-                                                            ({connectionTest
-                                                                .data
-                                                                .latestTime})
-                                                        </span>
-                                                    {/if}
-                                                </div>
-                                            {/if}
+                                            Connect via Nightscout API
                                         </div>
-                                    </div>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onclick={() =>
+                                            (params.migrationMode = "MongoDb")}
+                                        class="p-4 rounded-lg border-2 transition-all text-left {params.migrationMode ===
+                                        'MongoDb'
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-border/60 hover:border-border'}"
+                                    >
+                                        <div class="font-medium mb-1">
+                                            Direct MongoDB
+                                        </div>
+                                        <div
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            Connect directly to MongoDB
+                                        </div>
+                                    </button>
                                 </div>
                             </div>
-                        {:else if connectionTest.status === "error"}
-                            <div
-                                class="p-4 rounded-lg bg-red-500/10 border border-red-500/30"
-                            >
-                                <div class="flex items-start gap-3">
-                                    <AlertCircle
-                                        class="w-5 h-5 text-red-500 shrink-0 mt-0.5"
-                                    />
-                                    <div>
-                                        <div
-                                            class="font-medium text-red-700 dark:text-red-400"
-                                        >
-                                            Connection Failed
-                                        </div>
-                                        <div
-                                            class="text-sm text-muted-foreground"
-                                        >
-                                            {connectionTest.error}
+                        {/if}
+
+                        {#if params.migrationMode === "Api" || setupType === "compatibility-proxy"}
+                            <div class="space-y-2">
+                                <Label
+                                    for="nightscoutUrl"
+                                    class="text-sm font-medium"
+                                    >Nightscout URL</Label
+                                >
+                                <Input
+                                    id="nightscoutUrl"
+                                    type="url"
+                                    bind:value={params.nightscoutUrl}
+                                    placeholder="https://my-site.herokuapp.com"
+                                    class="h-11"
+                                />
+                            </div>
+                            <div class="space-y-2">
+                                <Label
+                                    for="nightscoutApiSecret"
+                                    class="text-sm font-medium"
+                                    >API Secret</Label
+                                >
+                                <Input
+                                    id="nightscoutApiSecret"
+                                    type="password"
+                                    bind:value={params.nightscoutApiSecret}
+                                    placeholder="Your API secret"
+                                    class="h-11"
+                                />
+                            </div>
+
+                            <!-- Test Connection Button -->
+                            <div class="pt-2">
+                                <Button
+                                    variant="outline"
+                                    onclick={testConnection}
+                                    disabled={connectionTest.status ===
+                                        "testing"}
+                                    class="gap-2"
+                                >
+                                    {#if connectionTest.status === "testing"}
+                                        <Loader2 class="w-4 h-4 animate-spin" />
+                                        Testing...
+                                    {:else}
+                                        <Server class="w-4 h-4" />
+                                        Test Connection
+                                    {/if}
+                                </Button>
+                            </div>
+
+                            <!-- Connection Result -->
+                            {#if connectionTest.status === "success"}
+                                <div
+                                    class="p-4 rounded-lg bg-green-500/10 border border-green-500/30"
+                                >
+                                    <div class="flex items-start gap-3">
+                                        <CheckCircle2
+                                            class="w-5 h-5 text-green-500 shrink-0 mt-0.5"
+                                        />
+                                        <div class="space-y-2 flex-1">
+                                            <div
+                                                class="font-medium text-green-700 dark:text-green-400"
+                                            >
+                                                Connection Successful
+                                            </div>
+                                            <div
+                                                class="text-sm space-y-1 text-muted-foreground"
+                                            >
+                                                <div>
+                                                    <span class="font-medium"
+                                                        >Site:</span
+                                                    >
+                                                    {connectionTest.data.name}
+                                                </div>
+                                                {#if connectionTest.data.version}
+                                                    <div>
+                                                        <span
+                                                            class="font-medium"
+                                                            >Version:</span
+                                                        >
+                                                        {connectionTest.data
+                                                            .version}
+                                                    </div>
+                                                {/if}
+                                                {#if connectionTest.data.units}
+                                                    <div>
+                                                        <span
+                                                            class="font-medium"
+                                                            >Units:</span
+                                                        >
+                                                        {connectionTest.data
+                                                            .units === "mmol"
+                                                            ? "mmol/L"
+                                                            : "mg/dL"}
+                                                    </div>
+                                                {/if}
+                                                {#if connectionTest.data.latestSgv}
+                                                    <div
+                                                        class="flex items-center gap-1.5 pt-1"
+                                                    >
+                                                        <Droplet
+                                                            class="w-4 h-4 text-blue-500"
+                                                        />
+                                                        <span
+                                                            class="font-medium"
+                                                            >Latest reading:</span
+                                                        >
+                                                        {formatGlucose(
+                                                            connectionTest.data
+                                                                .latestSgv,
+                                                            connectionTest.data
+                                                                .units,
+                                                        )}
+                                                        {#if connectionTest.data.latestTime}
+                                                            <span
+                                                                class="text-xs"
+                                                            >
+                                                                ({connectionTest
+                                                                    .data
+                                                                    .latestTime})
+                                                            </span>
+                                                        {/if}
+                                                    </div>
+                                                {/if}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                            {:else if connectionTest.status === "error"}
+                                <div
+                                    class="p-4 rounded-lg bg-red-500/10 border border-red-500/30"
+                                >
+                                    <div class="flex items-start gap-3">
+                                        <AlertCircle
+                                            class="w-5 h-5 text-red-500 shrink-0 mt-0.5"
+                                        />
+                                        <div>
+                                            <div
+                                                class="font-medium text-red-700 dark:text-red-400"
+                                            >
+                                                Connection Failed
+                                            </div>
+                                            <div
+                                                class="text-sm text-muted-foreground"
+                                            >
+                                                {connectionTest.error}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {/if}
+                        {:else if params.migrationMode === "MongoDb"}
+                            <!-- MongoDB Direct Connection -->
+                            <div class="space-y-2">
+                                <Label
+                                    for="mongoConnectionString"
+                                    class="text-sm font-medium"
+                                    >MongoDB Connection String</Label
+                                >
+                                <Input
+                                    id="mongoConnectionString"
+                                    type="password"
+                                    bind:value={params.mongoConnectionString}
+                                    placeholder="mongodb+srv://user:pass@cluster.mongodb.net"
+                                    class="h-11 font-mono text-sm"
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                    Your MongoDB Atlas or self-hosted connection
+                                    string
+                                </p>
+                            </div>
+                            <div class="space-y-2">
+                                <Label
+                                    for="mongoDatabaseName"
+                                    class="text-sm font-medium"
+                                    >Database Name</Label
+                                >
+                                <Input
+                                    id="mongoDatabaseName"
+                                    bind:value={params.mongoDatabaseName}
+                                    placeholder="nightscout"
+                                    class="h-11"
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                    Usually "nightscout" or your site name
+                                </p>
                             </div>
                         {/if}
                     </div>
@@ -468,19 +644,19 @@
                     <!-- Container Option -->
                     <button
                         type="button"
-                        onclick={() => (useContainer = true)}
-                        class="w-full text-left p-5 rounded-lg border-2 transition-all duration-200 {useContainer
+                        onclick={() => (params.useContainer = true)}
+                        class="w-full text-left p-5 rounded-lg border-2 transition-all duration-200 {params.useContainer
                             ? 'border-primary bg-primary/5 shadow-sm'
                             : 'border-border/60 hover:border-border hover:bg-muted/30'}"
                     >
                         <div class="flex items-start gap-4">
                             <div
-                                class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 {useContainer
+                                class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 {params.useContainer
                                     ? 'bg-primary/15'
                                     : 'bg-muted'}"
                             >
                                 <Cloud
-                                    class="w-5 h-5 {useContainer
+                                    class="w-5 h-5 {params.useContainer
                                         ? 'text-primary'
                                         : 'text-muted-foreground'}"
                                 />
@@ -500,7 +676,7 @@
                                     automatically
                                 </p>
                             </div>
-                            {#if useContainer}
+                            {#if params.useContainer}
                                 <div
                                     class="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0"
                                 >
@@ -515,19 +691,19 @@
                     <!-- External DB Option -->
                     <button
                         type="button"
-                        onclick={() => (useContainer = false)}
-                        class="w-full text-left p-5 rounded-lg border-2 transition-all duration-200 {!useContainer
+                        onclick={() => (params.useContainer = false)}
+                        class="w-full text-left p-5 rounded-lg border-2 transition-all duration-200 {!params.useContainer
                             ? 'border-primary bg-primary/5 shadow-sm'
                             : 'border-border/60 hover:border-border hover:bg-muted/30'}"
                     >
                         <div class="flex items-start gap-4">
                             <div
-                                class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 {!useContainer
+                                class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 {!params.useContainer
                                     ? 'bg-primary/15'
                                     : 'bg-muted'}"
                             >
                                 <HardDrive
-                                    class="w-5 h-5 {!useContainer
+                                    class="w-5 h-5 {!params.useContainer
                                         ? 'text-primary'
                                         : 'text-muted-foreground'}"
                                 />
@@ -541,7 +717,7 @@
                                     instance
                                 </p>
                             </div>
-                            {#if !useContainer}
+                            {#if !params.useContainer}
                                 <div
                                     class="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0"
                                 >
@@ -554,7 +730,7 @@
                     </button>
 
                     <!-- Connection String Input -->
-                    {#if !useContainer}
+                    {#if !params.useContainer}
                         <div class="pt-4 pl-14 space-y-2">
                             <Label
                                 for="connectionString"
@@ -563,7 +739,7 @@
                             >
                             <Input
                                 id="connectionString"
-                                bind:value={connectionString}
+                                bind:value={params.connectionString}
                                 placeholder="Host=...;Port=5432;Database=..."
                                 class="font-mono text-sm h-11"
                             />
@@ -596,7 +772,11 @@
                                     </div>
                                 </div>
                             </div>
-                            <Switch bind:checked={enableDetailedLogging} />
+                            <Switch
+                                checked={params.enableDetailedLogging}
+                                onCheckedChange={(v) =>
+                                    (params.enableDetailedLogging = v)}
+                            />
                         </div>
                     {/if}
                 </div>
@@ -642,7 +822,10 @@
                                 </div>
                             </div>
                         </div>
-                        <Switch bind:checked={watchtower} />
+                        <Switch
+                            checked={params.watchtower}
+                            onCheckedChange={(v) => (params.watchtower = v)}
+                        />
                     </div>
 
                     <div
@@ -661,7 +844,11 @@
                                 </div>
                             </div>
                         </div>
-                        <Switch bind:checked={includeDashboard} />
+                        <Switch
+                            checked={params.includeDashboard}
+                            onCheckedChange={(v) =>
+                                (params.includeDashboard = v)}
+                        />
                     </div>
 
                     <div
@@ -684,22 +871,214 @@
                                 </div>
                             </div>
                         </div>
-                        <Switch bind:checked={includeScalar} />
+                        <Switch
+                            checked={params.includeScalar}
+                            onCheckedChange={(v) => (params.includeScalar = v)}
+                        />
                     </div>
                 </div>
             </section>
 
             <!-- Continue Button -->
-            <div class="flex justify-end pt-4">
-                <Button
-                    onclick={handleContinue}
-                    size="lg"
-                    class="gap-2 px-6 h-12 text-base font-medium shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+            <div class="flex justify-end pt-4 sticky bottom-8">
+                <div
+                    class="bg-background/80 backdrop-blur-sm p-4 rounded-xl border border-border/50 shadow-lg"
                 >
-                    Continue to Connectors
-                    <ChevronRight size={20} />
-                </Button>
+                    <Button
+                        onclick={goToConnectors}
+                        size="lg"
+                        class="gap-2 px-6 h-12 text-base font-medium shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                    >
+                        Continue to Connectors
+                        <ChevronRight size={20} />
+                    </Button>
+                </div>
             </div>
         </div>
+    {:else if currentStep === 2}
+        <!-- Step 2: Connector Selection -->
+        <Button
+            onclick={goBackToConfig}
+            variant="ghost"
+            size="sm"
+            class="mb-6 gap-1.5 text-muted-foreground hover:text-foreground transition-colors -ml-2"
+        >
+            <ChevronLeft size={18} />
+            Back to configuration
+        </Button>
+
+        <h1 class="text-3xl font-bold mb-2">Select Connectors</h1>
+        <p class="text-muted-foreground mb-8">
+            Choose which data sources to enable
+        </p>
+
+        <svelte:boundary
+            onerror={(e) => console.error("Connectors boundary error:", e)}
+        >
+            {#await connectorsQuery}
+                <div class="flex justify-center py-12">
+                    <div
+                        class="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"
+                    ></div>
+                </div>
+            {:then connectors}
+                <ConnectorToggleGroup.Root
+                    value={selectedConnectors}
+                    onValueChange={handleConnectorChange}
+                    class="grid md:grid-cols-2 gap-4 mb-8"
+                >
+                    {#each connectors as connector}
+                        <ConnectorToggleGroup.Item
+                            value={connector.type}
+                            displayName={connector.displayName}
+                            description={connector.description}
+                            category={connector.category}
+                            fields={connector.fields}
+                            onConfigure={() => openConfig(connector)}
+                        />
+                    {/each}
+                </ConnectorToggleGroup.Root>
+
+                <div
+                    class="flex items-center justify-between mt-8 sticky bottom-8 bg-background/80 backdrop-blur-sm p-4 rounded-xl border border-border/50 shadow-lg"
+                >
+                    <p class="text-sm text-muted-foreground font-medium pl-2">
+                        {selectedConnectors.length} connector{selectedConnectors.length !==
+                        1
+                            ? "s"
+                            : ""} selected
+                    </p>
+                    <Button
+                        onclick={goToDownload}
+                        class="gap-2 shadow-sm"
+                        size="lg"
+                    >
+                        Review & Download
+                        <ChevronRight size={20} />
+                    </Button>
+                </div>
+            {:catch error}
+                <div
+                    class="p-4 rounded-lg bg-destructive/10 border border-destructive/50 text-destructive mb-6"
+                >
+                    <p class="font-medium">Could not load connectors</p>
+                    <p class="text-sm opacity-80">{error.message}</p>
+                </div>
+            {/await}
+        </svelte:boundary>
     {/if}
 </div>
+
+<!-- Connector Configuration Dialog -->
+<Dialog.Root bind:open={isConfigDialogOpen}>
+    <Dialog.Content class="sm:max-w-[425px]">
+        {#if configuringConnector}
+            <Dialog.Header>
+                <Dialog.Title
+                    >Configure {configuringConnector.displayName}</Dialog.Title
+                >
+                <Dialog.Description>
+                    {configuringConnector.description}
+                </Dialog.Description>
+            </Dialog.Header>
+
+            <div class="grid gap-6 py-4">
+                {#each configuringConnector.fields as field}
+                    <div class="grid gap-2">
+                        <Label for={field.envVar} class="text-sm font-medium">
+                            {field.name}
+                            {#if field.required}
+                                <span class="text-destructive">*</span>
+                            {/if}
+                        </Label>
+
+                        {#if field.type === "boolean"}
+                            <div class="flex items-center space-x-2">
+                                <Switch
+                                    id={field.envVar}
+                                    checked={configValues[field.envVar] ===
+                                        "true"}
+                                    onCheckedChange={(v) =>
+                                        (configValues[field.envVar] =
+                                            v.toString())}
+                                />
+                                <Label
+                                    for={field.envVar}
+                                    class="font-normal text-muted-foreground"
+                                >
+                                    {field.description}
+                                </Label>
+                            </div>
+                        {:else if field.type === "select" && field.options}
+                            <Select.Root
+                                type="single"
+                                value={configValues[field.envVar]}
+                                onValueChange={(v) =>
+                                    (configValues[field.envVar] = v)}
+                            >
+                                <Select.Trigger id={field.envVar}>
+                                    {#if configValues[field.envVar]}
+                                        {configValues[field.envVar]}
+                                    {:else}
+                                        <span class="text-muted-foreground"
+                                            >Select an option</span
+                                        >
+                                    {/if}
+                                </Select.Trigger>
+                                <Select.Content>
+                                    {#each field.options as option}
+                                        <Select.Item
+                                            value={option}
+                                            label={option}
+                                        />
+                                    {/each}
+                                </Select.Content>
+                            </Select.Root>
+                            <p class="text-[0.8rem] text-muted-foreground">
+                                {field.description}
+                            </p>
+                        {:else}
+                            <Input
+                                id={field.envVar}
+                                type={field.type === "password"
+                                    ? "password"
+                                    : field.type === "number"
+                                      ? "number"
+                                      : "text"}
+                                value={configValues[field.envVar] || ""}
+                                oninput={(e) =>
+                                    (configValues[field.envVar] =
+                                        e.currentTarget.value)}
+                                placeholder={field.default || ""}
+                                required={field.required}
+                            />
+                            <p class="text-[0.8rem] text-muted-foreground">
+                                {field.description}
+                            </p>
+                        {/if}
+                    </div>
+                {/each}
+
+                {#if configuringConnector.fields.length === 0}
+                    <p class="text-sm text-muted-foreground italic">
+                        No configuration required for this connector.
+                    </p>
+                {/if}
+            </div>
+
+            <Dialog.Footer>
+                <Button
+                    variant="outline"
+                    onclick={() => (isConfigDialogOpen = false)}>Cancel</Button
+                >
+                <Button onclick={handleSaveConfig}>Save Changes</Button>
+            </Dialog.Footer>
+        {:else}
+            <div class="p-4 flex justify-center py-8">
+                <div
+                    class="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"
+                ></div>
+            </div>
+        {/if}
+    </Dialog.Content>
+</Dialog.Root>

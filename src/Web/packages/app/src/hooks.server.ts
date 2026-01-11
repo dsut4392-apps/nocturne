@@ -3,10 +3,16 @@ import { ApiClient } from "$lib/api/api-client";
 import type { HandleServerError } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
 import { env as publicEnv } from "$env/dynamic/public";
+import { dev } from "$app/environment";
 import { createHash } from "crypto";
 import { sequence } from "@sveltejs/kit/hooks";
 import type { AuthUser } from "./app.d";
 import { AUTH_COOKIE_NAMES } from "$lib/config/auth-cookies";
+
+// Turn off SSL validation during development for self-signed certs
+if (dev) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 
 /**
  * Helper to get the API base URL (server-side internal or public)

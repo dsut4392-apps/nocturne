@@ -21,6 +21,7 @@
     Palette,
     Timer,
     Shield,
+    Import,
   } from "lucide-svelte";
 
   type SettingsSection = {
@@ -100,6 +101,13 @@
       badge: "Connectors",
     },
     {
+      id: "migration",
+      title: "Data Migration",
+      description: "Import data from Nightscout or MongoDB",
+      icon: Import,
+      href: "/settings/migration",
+    },
+    {
       id: "admin",
       title: "Administration",
       description: "Manage subjects, roles, and access tokens",
@@ -107,6 +115,7 @@
       href: "/settings/admin",
       badge: "Admin",
     },
+
     {
       id: "support",
       title: "Support & Community",

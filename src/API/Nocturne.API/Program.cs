@@ -13,7 +13,7 @@ using Nocturne.API.Middleware.Handlers;
 using Nocturne.API.Services;
 using Nocturne.API.Services.Auth;
 using Nocturne.API.Services.BackgroundServices;
-using Nocturne.API.Services.Compatibility;
+
 using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Services;
@@ -92,7 +92,7 @@ builder.Services.AddPostgreSqlInfrastructure(
 
 builder.Services.AddDiscrepancyAnalysisRepository();
 builder.Services.AddAlertRepositories();
-builder.Services.AddScoped<ICompatibilityReportService, CompatibilityReportService>();
+
 builder.Services.AddDataProtection();
 
 // Add compatibility proxy services
@@ -395,7 +395,7 @@ builder.Services.Configure<DeviceHealthOptions>(
 
 // Register device health services
 builder.Services.AddScoped<IDeviceRegistryService, DeviceRegistryService>();
-builder.Services.AddScoped<IDeviceHealthAnalysisService, DeviceHealthAnalysisService>();
+
 
 // Configure alert monitoring settings
 builder.Services.Configure<AlertMonitoringOptions>(
@@ -423,6 +423,9 @@ builder.Services.AddScoped<IConnectorHealthService, ConnectorHealthService>();
 
 // Register migration job service for data migration from Nightscout
 builder.Services.AddSingleton<Nocturne.API.Services.Migration.IMigrationJobService, Nocturne.API.Services.Migration.MigrationJobService>();
+
+// Register migration startup service to check for pending migrations and create admin notifications
+builder.Services.AddHostedService<Nocturne.API.Services.Migration.MigrationStartupService>();
 
 var app = builder.Build();
 

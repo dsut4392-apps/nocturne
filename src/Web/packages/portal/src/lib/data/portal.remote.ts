@@ -7,8 +7,11 @@ const emptySchema = z.object({});
 const generateRequestSchema = z.object({
   setupType: z.enum(["fresh", "migrate", "compatibility-proxy"]),
   migration: z.object({
+    mode: z.enum(["Api", "MongoDb"]).optional(),
     nightscoutUrl: z.string(),
     nightscoutApiSecret: z.string(),
+    mongoConnectionString: z.string().optional(),
+    mongoDatabaseName: z.string().optional(),
   }).optional(),
   compatibilityProxy: z.object({
     nightscoutUrl: z.string(),

@@ -389,12 +389,31 @@ public class DockerComposeGenerator
             }
         }
 
-        // Migration/Nightscout connector source configuration
+        // Migration configuration - emit MIGRATION_* env vars for pending migration notifications
+        // These enable the API to pre-populate the migration form and show notifications
         if (request.SetupType == "migrate" && request.Migration != null)
         {
-            values["CONNECT_NS_URL"] = request.Migration.NightscoutUrl;
-            values["CONNECT_NS_API_SECRET"] = request.Migration.NightscoutApiSecret;
+            values["MIGRATION_MODE"] = request.Migration.Mode;
+
+            if (request.Migration.Mode == "Api")
+            {
+                values["MIGRATION_NS_URL"] = request.Migration.NightscoutUrl ?? "";
+                values["MIGRATION_NS_API_SECRET"] = request.Migration.NightscoutApiSecret ?? "";
+            }
+            else // MongoDb mode
+            {
+                values["MIGRATION_MONGO_CONNECTION_STRING"] = request.Migration.MongoConnectionString ?? "";
+                values["MIGRATION_MONGO_DATABASE_NAME"] = request.Migration.MongoDatabaseName ?? "";
+            }
+
+            // Also set connector env vars for ongoing sync (API mode only)
+            if (request.Migration.Mode == "Api" && !string.IsNullOrEmpty(request.Migration.NightscoutUrl))
+            {
+                values["CONNECT_NS_URL"] = request.Migration.NightscoutUrl;
+                values["CONNECT_NS_API_SECRET"] = request.Migration.NightscoutApiSecret ?? "";
+            }
         }
+
 
         // Compatibility proxy configuration
         if (request.SetupType == "compatibility-proxy" && request.CompatibilityProxy != null)

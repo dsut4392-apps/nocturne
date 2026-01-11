@@ -22,6 +22,8 @@ public interface IMigrationJobService
     Task CancelAsync(Guid jobId);
     Task<IReadOnlyList<MigrationJobInfo>> GetHistoryAsync();
     Task<TestMigrationConnectionResult> TestConnectionAsync(TestMigrationConnectionRequest request, CancellationToken ct = default);
+    PendingMigrationConfig GetPendingConfig();
+    Task<IReadOnlyList<MigrationSourceDto>> GetSourcesAsync(CancellationToken ct = default);
 }
 
 /// <summary>
@@ -31,16 +33,19 @@ public class MigrationJobService : IMigrationJobService
 {
     private readonly ILogger<MigrationJobService> _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IConfiguration _configuration;
     private readonly ConcurrentDictionary<Guid, MigrationJob> _jobs = new();
     private readonly List<MigrationJobInfo> _history = [];
     private readonly object _historyLock = new();
 
     public MigrationJobService(
         ILogger<MigrationJobService> logger,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        IConfiguration configuration)
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
+        _configuration = configuration;
     }
 
     public async Task<MigrationJobInfo> StartMigrationAsync(StartMigrationRequest request, CancellationToken ct = default)
@@ -248,7 +253,54 @@ public class MigrationJobService : IMigrationJobService
             AvailableCollections = collectionList
         };
     }
+
+    public PendingMigrationConfig GetPendingConfig()
+    {
+        var migrationMode = _configuration["MIGRATION_MODE"];
+
+        if (string.IsNullOrEmpty(migrationMode))
+        {
+            return new PendingMigrationConfig { HasPendingConfig = false };
+        }
+
+        var mode = migrationMode.Equals("MongoDb", StringComparison.OrdinalIgnoreCase)
+            ? MigrationMode.MongoDb
+            : MigrationMode.Api;
+
+        return new PendingMigrationConfig
+        {
+            HasPendingConfig = true,
+            Mode = mode,
+            NightscoutUrl = _configuration["MIGRATION_NS_URL"],
+            HasApiSecret = !string.IsNullOrEmpty(_configuration["MIGRATION_NS_API_SECRET"]),
+            HasMongoConnectionString = !string.IsNullOrEmpty(_configuration["MIGRATION_MONGO_CONNECTION_STRING"]),
+            MongoDatabaseName = _configuration["MIGRATION_MONGO_DATABASE_NAME"]
+        };
+    }
+
+    public async Task<IReadOnlyList<MigrationSourceDto>> GetSourcesAsync(CancellationToken ct = default)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<NocturneDbContext>();
+
+        var sources = await dbContext.MigrationSources
+            .OrderByDescending(s => s.LastMigrationAt ?? s.CreatedAt)
+            .Select(s => new MigrationSourceDto
+            {
+                Id = s.Id,
+                Mode = s.Mode == "MongoDb" ? MigrationMode.MongoDb : MigrationMode.Api,
+                NightscoutUrl = s.NightscoutUrl,
+                MongoDatabaseName = s.MongoDatabaseName,
+                LastMigrationAt = s.LastMigrationAt,
+                LastMigratedDataTimestamp = s.LastMigratedDataTimestamp,
+                CreatedAt = s.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        return sources;
+    }
 }
+
 
 /// <summary>
 /// Represents a running migration job

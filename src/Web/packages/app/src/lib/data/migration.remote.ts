@@ -127,3 +127,34 @@ export const getMigrationHistory = query(async () => {
     throw error(500, "Failed to get migration history");
   }
 });
+
+/**
+ * Get pending migration config from environment variables
+ */
+export const getPendingConfig = query(async () => {
+  const { locals } = getRequestEvent();
+  const { apiClient } = locals;
+
+  try {
+    return await apiClient.migration.getPendingConfig();
+  } catch (err) {
+    console.error("Error getting pending migration config:", err);
+    throw error(500, "Failed to get pending migration config");
+  }
+});
+
+/**
+ * Get saved migration sources with last sync timestamps
+ */
+export const getMigrationSources = query(async () => {
+  const { locals } = getRequestEvent();
+  const { apiClient } = locals;
+
+  try {
+    return await apiClient.migration.getSources();
+  } catch (err) {
+    console.error("Error getting migration sources:", err);
+    throw error(500, "Failed to get migration sources");
+  }
+});
+

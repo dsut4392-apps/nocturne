@@ -1,9 +1,43 @@
 <script lang="ts">
-    import { wizardStore } from "$lib/stores/wizard.svelte";
     import type { GenerateRequest } from "$lib/data/portal.remote";
     import { Button } from "@nocturne/app/ui/button";
     import * as Card from "@nocturne/app/ui/card";
     import { ChevronLeft, Download, CheckCircle } from "@lucide/svelte";
+    import { useSearchParams } from "runed/kit";
+    import { z } from "zod";
+
+    // Same schema as setup page to read URL params
+    const DownloadParamsSchema = z.object({
+        step: z.coerce.number().default(0),
+        type: z.enum(["fresh", "migrate", "compatibility-proxy"]).optional(),
+        // Database config
+        useContainer: z.coerce.boolean().default(true),
+        connectionString: z.string().optional(),
+        // Optional services
+        watchtower: z.coerce.boolean().default(true),
+        includeDashboard: z.coerce.boolean().default(true),
+        includeScalar: z.coerce.boolean().default(true),
+        // Nightscout config (for migrate/proxy)
+        nightscoutUrl: z.string().optional(),
+        nightscoutApiSecret: z.string().optional(),
+        enableDetailedLogging: z.coerce.boolean().default(false),
+        // Migration-specific: MongoDB connection
+        migrationMode: z.enum(["Api", "MongoDb"]).default("Api"),
+        mongoConnectionString: z.string().optional(),
+        mongoDatabaseName: z.string().optional(),
+        // Connectors (comma-separated list)
+        connectors: z.string().optional(),
+    });
+
+    const params = useSearchParams(DownloadParamsSchema, {
+        updateURL: false, // Don't update URL on this page, just read
+        noScroll: true,
+    });
+
+    // Parse connectors from URL
+    const selectedConnectors = $derived(
+        params.connectors?.split(",").filter(Boolean) ?? [],
+    );
 
     let generating = $state(false);
     let error = $state<string | null>(null);
@@ -14,15 +48,49 @@
 
         try {
             const request: GenerateRequest = {
-                setupType: wizardStore.setupType,
-                postgres: wizardStore.postgres,
-                optionalServices: wizardStore.optionalServices,
-                connectors: wizardStore.selectedConnectors.map((type) => ({
+                setupType: params.type ?? "fresh",
+                postgres: {
+                    useContainer: params.useContainer,
+                    connectionString: params.useContainer
+                        ? undefined
+                        : params.connectionString,
+                },
+                optionalServices: {
+                    watchtower: params.watchtower,
+                    includeDashboard: params.includeDashboard,
+                    includeScalar: params.includeScalar,
+                },
+                connectors: selectedConnectors.map((type) => ({
                     type,
-                    config: wizardStore.connectorConfigs[type] || {},
+                    config: {}, // Connector configs would need separate handling
                 })),
-                migration: wizardStore.migration,
-                compatibilityProxy: wizardStore.compatibilityProxy,
+                migration:
+                    params.type === "migrate"
+                        ? {
+                              mode: params.migrationMode,
+                              nightscoutUrl: params.nightscoutUrl ?? "",
+                              nightscoutApiSecret:
+                                  params.nightscoutApiSecret ?? "",
+                              mongoConnectionString:
+                                  params.migrationMode === "MongoDb"
+                                      ? params.mongoConnectionString
+                                      : undefined,
+                              mongoDatabaseName:
+                                  params.migrationMode === "MongoDb"
+                                      ? params.mongoDatabaseName
+                                      : undefined,
+                          }
+                        : undefined,
+                compatibilityProxy:
+                    params.type === "compatibility-proxy"
+                        ? {
+                              nightscoutUrl: params.nightscoutUrl ?? "",
+                              nightscoutApiSecret:
+                                  params.nightscoutApiSecret ?? "",
+                              enableDetailedLogging:
+                                  params.enableDetailedLogging,
+                          }
+                        : undefined,
             };
 
             // Direct fetch call for file download - remote functions can't serialize blobs
@@ -60,7 +128,7 @@
     }
 
     function getSetupTypeLabel(): string {
-        switch (wizardStore.setupType) {
+        switch (params.type) {
             case "fresh":
                 return "Fresh Install";
             case "migrate":
@@ -68,14 +136,21 @@
             case "compatibility-proxy":
                 return "Compatibility Proxy";
             default:
-                return wizardStore.setupType;
+                return params.type ?? "Unknown";
         }
+    }
+
+    function getBackUrl(): string {
+        // Preserve all params when going back
+        const searchParams = params.toURLSearchParams();
+        searchParams.set("step", "2");
+        return `/setup?${searchParams.toString()}`;
     }
 </script>
 
 <div class="max-w-2xl mx-auto">
     <Button
-        href="/connectors"
+        href={getBackUrl()}
         variant="ghost"
         size="sm"
         class="mb-8 gap-1 text-muted-foreground"
@@ -102,13 +177,26 @@
             </Card.Content>
         </Card.Root>
 
+        {#if params.type !== "fresh" && params.nightscoutUrl}
+            <Card.Root>
+                <Card.Header>
+                    <Card.Title>Nightscout Instance</Card.Title>
+                </Card.Header>
+                <Card.Content>
+                    <p class="text-muted-foreground">
+                        ✓ {params.nightscoutUrl}
+                    </p>
+                </Card.Content>
+            </Card.Root>
+        {/if}
+
         <Card.Root>
             <Card.Header>
                 <Card.Title>Database</Card.Title>
             </Card.Header>
             <Card.Content>
                 <p class="text-muted-foreground">
-                    {wizardStore.postgres.useContainer
+                    {params.useContainer
                         ? "✓ Using included PostgreSQL container"
                         : "✓ External database configured"}
                 </p>
@@ -120,11 +208,11 @@
                 <Card.Title>Connectors</Card.Title>
             </Card.Header>
             <Card.Content>
-                {#if wizardStore.selectedConnectors.length === 0}
+                {#if selectedConnectors.length === 0}
                     <p class="text-muted-foreground">No connectors selected</p>
                 {:else}
                     <ul class="space-y-2">
-                        {#each wizardStore.selectedConnectors as connector}
+                        {#each selectedConnectors as connector}
                             <li
                                 class="flex items-center gap-2 text-muted-foreground"
                             >
@@ -144,17 +232,13 @@
             <Card.Content>
                 <ul class="space-y-1 text-muted-foreground">
                     <li>
-                        {wizardStore.optionalServices.watchtower ? "✓" : "○"} Watchtower
-                        auto-updates
+                        {params.watchtower ? "✓" : "○"} Watchtower auto-updates
                     </li>
                     <li>
-                        {wizardStore.optionalServices.includeDashboard
-                            ? "✓"
-                            : "○"} Aspire Dashboard
+                        {params.includeDashboard ? "✓" : "○"} Aspire Dashboard
                     </li>
                     <li>
-                        {wizardStore.optionalServices.includeScalar ? "✓" : "○"} Scalar
-                        API docs
+                        {params.includeScalar ? "✓" : "○"} Scalar API docs
                     </li>
                 </ul>
             </Card.Content>

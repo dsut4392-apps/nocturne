@@ -84,7 +84,12 @@ public record MigrationJobInfo
     public required MigrationMode Mode { get; init; }
     public required DateTime CreatedAt { get; init; }
     public string? SourceDescription { get; init; }
+    public MigrationJobState State { get; init; }
+    public DateTime? StartedAt { get; init; }
+    public DateTime? CompletedAt { get; init; }
+    public string? ErrorMessage { get; init; }
 }
+
 
 /// <summary>
 /// Status of a migration job including progress
@@ -139,3 +144,81 @@ public record TestMigrationConnectionResult
     public long? TreatmentCount { get; init; }
     public List<string> AvailableCollections { get; init; } = [];
 }
+
+/// <summary>
+/// Pending migration configuration from environment variables
+/// </summary>
+public record PendingMigrationConfig
+{
+    /// <summary>
+    /// Whether there is a pending migration configuration in env vars
+    /// </summary>
+    public bool HasPendingConfig { get; init; }
+
+    /// <summary>
+    /// Migration mode from MIGRATION_MODE env var
+    /// </summary>
+    public MigrationMode? Mode { get; init; }
+
+    /// <summary>
+    /// Nightscout URL from MIGRATION_NS_URL env var
+    /// </summary>
+    public string? NightscoutUrl { get; init; }
+
+    /// <summary>
+    /// Whether MIGRATION_NS_API_SECRET is set (never returns the actual secret)
+    /// </summary>
+    public bool HasApiSecret { get; init; }
+
+    /// <summary>
+    /// Whether MIGRATION_MONGO_CONNECTION_STRING is set (never returns the actual string)
+    /// </summary>
+    public bool HasMongoConnectionString { get; init; }
+
+    /// <summary>
+    /// MongoDB database name from MIGRATION_MONGO_DATABASE_NAME env var
+    /// </summary>
+    public string? MongoDatabaseName { get; init; }
+}
+
+/// <summary>
+/// Migration source DTO for API responses
+/// </summary>
+public record MigrationSourceDto
+{
+    /// <summary>
+    /// Unique identifier for this source
+    /// </summary>
+    public required Guid Id { get; init; }
+
+    /// <summary>
+    /// Migration mode (Api or MongoDb)
+    /// </summary>
+    public required MigrationMode Mode { get; init; }
+
+    /// <summary>
+    /// Nightscout URL (for API mode)
+    /// </summary>
+    public string? NightscoutUrl { get; init; }
+
+    /// <summary>
+    /// MongoDB database name (for MongoDB mode)
+    /// </summary>
+    public string? MongoDatabaseName { get; init; }
+
+    /// <summary>
+    /// When the last successful migration completed
+    /// </summary>
+    public DateTime? LastMigrationAt { get; init; }
+
+    /// <summary>
+    /// Newest data timestamp migrated (for "since last" default)
+    /// </summary>
+    public DateTime? LastMigratedDataTimestamp { get; init; }
+
+    /// <summary>
+    /// When this source was first added
+    /// </summary>
+    public DateTime CreatedAt { get; init; }
+}
+

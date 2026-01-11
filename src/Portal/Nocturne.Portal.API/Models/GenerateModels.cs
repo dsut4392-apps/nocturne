@@ -38,9 +38,32 @@ public class GenerateRequest
 
 public class MigrationConfig
 {
-    public string NightscoutUrl { get; set; } = string.Empty;
-    public string NightscoutApiSecret { get; set; } = string.Empty;
+    /// <summary>
+    /// Migration mode: "Api" (default) or "MongoDb"
+    /// </summary>
+    public string Mode { get; set; } = "Api";
+
+    /// <summary>
+    /// Nightscout URL for API mode
+    /// </summary>
+    public string? NightscoutUrl { get; set; }
+
+    /// <summary>
+    /// Nightscout API secret for API mode
+    /// </summary>
+    public string? NightscoutApiSecret { get; set; }
+
+    /// <summary>
+    /// MongoDB connection string for MongoDB mode
+    /// </summary>
+    public string? MongoConnectionString { get; set; }
+
+    /// <summary>
+    /// MongoDB database name for MongoDB mode
+    /// </summary>
+    public string? MongoDatabaseName { get; set; }
 }
+
 
 public class CompatibilityProxyConfig
 {

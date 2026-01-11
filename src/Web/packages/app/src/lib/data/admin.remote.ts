@@ -8,7 +8,9 @@ import type {
   PasswordResetRequestListResponse,
   SetTemporaryPasswordResponse,
   HandlePasswordResetResponse,
+  SetTemporaryPasswordRequest,
 } from "$api";
+import { SetTemporaryPasswordRequestSchema } from "$lib/api/generated/schemas";
 
 export const getPendingPasswordResets = query(async () => {
   const { locals } = getRequestEvent();
@@ -23,19 +25,15 @@ export const getPendingPasswordResets = query(async () => {
 });
 
 export const setTemporaryPassword = command(
-  z.object({
-    email: z.string().email(),
-    temporaryPassword: z.string(),
-  }),
+  SetTemporaryPasswordRequestSchema,
   async (request) => {
     const { locals } = getRequestEvent();
     const { apiClient } = locals;
 
     try {
-      const result = (await apiClient.localAuth.setTemporaryPassword({
-        email: request.email,
-        temporaryPassword: request.temporaryPassword,
-      })) as SetTemporaryPasswordResponse;
+      const result = (await apiClient.localAuth.setTemporaryPassword(
+        request as SetTemporaryPasswordRequest
+      )) as SetTemporaryPasswordResponse;
       await getPendingPasswordResets().refresh();
       return result;
     } catch (err) {

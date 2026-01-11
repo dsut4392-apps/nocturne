@@ -5,6 +5,7 @@ import { getRequestEvent, query, command } from '$app/server';
 import { z } from 'zod';
 import { error } from '@sveltejs/kit';
 import type { Subject, Role } from '$api';
+import { SubjectSchema, RoleSchema } from '$lib/api/generated/schemas';
 
 // ============================================================================
 // Subjects
@@ -29,22 +30,13 @@ export const getSubjects = query(async () => {
  * Create a new subject
  */
 export const createSubject = command(
-	z.object({
-		name: z.string(),
-		roles: z.array(z.string()).optional(),
-		notes: z.string().optional(),
-	}),
+	SubjectSchema.pick({ name: true, roles: true, notes: true }),
 	async (request) => {
 		const { locals } = getRequestEvent();
 		const { apiClient } = locals;
 
 		try {
-			const subject: Subject = {
-				name: request.name,
-				roles: request.roles,
-				notes: request.notes,
-			};
-			const result = await apiClient.authorization.createSubject(subject);
+			const result = await apiClient.authorization.createSubject(request as Subject);
 			await getSubjects().refresh();
 			return result;
 		} catch (err) {
@@ -58,24 +50,13 @@ export const createSubject = command(
  * Update an existing subject
  */
 export const updateSubject = command(
-	z.object({
-		id: z.string(),
-		name: z.string(),
-		roles: z.array(z.string()).optional(),
-		notes: z.string().optional(),
-	}),
+	SubjectSchema.pick({ id: true, name: true, roles: true, notes: true }),
 	async (request) => {
 		const { locals } = getRequestEvent();
 		const { apiClient } = locals;
 
 		try {
-			const subject: Subject = {
-				id: request.id,
-				name: request.name,
-				roles: request.roles,
-				notes: request.notes,
-			};
-			const result = await apiClient.authorization.updateSubject(subject);
+			const result = await apiClient.authorization.updateSubject(request as Subject);
 			await getSubjects().refresh();
 			return result;
 		} catch (err) {
@@ -125,22 +106,13 @@ export const getRoles = query(async () => {
  * Create a new role
  */
 export const createRole = command(
-	z.object({
-		name: z.string(),
-		permissions: z.array(z.string()).optional(),
-		notes: z.string().optional(),
-	}),
+	RoleSchema.pick({ name: true, permissions: true, notes: true }),
 	async (request) => {
 		const { locals } = getRequestEvent();
 		const { apiClient } = locals;
 
 		try {
-			const role: Role = {
-				name: request.name,
-				permissions: request.permissions,
-				notes: request.notes,
-			};
-			const result = await apiClient.authorization.createRole(role);
+			const result = await apiClient.authorization.createRole(request as Role);
 			await getRoles().refresh();
 			return result;
 		} catch (err) {
@@ -154,24 +126,13 @@ export const createRole = command(
  * Update an existing role
  */
 export const updateRole = command(
-	z.object({
-		id: z.string(),
-		name: z.string(),
-		permissions: z.array(z.string()).optional(),
-		notes: z.string().optional(),
-	}),
+	RoleSchema.pick({ id: true, name: true, permissions: true, notes: true }),
 	async (request) => {
 		const { locals } = getRequestEvent();
 		const { apiClient } = locals;
 
 		try {
-			const role: Role = {
-				id: request.id,
-				name: request.name,
-				permissions: request.permissions,
-				notes: request.notes,
-			};
-			const result = await apiClient.authorization.updateRole(role);
+			const result = await apiClient.authorization.updateRole(request as Role);
 			await getRoles().refresh();
 			return result;
 		} catch (err) {

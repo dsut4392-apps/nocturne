@@ -4,16 +4,8 @@
 import { getRequestEvent, query, command } from "$app/server";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
-import { TreatmentFoodInputMode, type MealTreatment } from "$lib/api";
-
-const treatmentFoodRequestSchema = z.object({
-  foodId: z.string().optional(),
-  portions: z.number().optional(),
-  carbs: z.number().optional(),
-  timeOffsetMinutes: z.number().optional(),
-  note: z.string().optional(),
-  inputMode: z.enum(TreatmentFoodInputMode).optional(),
-});
+import { type MealTreatment, type TreatmentFoodRequest, type Food } from "$lib/api";
+import { TreatmentFoodRequestSchema, FoodSchema } from "$lib/api/generated/schemas";
 
 /**
  * Get food breakdown for a treatment
@@ -36,14 +28,14 @@ export const getTreatmentFoodBreakdown = query(z.string(), async (treatmentId) =
 export const addTreatmentFood = command(
   z.object({
     treatmentId: z.string(),
-    request: treatmentFoodRequestSchema,
+    request: TreatmentFoodRequestSchema,
   }),
   async ({ treatmentId, request }) => {
     const { locals } = getRequestEvent();
     const { apiClient } = locals;
 
     try {
-      const result = await apiClient.treatmentFoods.addTreatmentFood(treatmentId, request);
+      const result = await apiClient.treatmentFoods.addTreatmentFood(treatmentId, request as TreatmentFoodRequest);
       await getTreatmentFoodBreakdown(treatmentId).refresh();
       return result;
     } catch (err) {
@@ -60,7 +52,7 @@ export const updateTreatmentFood = command(
   z.object({
     treatmentId: z.string(),
     entryId: z.string(),
-    request: treatmentFoodRequestSchema,
+    request: TreatmentFoodRequestSchema,
   }),
   async ({ treatmentId, entryId, request }) => {
     const { locals } = getRequestEvent();
@@ -70,7 +62,7 @@ export const updateTreatmentFood = command(
       const result = await apiClient.treatmentFoods.updateTreatmentFood(
         treatmentId,
         entryId,
-        request
+        request as TreatmentFoodRequest
       );
       await getTreatmentFoodBreakdown(treatmentId).refresh();
       return result;
@@ -234,34 +226,16 @@ export const removeFavoriteFood = command(z.string(), async (foodId) => {
 });
 
 /**
- * Schema for food record create/update
- */
-const foodRecordSchema = z.object({
-  _id: z.string().optional(),
-  type: z.literal("food").default("food"),
-  category: z.string(),
-  subcategory: z.string(),
-  name: z.string(),
-  portion: z.number(),
-  carbs: z.number(),
-  fat: z.number(),
-  protein: z.number(),
-  energy: z.number(),
-  gi: z.number(),
-  unit: z.string(),
-});
-
-/**
  * Create a new food record
  */
 export const createNewFood = command(
-  foodRecordSchema.omit({ _id: true }),
+  FoodSchema.omit({ _id: true }),
   async (food) => {
     const { locals } = getRequestEvent();
     const { apiClient } = locals;
 
     try {
-      const result = await apiClient.food.createFood2(food);
+      const result = await apiClient.food.createFood2(food as Food);
       await Promise.all([
         getAllFoods().refresh(),
         getRecentFoods(undefined).refresh(),
@@ -277,7 +251,7 @@ export const createNewFood = command(
 /**
  * Update an existing food record
  */
-export const updateExistingFood = command(foodRecordSchema, async (food) => {
+export const updateExistingFood = command(FoodSchema, async (food) => {
   const { locals } = getRequestEvent();
   const { apiClient } = locals;
 
@@ -285,7 +259,7 @@ export const updateExistingFood = command(foodRecordSchema, async (food) => {
     if (!food._id) {
       throw error(400, "Food ID is required for update");
     }
-    await apiClient.food.updateFood2(food._id, food);
+    await apiClient.food.updateFood2(food._id, food as Food);
     await Promise.all([
       getAllFoods().refresh(),
       getFoodById(food._id).refresh(),

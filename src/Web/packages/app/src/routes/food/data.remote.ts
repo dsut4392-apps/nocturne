@@ -6,21 +6,8 @@ import { error } from '@sveltejs/kit';
 import { z } from 'zod';
 
 import type { FoodRecord, QuickPickRecord } from './types';
-
-const foodRecordSchema = z.object({
-	_id: z.string().optional(),
-	type: z.literal('food'),
-	category: z.string(),
-	subcategory: z.string(),
-	name: z.string(),
-	portion: z.number(),
-	carbs: z.number(),
-	fat: z.number(),
-	protein: z.number(),
-	energy: z.number(),
-	gi: z.number(),
-	unit: z.string(),
-});
+import type { Food } from '$lib/api';
+import { FoodSchema } from '$lib/api/generated/schemas';
 
 const quickPickRecordSchema = z.object({
 	_id: z.string().optional(),
@@ -92,12 +79,12 @@ export const getFoodData = query(async () => {
 /**
  * Create a new food record
  */
-export const createFood = command(foodRecordSchema.omit({ _id: true }), async (food) => {
+export const createFood = command(FoodSchema.omit({ _id: true }), async (food) => {
 	const { locals } = getRequestEvent();
 	const { apiClient } = locals;
 
 	try {
-		const result = await apiClient.food.createFood2(food as any);
+		const result = await apiClient.food.createFood2(food as Food);
 		return { success: true, record: result[0] };
 	} catch (err) {
 		console.error('Error creating food:', err);
@@ -108,7 +95,7 @@ export const createFood = command(foodRecordSchema.omit({ _id: true }), async (f
 /**
  * Update an existing food record
  */
-export const updateFood = command(foodRecordSchema, async (food) => {
+export const updateFood = command(FoodSchema, async (food) => {
 	const { locals } = getRequestEvent();
 	const { apiClient } = locals;
 
@@ -116,7 +103,7 @@ export const updateFood = command(foodRecordSchema, async (food) => {
 		if (!food._id) {
 			return { success: false, error: 'Food ID is required for update' };
 		}
-		await apiClient.food.updateFood2(food._id, food as any);
+		await apiClient.food.updateFood2(food._id, food as Food);
 		return { success: true };
 	} catch (err) {
 		console.error('Error updating food:', err);

@@ -1,34 +1,8 @@
 import { getRequestEvent, query, command } from "$app/server";
 import type { Treatment } from "$lib/api";
+import { TreatmentSchema } from "$lib/api/generated/schemas";
 import { z } from "zod";
 import { TREATMENT_CATEGORIES } from "$lib/constants/treatment-categories";
-
-// Schema for creating/updating treatments
-// We use a loose schema here since strict validation is handled by the API/backend
-const treatmentSchema = z.object({
-  _id: z.string().optional(),
-  eventType: z.string().optional(),
-  created_at: z.string().optional(),
-  glucose: z.number().optional(),
-  glucoseType: z.string().optional(),
-  carbs: z.number().optional(),
-  insulin: z.number().optional(),
-  units: z.string().optional(),
-  notes: z.string().optional(),
-  enteredBy: z.string().optional(),
-  reason: z.string().optional(),
-  profile: z.string().optional(),
-  duration: z.number().optional(),
-  percent: z.number().optional(),
-  absolute: z.number().optional(),
-  rate: z.number().optional(),
-  preBolus: z.number().optional(),
-  carbsConsumed: z.number().optional(),
-  absorptionTime: z.number().optional(),
-  targetTop: z.number().optional(),
-  targetBottom: z.number().optional(),
-  additional_properties: z.record(z.string(), z.any()).optional(),
-}).passthrough(); // Allow other properties
 
 // Schema for fetching treatments with pagination and filtering
 const treatmentsQuerySchema = z.object({
@@ -222,7 +196,7 @@ export const getTreatmentStats = query(
 /**
  * Create a new treatment
  */
-export const createTreatment = command(treatmentSchema, async (treatment) => {
+export const createTreatment = command(TreatmentSchema, async (treatment) => {
   const { locals } = getRequestEvent();
   const { apiClient } = locals;
   return apiClient.treatments.createTreatment(treatment as Treatment);
@@ -231,7 +205,7 @@ export const createTreatment = command(treatmentSchema, async (treatment) => {
 /**
  * Update an existing treatment
  */
-export const updateTreatment = command(treatmentSchema, async (treatment) => {
+export const updateTreatment = command(TreatmentSchema, async (treatment) => {
   const { locals } = getRequestEvent();
   const { apiClient } = locals;
   if (!treatment._id) throw new Error("Treatment ID required for update");

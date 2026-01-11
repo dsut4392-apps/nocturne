@@ -7,14 +7,12 @@ import { error } from '@sveltejs/kit';
 import {
 	TrackerCategory,
 	CompletionReason,
-	NotificationUrgency,
-	DashboardVisibility,
-	TrackerVisibility,
 	type CreateTrackerDefinitionRequest,
 	type UpdateTrackerDefinitionRequest,
 	type CompleteTrackerInstanceRequest,
 	type AckTrackerRequest,
 } from '$api';
+import { CreateTrackerDefinitionRequestSchema, UpdateTrackerDefinitionRequestSchema } from '$lib/api/generated/schemas';
 
 /**
  * Get all tracker definitions
@@ -57,29 +55,12 @@ export const getDefinition = query(z.string(), async (id) => {
  * Create a new tracker definition
  */
 export const createDefinition = command(
-	z.object({
-		name: z.string(),
-		description: z.string().optional(),
-		category: z.enum(TrackerCategory).optional(),
-		icon: z.string().optional(),
-		triggerEventTypes: z.array(z.string()).optional(),
-		triggerNotesContains: z.string().optional(),
-		lifespanHours: z.number().optional(),
-		notificationThresholds: z.array(z.object({
-			urgency: z.enum(NotificationUrgency).optional(),
-			hours: z.number().optional(),
-			description: z.string().optional(),
-			displayOrder: z.number().optional(),
-		})).optional(),
-		isFavorite: z.boolean().optional(),
-		startEventType: z.string().optional(),
-		completionEventType: z.string().optional(),
-	}),
-	async (request: CreateTrackerDefinitionRequest) => {
+	CreateTrackerDefinitionRequestSchema,
+	async (request) => {
 		const { locals } = getRequestEvent();
 		const { apiClient } = locals;
 		try {
-			const result = await apiClient.trackers.createDefinition(request);
+			const result = await apiClient.trackers.createDefinition(request as CreateTrackerDefinitionRequest);
 			await getDefinitions(undefined).refresh();
 			return result;
 		} catch (err) {
@@ -93,38 +74,15 @@ export const createDefinition = command(
  * Update a tracker definition
  */
 export const updateDefinition = command(
-	z.object({
+	UpdateTrackerDefinitionRequestSchema.extend({
 		id: z.string(),
-		request: z.object({
-			name: z.string().optional(),
-			description: z.string().optional(),
-			category: z.enum(TrackerCategory).optional(),
-			icon: z.string().optional(),
-			triggerEventTypes: z.array(z.string()).optional(),
-			triggerNotesContains: z.string().optional(),
-			lifespanHours: z.number().optional(),
-			notificationThresholds: z.array(z.object({
-				urgency: z.enum(NotificationUrgency).optional(),
-				hours: z.number().optional(),
-				description: z.string().optional(),
-				displayOrder: z.number().optional(),
-			})).optional(),
-			isFavorite: z.boolean().optional(),
-			dashboardVisibility: z.enum(DashboardVisibility).optional(),
-			visibility: z.enum(TrackerVisibility).optional(),
-			startEventType: z.string().optional(),
-			completionEventType: z.string().optional(),
-		}),
 	}),
-	async ({ id, request }) => {
+	async ({ id, ...request }) => {
 		const { locals } = getRequestEvent();
 		const { apiClient } = locals;
 
 		try {
-			const result = await apiClient.trackers.updateDefinition(
-				id,
-				request as UpdateTrackerDefinitionRequest
-			);
+			const result = await apiClient.trackers.updateDefinition(id, request as UpdateTrackerDefinitionRequest);
 			await Promise.all([
 				getDefinitions(undefined).refresh(),
 				getDefinition(id).refresh(),

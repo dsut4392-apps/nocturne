@@ -4,45 +4,20 @@
 import { getRequestEvent, query, command } from "$app/server";
 import { z } from "zod";
 import { error } from "@sveltejs/kit";
-
-// Schema for test connection request
-const testConnectionSchema = z.object({
-  mode: z.enum(["Api", "MongoDb"]),
-  nightscoutUrl: z.string().optional(),
-  nightscoutApiSecret: z.string().optional(),
-  mongoConnectionString: z.string().optional(),
-  mongoDatabaseName: z.string().optional(),
-});
-
-// Schema for start migration request
-const startMigrationSchema = z.object({
-  mode: z.enum(["Api", "MongoDb"]),
-  nightscoutUrl: z.string().optional(),
-  nightscoutApiSecret: z.string().optional(),
-  mongoConnectionString: z.string().optional(),
-  mongoDatabaseName: z.string().optional(),
-  collections: z.array(z.string()).default([]),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-});
+import type { TestMigrationConnectionRequest, StartMigrationRequest } from "$lib/api";
+import { TestMigrationConnectionRequestSchema, StartMigrationRequestSchema } from "$lib/api/generated/schemas";
 
 /**
  * Test a migration source connection
  */
 export const testMigrationConnection = command(
-  testConnectionSchema,
+  TestMigrationConnectionRequestSchema,
   async (request) => {
     const { locals } = getRequestEvent();
     const { apiClient } = locals;
 
     try {
-      return await apiClient.migration.testConnection({
-        mode: request.mode,
-        nightscoutUrl: request.nightscoutUrl,
-        nightscoutApiSecret: request.nightscoutApiSecret,
-        mongoConnectionString: request.mongoConnectionString,
-        mongoDatabaseName: request.mongoDatabaseName,
-      });
+      return await apiClient.migration.testConnection(request as TestMigrationConnectionRequest);
     } catch (err) {
       console.error("Error testing migration connection:", err);
       throw error(500, "Failed to test migration connection");
@@ -53,21 +28,12 @@ export const testMigrationConnection = command(
 /**
  * Start a new migration job
  */
-export const startMigration = command(startMigrationSchema, async (request) => {
+export const startMigration = command(StartMigrationRequestSchema, async (request) => {
   const { locals } = getRequestEvent();
   const { apiClient } = locals;
 
   try {
-    const result = await apiClient.migration.startMigration({
-      mode: request.mode,
-      nightscoutUrl: request.nightscoutUrl,
-      nightscoutApiSecret: request.nightscoutApiSecret,
-      mongoConnectionString: request.mongoConnectionString,
-      mongoDatabaseName: request.mongoDatabaseName,
-      collections: request.collections,
-      startDate: request.startDate ? new Date(request.startDate) : undefined,
-      endDate: request.endDate ? new Date(request.endDate) : undefined,
-    });
+    const result = await apiClient.migration.startMigration(request as StartMigrationRequest);
     await getMigrationHistory.refresh();
     return result;
   } catch (err) {

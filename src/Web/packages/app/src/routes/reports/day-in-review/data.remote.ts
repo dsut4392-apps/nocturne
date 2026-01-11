@@ -52,6 +52,7 @@ export const getDayInReviewData = query(
 		const authenticatedFetch = (apiClient.client as any).http.fetch;
 
 		const [entriesResponse, treatmentsResponse] = await Promise.all([
+			// TODO: Use the proper API client.
 			authenticatedFetch(`${baseUrl}/api/v1/Entries?${entriesQueryParams.toString()}`, {
 				method: 'GET',
 				headers: { 'Accept': 'application/json' }

@@ -7,24 +7,7 @@ import { z } from "zod";
 // Zod Schemas for Profile Validation
 // ============================================================================
 
-const timeValueSchema = z.object({
-  time: z.string().optional(),
-  value: z.number().optional(),
-});
-
-const profileDataSchema = z.object({
-  dia: z.number().optional(),
-  carbs_hr: z.number().optional(),
-  delay: z.number().optional(),
-  timezone: z.string().optional(),
-  units: z.string().optional(),
-  basal: z.array(timeValueSchema).optional(),
-  carbratio: z.array(timeValueSchema).optional(),
-  sens: z.array(timeValueSchema).optional(),
-  target_low: z.array(timeValueSchema).optional(),
-  target_high: z.array(timeValueSchema).optional(),
-});
-
+// Local profile schema for form validation (generated schema has .strict() which is incompatible with forms)
 const profileSchema = z.object({
   _id: z.string().optional(),
   defaultProfile: z.string().optional(),
@@ -32,8 +15,10 @@ const profileSchema = z.object({
   mills: z.number().optional(),
   created_at: z.string().optional(),
   units: z.string().optional(),
-  icon: z.string().optional(),
-  store: z.record(z.string(), profileDataSchema).optional(),
+  store: z.record(z.string(), z.any()).optional(),
+  enteredBy: z.string().optional(),
+  loopSettings: z.any().optional(),
+  isExternallyManaged: z.boolean().optional(),
 });
 
 const createProfileSchema = z.object({

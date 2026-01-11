@@ -24,16 +24,16 @@ export const getCompatibilityData = query(
 		const { apiClient } = locals;
 
 		try {
-			const requestPath = filters?.requestPath || undefined;
+			const requestPath = filters?.requestPath;
 			const overallMatch = filters?.overallMatch as ResponseMatchType | undefined;
-			const requestMethod = filters?.requestMethod || undefined;
+			const requestMethod = filters?.requestMethod;
 			const count = filters?.count ?? 100;
 			const skip = filters?.skip ?? 0;
 
 			const [config, metrics, endpoints, analysesData] = await Promise.all([
 				apiClient.compatibility.getConfiguration(),
-				apiClient.compatibility.getMetrics(undefined, undefined),
-				apiClient.compatibility.getEndpointMetrics(undefined, undefined),
+				apiClient.compatibility.getMetrics(),
+				apiClient.compatibility.getEndpointMetrics(),
 				apiClient.compatibility.getAnalyses(
 					requestPath,
 					overallMatch,
@@ -117,9 +117,9 @@ export const getCompatibilityAnalyses = query(
 		const { locals } = getRequestEvent();
 		const { apiClient } = locals;
 		try {
-			const requestPath = filters?.requestPath || undefined;
+			const requestPath = filters?.requestPath;
 			const overallMatch = filters?.overallMatch as ResponseMatchType | undefined;
-			const requestMethod = filters?.requestMethod || undefined;
+			const requestMethod = filters?.requestMethod;
 			const count = filters?.count ?? 100;
 			const skip = filters?.skip ?? 0;
 

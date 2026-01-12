@@ -1,20 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
+using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using Nocturne.Connectors.Configurations;
-using Nocturne.Connectors.Core.Constants;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Core.Services;
-using Nocturne.Connectors.FreeStyle;
 using Nocturne.Connectors.FreeStyle.Constants;
 using Nocturne.Core.Models;
 using Nocturne.Core.Constants;
@@ -27,14 +18,29 @@ namespace Nocturne.Connectors.FreeStyle.Services
     /// Connector service for LibreLinkUp data source
     /// Enhanced implementation based on the original nightscout-connect LibreLinkUp implementation
     /// </summary>
-    public class LibreConnectorService : BaseConnectorService<LibreLinkUpConnectorConfiguration>
+    public class LibreConnectorService(
+        HttpClient httpClient,
+        IOptions<LibreLinkUpConnectorConfiguration> config,
+        ILogger<LibreConnectorService> logger,
+        IRetryDelayStrategy retryDelayStrategy,
+        IRateLimitingStrategy rateLimitingStrategy,
+        IAuthTokenProvider tokenProvider,
+        IApiDataSubmitter? apiDataSubmitter = null,
+        IConnectorMetricsTracker? metricsTracker = null,
+        IConnectorStateService? stateService = null
+) : BaseConnectorService<LibreLinkUpConnectorConfiguration>(httpClient, logger, apiDataSubmitter, metricsTracker, stateService)
     {
-        private readonly LibreLinkUpConnectorConfiguration _config;
-        private readonly IRetryDelayStrategy _retryDelayStrategy;
-        private readonly IRateLimitingStrategy _rateLimitingStrategy;
-        private readonly IAuthTokenProvider _tokenProvider;
+        private readonly LibreLinkUpConnectorConfiguration _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
+        private readonly IRetryDelayStrategy _retryDelayStrategy = retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
+        private readonly IRateLimitingStrategy _rateLimitingStrategy = rateLimitingStrategy ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
+        private readonly IAuthTokenProvider _tokenProvider = tokenProvider ?? throw new ArgumentNullException(nameof(tokenProvider));
         private LibreUserConnection? _selectedConnection;
-        private int _failedRequestCount = 0;
+        private int _failedRequestCount;
+        private string _accountIdHash = string.Empty;
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+        };
 
         private static readonly Dictionary<string, string> KnownEndpoints = new()
         {
@@ -66,37 +72,44 @@ namespace Nocturne.Connectors.FreeStyle.Services
         /// </summary>
         public override string ConnectorSource => DataSources.LibreConnector;
 
-        public override List<SyncDataType> SupportedDataTypes => new() { SyncDataType.Glucose };
-
-        public LibreConnectorService(
-            HttpClient httpClient,
-            IOptions<LibreLinkUpConnectorConfiguration> config,
-            ILogger<LibreConnectorService> logger,
-            IRetryDelayStrategy retryDelayStrategy,
-            IRateLimitingStrategy rateLimitingStrategy,
-            IAuthTokenProvider tokenProvider,
-            IApiDataSubmitter? apiDataSubmitter = null,
-            IConnectorMetricsTracker? metricsTracker = null,
-            IConnectorStateService? stateService = null
-        )
-            : base(httpClient, logger, apiDataSubmitter, metricsTracker, stateService)
-        {
-            _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
-            _retryDelayStrategy =
-                retryDelayStrategy ?? throw new ArgumentNullException(nameof(retryDelayStrategy));
-            _rateLimitingStrategy =
-                rateLimitingStrategy
-                ?? throw new ArgumentNullException(nameof(rateLimitingStrategy));
-            _tokenProvider = tokenProvider ?? throw new ArgumentNullException(nameof(tokenProvider));
-        }
+        public override List<SyncDataType> SupportedDataTypes => [SyncDataType.Glucose];
 
         public override async Task<bool> AuthenticateAsync()
         {
             var token = await _tokenProvider.GetValidTokenAsync();
             if (token == null)
             {
+                _accountIdHash = string.Empty;
                 _failedRequestCount++;
                 return false;
+            }
+
+            _accountIdHash = string.Empty;
+            try
+            {
+                var handler = new JwtSecurityTokenHandler();
+                var jwt = handler.ReadToken(token) as JwtSecurityToken;
+                if (jwt is null)
+                {
+                    _logger.LogWarning("LibreLinkUp token is not a valid JWT");
+                }
+
+                if (jwt is not null)
+                {
+                    var claim = jwt.Claims.FirstOrDefault(c => c.Type == "id");
+                    if (claim?.Value is { Length: > 0 } value)
+                    {
+                        _accountIdHash = ComputeSha256Hex(value);
+                    }
+                    if (_accountIdHash.Length == 0)
+                    {
+                        _logger.LogWarning("LibreLinkUp token missing id claim");
+                    }
+                }
+            }
+            catch (ArgumentException)
+            {
+                _logger.LogWarning("LibreLinkUp token is not a valid JWT");
             }
 
             // Set up authorization header for subsequent requests
@@ -110,13 +123,21 @@ namespace Nocturne.Connectors.FreeStyle.Services
             return true;
         }
 
+
         private async Task LoadConnectionsAsync()
         {
             try
             {
-                var response = await _httpClient.GetAsync(
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Get,
                     LibreLinkUpConstants.ApiPaths.Connections
                 );
+                if (!string.IsNullOrWhiteSpace(_accountIdHash))
+                {
+                    request.Headers.TryAddWithoutValidation("Account-Id", _accountIdHash);
+                }
+
+                var response = await _httpClient.SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -129,7 +150,8 @@ namespace Nocturne.Connectors.FreeStyle.Services
 
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var connectionsResponse = JsonSerializer.Deserialize<LibreConnectionsResponse>(
-                    responseContent
+                    responseContent,
+                    JsonOptions
                 );
 
                 if (connectionsResponse?.Data == null || connectionsResponse.Data.Length == 0)
@@ -181,6 +203,13 @@ namespace Nocturne.Connectors.FreeStyle.Services
                     }
                 }
 
+                if (string.IsNullOrWhiteSpace(_selectedConnection?.PatientId))
+                {
+                    throw new InvalidOperationException(
+                        "Invalid LibreLinkUp patient id"
+                    );
+                }
+
                 var url = string.Format(
                     LibreLinkUpConstants.ApiPaths.GraphData,
                     _selectedConnection?.PatientId!
@@ -217,14 +246,21 @@ namespace Nocturne.Connectors.FreeStyle.Services
                         attempt + 1,
                         maxRetries
                     );
+                    
+                    using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                    if (!string.IsNullOrWhiteSpace(_accountIdHash))
+                    {
+                        request.Headers.TryAddWithoutValidation("Account-Id", _accountIdHash);
+                    }
 
-                    var response = await _httpClient.GetAsync(url);
+                    var response = await _httpClient.SendAsync(request);
 
                     if (response.IsSuccessStatusCode)
                     {
                         var jsonContent = await response.Content.ReadAsStringAsync();
                         var graphResponse = JsonSerializer.Deserialize<LibreGraphResponse>(
-                            jsonContent
+                            jsonContent,
+                            JsonOptions
                         );
 
                         if (graphResponse?.Data?.Connection?.GlucoseMeasurement == null)
@@ -428,7 +464,11 @@ namespace Nocturne.Connectors.FreeStyle.Services
             }
         }
 
-
+        private static string ComputeSha256Hex(string value)
+        {
+            var bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value));
+            return Convert.ToHexString(bytes).ToLowerInvariant();
+        }
 
         private class LibreLoginResponse
         {

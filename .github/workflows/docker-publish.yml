@@ -89,6 +89,12 @@ jobs:
       - name: Restore .NET dependencies
         run: dotnet restore
 
+      # Copy appsettings.example.json to appsettings.json for NSwag client generation
+      # The actual values don't matter for NSwag - it just needs the file to exist
+      # to satisfy the Program.cs configuration loading during OpenAPI schema extraction
+      - name: Setup appsettings.json for NSwag
+        run: cp appsettings.example.json appsettings.json
+
       # Build container images using .NET's built-in container support
       # Aspire projects are standard .NET projects that can be published as containers
       - name: Build and push Nocturne.API container
@@ -243,6 +249,19 @@ jobs:
       - name: Restore .NET dependencies
         run: dotnet restore
 
+      # Copy appsettings.example.json to appsettings.json for NSwag client generation
+      - name: Setup appsettings.json for NSwag
+        run: cp appsettings.example.json appsettings.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build oref.wasm
+        working-directory: src/Core/oref
+        run: cargo build --release --target wasm32-unknown-unknown
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -315,8 +334,8 @@ jobs:
 
           ## Container Images
 
-          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/nocturne-api:${{ steps.version.outputs.version }}`
-          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/nocturne-web:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/api:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/web:${{ steps.version.outputs.version }}`
           - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/dexcom-connector:${{ steps.version.outputs.version }}`
           - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/glooko-connector:${{ steps.version.outputs.version }}`
           - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/freestyle-connector:${{ steps.version.outputs.version }}`

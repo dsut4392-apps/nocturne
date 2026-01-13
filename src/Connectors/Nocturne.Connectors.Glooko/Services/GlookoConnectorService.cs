@@ -267,6 +267,26 @@ namespace Nocturne.Connectors.Glooko.Services
                         }
                     }
 
+                    // Transform and publish V2 StateSpans (temp basals, suspend basals)
+                    // These come from the V2 API which is always fetched
+                    var v2StateSpans = TransformV2ToStateSpans(batchData);
+                    if (v2StateSpans.Any())
+                    {
+                        var v2StateSpanSuccess = await PublishStateSpanDataAsync(
+                            v2StateSpans,
+                            config,
+                            cancellationToken
+                        );
+                        if (v2StateSpanSuccess)
+                        {
+                            _logger.LogInformation(
+                                "[{ConnectorSource}] Published {Count} state spans from v2",
+                                ConnectorSource,
+                                v2StateSpans.Count
+                            );
+                        }
+                    }
+
                     if (treatments.Any())
                     {
                         var coreTreatments = treatments.Select(t => t.ToTreatment()).ToList();
@@ -1690,6 +1710,115 @@ namespace Nocturne.Connectors.Glooko.Services
                 "[{ConnectorSource}] Transformed {Count} state spans from v3 data",
                 ConnectorSource,
                 stateSpans.Count
+            );
+
+            return stateSpans;
+        }
+
+        /// <summary>
+        /// Transform v2 batch data to StateSpan objects for temporary basals and suspend basals
+        /// </summary>
+        public List<StateSpan> TransformV2ToStateSpans(GlookoBatchData batchData)
+        {
+            var stateSpans = new List<StateSpan>();
+
+            if (batchData == null)
+                return stateSpans;
+
+            // Process Temporary Basals as TempBasal state spans
+            if (batchData.TempBasals != null)
+            {
+                foreach (var tempBasal in batchData.TempBasals)
+                {
+                    var rawTimestamp = DateTime.Parse(
+                        tempBasal.Timestamp,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.RoundtripKind
+                    );
+                    var startTimestamp = GetCorrectedGlookoTime(rawTimestamp);
+                    var durationSeconds = tempBasal.Duration;
+                    var endMills =
+                        durationSeconds > 0
+                            ? new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds()
+                                + (durationSeconds * 1000)
+                            : (long?)null;
+
+                    // Rate is U/hr
+                    var rate = tempBasal.Rate;
+
+                    // Calculate total insulin delivered: rate (U/hr) × duration (seconds) / 3600 (seconds/hr)
+                    var calculatedInsulin = rate * durationSeconds / 3600.0;
+
+                    stateSpans.Add(
+                        new StateSpan
+                        {
+                            OriginalId = $"glooko_v2_tempbasal_{rawTimestamp.Ticks}",
+                            Category = StateSpanCategory.TempBasal,
+                            State = TempBasalState.Active.ToString(),
+                            StartMills = new DateTimeOffset(
+                                startTimestamp
+                            ).ToUnixTimeMilliseconds(),
+                            EndMills = endMills,
+                            Source = ConnectorSource,
+                            Metadata = new Dictionary<string, object>
+                            {
+                                { "rate", rate },
+                                { "durationSeconds", durationSeconds },
+                                { "durationMinutes", durationSeconds / 60.0 },
+                                { "calculatedInsulin", calculatedInsulin },
+                                { "percent", tempBasal.Percent ?? 100 },
+                                { "tempBasalType", tempBasal.TempBasalType ?? "unknown" },
+                            },
+                        }
+                    );
+                }
+            }
+
+            // Process Suspend Basals as PumpMode state spans
+            if (batchData.SuspendBasals != null)
+            {
+                foreach (var suspend in batchData.SuspendBasals)
+                {
+                    var rawTimestamp = DateTime.Parse(
+                        suspend.Timestamp,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.RoundtripKind
+                    );
+                    var startTimestamp = GetCorrectedGlookoTime(rawTimestamp);
+                    var durationSeconds = suspend.Duration;
+                    var endMills =
+                        durationSeconds > 0
+                            ? new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds()
+                                + (durationSeconds * 1000)
+                            : (long?)null;
+
+                    stateSpans.Add(
+                        new StateSpan
+                        {
+                            OriginalId = $"glooko_v2_suspend_{rawTimestamp.Ticks}",
+                            Category = StateSpanCategory.PumpMode,
+                            State = PumpModeState.Suspended.ToString(),
+                            StartMills = new DateTimeOffset(
+                                startTimestamp
+                            ).ToUnixTimeMilliseconds(),
+                            EndMills = endMills,
+                            Source = ConnectorSource,
+                            Metadata = new Dictionary<string, object>
+                            {
+                                { "suspendReason", suspend.SuspendReason ?? "unknown" },
+                                { "durationSeconds", durationSeconds },
+                            },
+                        }
+                    );
+                }
+            }
+
+            _logger.LogInformation(
+                "[{ConnectorSource}] Transformed {Count} state spans from v2 data (TempBasals={TempBasalCount}, Suspends={SuspendCount})",
+                ConnectorSource,
+                stateSpans.Count,
+                batchData.TempBasals?.Length ?? 0,
+                batchData.SuspendBasals?.Length ?? 0
             );
 
             return stateSpans;

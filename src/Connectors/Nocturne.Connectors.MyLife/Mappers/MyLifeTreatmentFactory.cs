@@ -1,6 +1,7 @@
 using Nocturne.Connectors.MyLife.Constants;
 using Nocturne.Connectors.MyLife.Mappers.Helpers;
 using Nocturne.Connectors.MyLife.Models;
+using Nocturne.Core.Constants;
 using Nocturne.Core.Models;
 
 namespace Nocturne.Connectors.MyLife.Mappers;
@@ -15,7 +16,8 @@ internal static class MyLifeTreatmentFactory
             Id = $"{MyLifeIdPrefixes.Treatment}{MyLifeMapperHelpers.BuildEventKey(ev)}",
             EventType = eventType,
             Mills = timestamp.ToUnixTimeMilliseconds(),
-            Created_at = timestamp.UtcDateTime.ToString(MyLifeFormats.IsoTimestamp)
+            Created_at = timestamp.UtcDateTime.ToString(MyLifeFormats.IsoTimestamp),
+            EnteredBy = DataSources.MyLifeConnector
         };
     }
 

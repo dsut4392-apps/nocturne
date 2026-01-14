@@ -1,6 +1,7 @@
 using Nocturne.Connectors.MyLife.Constants;
 using Nocturne.Connectors.MyLife.Mappers.Helpers;
 using Nocturne.Connectors.MyLife.Models;
+using Nocturne.Core.Constants;
 using Nocturne.Core.Models;
 
 namespace Nocturne.Connectors.MyLife.Mappers.Handlers;
@@ -32,7 +33,8 @@ internal sealed class ManualBgTreatmentHandler : IMyLifeTreatmentHandler
             Glucose = glucose,
             GlucoseType = MyLifeGlucoseTypes.Finger,
             Mills = timestamp.ToUnixTimeMilliseconds(),
-            Created_at = timestamp.UtcDateTime.ToString(MyLifeFormats.IsoTimestamp)
+            Created_at = timestamp.UtcDateTime.ToString(MyLifeFormats.IsoTimestamp),
+            EnteredBy = DataSources.MyLifeConnector
         };
 
         return new[] { treatment };

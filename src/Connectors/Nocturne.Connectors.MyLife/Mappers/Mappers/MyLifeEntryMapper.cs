@@ -1,11 +1,12 @@
 using Nocturne.Connectors.MyLife.Constants;
 using Nocturne.Connectors.MyLife.Mappers.Helpers;
 using Nocturne.Connectors.MyLife.Models;
+using Nocturne.Core.Constants;
 using Nocturne.Core.Models;
 
 namespace Nocturne.Connectors.MyLife.Mappers.Mappers;
 
-internal sealed class MyLifeEntryMapper 
+internal sealed class MyLifeEntryMapper
 {
     internal IEnumerable<Entry> MapEntries(IEnumerable<MyLifeEvent> events, bool enableGlucoseSync)
     {
@@ -40,7 +41,8 @@ internal sealed class MyLifeEntryMapper
                 Type = MyLifeEntryTypes.Sgv,
                 Sgv = value,
                 Mills = timestamp.ToUnixTimeMilliseconds(),
-                DateString = timestamp.UtcDateTime.ToString(MyLifeFormats.IsoTimestamp)
+                DateString = timestamp.UtcDateTime.ToString(MyLifeFormats.IsoTimestamp),
+                Device = DataSources.MyLifeConnector
             };
             list.Add(entry);
         }

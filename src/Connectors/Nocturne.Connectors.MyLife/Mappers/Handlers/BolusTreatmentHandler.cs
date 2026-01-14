@@ -50,7 +50,7 @@ internal sealed class BolusTreatmentHandler : IMyLifeTreatmentHandler
             treatment.Carbs = carbs.Value;
         }
 
-        if (isCalculated && info != null)
+        if (isCalculated)
         {
             try
             {

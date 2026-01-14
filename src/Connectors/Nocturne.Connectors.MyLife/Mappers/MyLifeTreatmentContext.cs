@@ -107,11 +107,12 @@ internal sealed class MyLifeTreatmentContext
                         continue;
                     }
 
-                    if (!bestRateDistances.TryGetValue(programTime, out var bestDelta) || delta < bestDelta)
+                    if (bestRateDistances.TryGetValue(programTime, out var bestDelta) && delta >= bestDelta)
                     {
-                        bestRateDistances[programTime] = delta;
-                        tempBasalProgramRates[programTime] = rate;
+                        continue;
                     }
+                    bestRateDistances[programTime] = delta;
+                    tempBasalProgramRates[programTime] = rate;
                 }
             }
         }
@@ -183,14 +184,8 @@ internal sealed class MyLifeTreatmentContext
 
             var eventTime = MyLifeMapperHelpers.ToUnixMilliseconds(ev.EventDateTime);
             var window = MyLifeTimeConstants.CarbSuppressionWindowMs;
-            foreach (var carbEvent in carbEvents)
+            foreach (var carbEvent in from carbEvent in carbEvents let delta = Math.Abs(carbEvent.Time - eventTime) where delta <= window select carbEvent)
             {
-                var delta = Math.Abs(carbEvent.Time - eventTime);
-                if (delta > window)
-                {
-                    continue;
-                }
-
                 suppressedCarbTimes.Add(carbEvent.Time);
             }
         }
@@ -215,38 +210,17 @@ internal sealed class MyLifeTreatmentContext
         }
 
         var window = TempBasalConsolidationWindowMs;
-        foreach (var programTime in TempBasalProgramTimes)
-        {
-            var delta = Math.Abs(programTime - mills);
-            if (delta > window)
-            {
-                continue;
-            }
-
-            return true;
-        }
-
-        return false;
+        return TempBasalProgramTimes.Select(programTime => Math.Abs(programTime - mills)).Any(delta => delta <= window);
     }
 
     internal bool TryRegisterTempBasal(long mills)
     {
-        if (!EnableTempBasalConsolidation)
-        {
-            return true;
-        }
-
-        return TempBasalTimes.Add(mills);
+        return !EnableTempBasalConsolidation || TempBasalTimes.Add(mills);
     }
 
     internal bool TryGetTempBasalRate(long mills, out double rate)
     {
         rate = 0;
-        if (!EnableTempBasalConsolidation)
-        {
-            return false;
-        }
-
-        return TempBasalProgramRates.TryGetValue(mills, out rate);
+        return EnableTempBasalConsolidation && TempBasalProgramRates.TryGetValue(mills, out rate);
     }
 }

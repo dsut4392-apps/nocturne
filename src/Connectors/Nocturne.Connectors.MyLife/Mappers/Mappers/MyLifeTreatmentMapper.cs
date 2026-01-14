@@ -16,6 +16,7 @@ internal sealed class MyLifeTreatmentMapper
         new AlertTreatmentHandler(),
         new CarbCorrectionTreatmentHandler(),
         new BasalRateTreatmentHandler(),
+        new ProfileSwitchTreatmentHandler(),
         new IndicationTreatmentHandler(),
         new PrimingTreatmentHandler(),
         new BasalAmountTreatmentHandler(),

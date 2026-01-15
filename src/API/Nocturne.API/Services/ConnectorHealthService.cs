@@ -193,7 +193,6 @@ public class ConnectorHealthService : IConnectorHealthService
                     Id = connector.Id,
                     Name = connector.Id,
                     Status = "Unhealthy",
-                    Description = $"HTTP {response.StatusCode}",
                     IsHealthy = false,
                 };
             }
@@ -303,7 +302,6 @@ public class ConnectorHealthService : IConnectorHealthService
                     Id = connector.Id,
                     Name = connector.Id,
                     Status = status,
-                    Description = description,
                     TotalEntries = totalEntries,
                     LastEntryTime = lastEntryTime,
                     EntriesLast24Hours = entriesLast24h,
@@ -322,7 +320,6 @@ public class ConnectorHealthService : IConnectorHealthService
                 Id = connector.Id,
                 Name = connector.Id,
                 Status = rootStatus ?? "Unknown",
-                Description = "Detailed metrics unavailable",
                 IsHealthy = rootStatus == "Healthy",
             };
         }
@@ -334,7 +331,6 @@ public class ConnectorHealthService : IConnectorHealthService
                 Id = connector.Id,
                 Name = connector.Id,
                 Status = "Unreachable",
-                Description = ex.Message,
                 IsHealthy = false,
             };
         }

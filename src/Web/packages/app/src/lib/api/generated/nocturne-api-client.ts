@@ -15539,7 +15539,6 @@ export interface ConnectorStatusDto {
     id?: string;
     name?: string;
     status?: string;
-    description?: string | undefined;
     totalEntries?: number;
     lastEntryTime?: Date | undefined;
     entriesLast24Hours?: number;

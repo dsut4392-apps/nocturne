@@ -13477,10 +13477,6 @@
           "status": {
             "type": "string"
           },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
           "totalEntries": {
             "type": "integer",
             "format": "int64"

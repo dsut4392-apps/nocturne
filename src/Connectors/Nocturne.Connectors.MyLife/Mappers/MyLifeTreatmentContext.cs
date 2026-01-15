@@ -6,9 +6,11 @@ namespace Nocturne.Connectors.MyLife.Mappers;
 
 internal sealed class MyLifeTreatmentContext
 {
-    private sealed class CarbEvent(long time)
+    private sealed class CarbEvent(long time, double carbs)
     {
         public long Time { get; } = time;
+        public double Carbs { get; } = carbs;
+        public bool Matched { get; set; }
     }
 
     private MyLifeTreatmentContext(
@@ -20,7 +22,8 @@ internal sealed class MyLifeTreatmentContext
         int tempBasalConsolidationWindowMs,
         bool enableManualBgSync,
         bool enableMealCarbConsolidation,
-        bool enableTempBasalConsolidation)
+        bool enableTempBasalConsolidation
+    )
     {
         BolusCarbMatches = bolusCarbMatches;
         SuppressedCarbTimes = suppressedCarbTimes;
@@ -48,7 +51,8 @@ internal sealed class MyLifeTreatmentContext
         bool enableManualBgSync,
         bool enableMealCarbConsolidation,
         bool enableTempBasalConsolidation,
-        int tempBasalConsolidationWindowMinutes)
+        int tempBasalConsolidationWindowMinutes
+    )
     {
         var suppressedCarbTimes = new HashSet<long>();
         var bolusCarbMatches = new Dictionary<string, double>();
@@ -93,7 +97,13 @@ internal sealed class MyLifeTreatmentContext
                     continue;
                 }
 
-                if (!MyLifeMapperHelpers.TryGetInfoDouble(info, MyLifeJsonKeys.BasalRate, out var rate))
+                if (
+                    !MyLifeMapperHelpers.TryGetInfoDouble(
+                        info,
+                        MyLifeJsonKeys.BasalRate,
+                        out var rate
+                    )
+                )
                 {
                     continue;
                 }
@@ -107,7 +117,10 @@ internal sealed class MyLifeTreatmentContext
                         continue;
                     }
 
-                    if (bestRateDistances.TryGetValue(programTime, out var bestDelta) && delta >= bestDelta)
+                    if (
+                        bestRateDistances.TryGetValue(programTime, out var bestDelta)
+                        && delta >= bestDelta
+                    )
                     {
                         continue;
                     }
@@ -128,7 +141,8 @@ internal sealed class MyLifeTreatmentContext
                 tempBasalWindowMs,
                 enableManualBgSync,
                 enableMealCarbConsolidation,
-                enableTempBasalConsolidation);
+                enableTempBasalConsolidation
+            );
         }
 
         var carbEvents = new List<CarbEvent>();
@@ -144,13 +158,13 @@ internal sealed class MyLifeTreatmentContext
                 continue;
             }
 
-            if (!MyLifeMapperHelpers.TryParseDouble(ev.Value, out var carbs))
+            if (!MyLifeMapperHelpers.TryParseDouble(ev.Value, out var carbValue))
             {
                 continue;
             }
 
             var time = MyLifeMapperHelpers.ToUnixMilliseconds(ev.EventDateTime);
-            carbEvents.Add(new CarbEvent(time));
+            carbEvents.Add(new CarbEvent(time, carbValue));
         }
 
         foreach (var ev in events)
@@ -160,33 +174,47 @@ internal sealed class MyLifeTreatmentContext
                 continue;
             }
 
-            if (ev.EventTypeId != MyLifeEventTypeIds.BolusNormal &&
-                ev.EventTypeId != MyLifeEventTypeIds.BolusSquare &&
-                ev.EventTypeId != MyLifeEventTypeIds.BolusDual)
+            if (
+                ev.EventTypeId != MyLifeEventTypeIds.BolusNormal
+                && ev.EventTypeId != MyLifeEventTypeIds.BolusSquare
+                && ev.EventTypeId != MyLifeEventTypeIds.BolusDual
+            )
             {
                 continue;
             }
 
             var info = MyLifeMapperHelpers.ParseInfo(ev.InformationFromDevice);
-            if (!MyLifeMapperHelpers.IsCalculatedBolus(info))
-            {
-                continue;
-            }
-
-            var carbs = MyLifeMapperHelpers.ResolveBolusCarbs(info);
-            if (carbs is null or <= 0)
-            {
-                continue;
-            }
-
-            var key = MyLifeMapperHelpers.BuildEventKey(ev);
-            bolusCarbMatches[key] = carbs.Value;
-
+            var embeddedCarbs = MyLifeMapperHelpers.ResolveBolusCarbs(info);
             var eventTime = MyLifeMapperHelpers.ToUnixMilliseconds(ev.EventDateTime);
             var window = MyLifeTimeConstants.CarbSuppressionWindowMs;
-            foreach (var carbEvent in from carbEvent in carbEvents let delta = Math.Abs(carbEvent.Time - eventTime) where delta <= window select carbEvent)
+            var key = MyLifeMapperHelpers.BuildEventKey(ev);
+
+            if (embeddedCarbs is > 0)
             {
-                suppressedCarbTimes.Add(carbEvent.Time);
+                // Bolus has embedded carbs - use those and suppress any nearby carb events
+                bolusCarbMatches[key] = embeddedCarbs.Value;
+                foreach (
+                    var carbEvent in carbEvents.Where(c => Math.Abs(c.Time - eventTime) <= window)
+                )
+                {
+                    suppressedCarbTimes.Add(carbEvent.Time);
+                    carbEvent.Matched = true;
+                }
+            }
+            else
+            {
+                // Bolus has no embedded carbs - find the closest unmatched carb event within the window
+                var closestCarb = carbEvents
+                    .Where(c => !c.Matched && Math.Abs(c.Time - eventTime) <= window)
+                    .OrderBy(c => Math.Abs(c.Time - eventTime))
+                    .FirstOrDefault();
+
+                if (closestCarb != null)
+                {
+                    bolusCarbMatches[key] = closestCarb.Carbs;
+                    suppressedCarbTimes.Add(closestCarb.Time);
+                    closestCarb.Matched = true;
+                }
             }
         }
 
@@ -199,7 +227,8 @@ internal sealed class MyLifeTreatmentContext
             tempBasalWindowMs,
             enableManualBgSync,
             enableMealCarbConsolidation,
-            enableTempBasalConsolidation);
+            enableTempBasalConsolidation
+        );
     }
 
     internal bool ShouldSuppressTempBasalRate(long mills)
@@ -210,7 +239,9 @@ internal sealed class MyLifeTreatmentContext
         }
 
         var window = TempBasalConsolidationWindowMs;
-        return TempBasalProgramTimes.Select(programTime => Math.Abs(programTime - mills)).Any(delta => delta <= window);
+        return TempBasalProgramTimes
+            .Select(programTime => Math.Abs(programTime - mills))
+            .Any(delta => delta <= window);
     }
 
     internal bool TryRegisterTempBasal(long mills)

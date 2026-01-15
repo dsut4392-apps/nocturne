@@ -10,29 +10,40 @@ internal sealed class BolusTreatmentHandler : IMyLifeTreatmentHandler
 {
     public bool CanHandle(MyLifeEvent ev)
     {
-        return ev.EventTypeId is
-            MyLifeEventTypeIds.BolusNormal
-            or MyLifeEventTypeIds.BolusSquare
-            or MyLifeEventTypeIds.BolusDual;
+        return ev.EventTypeId
+            is MyLifeEventTypeIds.BolusNormal
+                or MyLifeEventTypeIds.BolusSquare
+                or MyLifeEventTypeIds.BolusDual;
     }
 
     public IEnumerable<Treatment> Handle(MyLifeEvent ev, MyLifeTreatmentContext context)
     {
         var info = MyLifeMapperHelpers.ParseInfo(ev.InformationFromDevice);
-        if (!MyLifeMapperHelpers.TryGetInfoDouble(info, MyLifeJsonKeys.AmountOfBolus, out var insulin))
+        if (
+            !MyLifeMapperHelpers.TryGetInfoDouble(
+                info,
+                MyLifeJsonKeys.AmountOfBolus,
+                out var insulin
+            )
+        )
         {
             return [];
         }
 
         var isCalculated = MyLifeMapperHelpers.IsCalculatedBolus(info);
         var carbs = MyLifeMapperHelpers.ResolveBolusCarbs(info);
-        if (context.BolusCarbMatches.TryGetValue(MyLifeMapperHelpers.BuildEventKey(ev), out var matchedCarbs))
+        if (
+            context.BolusCarbMatches.TryGetValue(
+                MyLifeMapperHelpers.BuildEventKey(ev),
+                out var matchedCarbs
+            )
+        )
         {
             carbs = matchedCarbs;
         }
 
         var treatment = MyLifeTreatmentFactory.Create(ev, MyLifeTreatmentTypes.CorrectionBolus);
-        if (isCalculated && carbs is > 0)
+        if (carbs is > 0)
         {
             treatment.EventType = MyLifeTreatmentTypes.MealBolus;
         }
@@ -42,7 +53,7 @@ internal sealed class BolusTreatmentHandler : IMyLifeTreatmentHandler
         {
             MyLifeEventTypeIds.BolusSquare => MyLifeBolusTypes.Square,
             MyLifeEventTypeIds.BolusDual => MyLifeBolusTypes.Dual,
-            _ => MyLifeBolusTypes.Normal
+            _ => MyLifeBolusTypes.Normal,
         };
 
         if (carbs is > 0)
@@ -50,7 +61,7 @@ internal sealed class BolusTreatmentHandler : IMyLifeTreatmentHandler
             treatment.Carbs = carbs.Value;
         }
 
-        if (isCalculated)
+        if (isCalculated && info.HasValue)
         {
             try
             {
@@ -76,7 +87,13 @@ internal sealed class BolusTreatmentHandler : IMyLifeTreatmentHandler
             }
         }
 
-        if (MyLifeMapperHelpers.TryGetInfoDouble(info, MyLifeJsonKeys.DurationInMinutes, out var duration))
+        if (
+            MyLifeMapperHelpers.TryGetInfoDouble(
+                info,
+                MyLifeJsonKeys.DurationInMinutes,
+                out var duration
+            )
+        )
         {
             treatment.Duration = duration;
         }

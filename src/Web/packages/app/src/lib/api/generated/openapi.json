@@ -5954,6 +5954,236 @@
         }
       }
     },
+    "/api/v4/state-spans/sleep": {
+      "get": {
+        "tags": [
+          "StateSpans"
+        ],
+        "summary": "Get sleep state spans (user-annotated sleep periods)",
+        "operationId": "StateSpans_GetSleep",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StateSpan"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/state-spans/exercise": {
+      "get": {
+        "tags": [
+          "StateSpans"
+        ],
+        "summary": "Get exercise state spans (user-annotated activity periods)",
+        "operationId": "StateSpans_GetExercise",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StateSpan"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/state-spans/illness": {
+      "get": {
+        "tags": [
+          "StateSpans"
+        ],
+        "summary": "Get illness state spans (user-annotated illness periods)",
+        "operationId": "StateSpans_GetIllness",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StateSpan"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/state-spans/travel": {
+      "get": {
+        "tags": [
+          "StateSpans"
+        ],
+        "summary": "Get travel state spans (user-annotated travel/timezone change periods)",
+        "operationId": "StateSpans_GetTravel",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StateSpan"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/state-spans/activities": {
+      "get": {
+        "tags": [
+          "StateSpans"
+        ],
+        "summary": "Get all activity state spans (sleep, exercise, illness, travel)",
+        "operationId": "StateSpans_GetActivities",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StateSpan"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v4/state-spans/{id}": {
       "get": {
         "tags": [

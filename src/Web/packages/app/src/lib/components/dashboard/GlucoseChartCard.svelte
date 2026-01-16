@@ -41,7 +41,11 @@
     AnnotationLine,
     Rule,
     AnnotationPoint,
+    BrushContext,
   } from "layerchart";
+  import type { BrushContextValue } from "layerchart";
+  import MiniOverviewChart from "./MiniOverviewChart.svelte";
+  import RotateCcw from "lucide-svelte/icons/rotate-ccw";
   import { chartConfig, getMealNameForTime } from "$lib/constants";
   import { curveStepAfter, curveMonotoneX, bisector } from "d3";
   import { scaleTime, scaleLinear } from "d3-scale";
@@ -79,8 +83,9 @@
     SiteChangeIcon,
     BolusIcon,
     CarbsIcon,
+    TrackerCategoryIcon,
+    ActivityCategoryIcon,
   } from "$lib/components/icons";
-  import { TrackerCategoryIcon } from "$lib/components/icons";
   import Clock from "lucide-svelte/icons/clock";
 
   interface ComponentProps {
@@ -124,6 +129,12 @@
     initialShowAlarms?: boolean;
     /** Initial visibility for scheduled tracker markers */
     initialShowScheduledTrackers?: boolean;
+    /** Initial visibility for override spans (hidden by default) */
+    initialShowOverrideSpans?: boolean;
+    /** Initial visibility for profile spans (hidden by default) */
+    initialShowProfileSpans?: boolean;
+    /** Initial visibility for activity spans (hidden by default) */
+    initialShowActivitySpans?: boolean;
     /** Optional tracker instances (defaults to realtime store) */
     trackerInstances?: TrackerInstanceDto[];
     /** Optional tracker definitions (defaults to realtime store) */
@@ -147,6 +158,9 @@
     initialShowDeviceEvents = true,
     initialShowAlarms = true,
     initialShowScheduledTrackers = true,
+    initialShowOverrideSpans = false,
+    initialShowProfileSpans = false,
+    initialShowActivitySpans = false,
     trackerInstances = realtimeStore.trackerInstances,
     trackerDefinitions = realtimeStore.trackerDefinitions,
   }: ComponentProps = $props();
@@ -170,6 +184,22 @@
   let showDeviceEvents = $state(initialShowDeviceEvents);
   let showAlarms = $state(initialShowAlarms);
   let showScheduledTrackers = $state(initialShowScheduledTrackers);
+  let showOverrideSpans = $state(initialShowOverrideSpans);
+  let showProfileSpans = $state(initialShowProfileSpans);
+  let showActivitySpans = $state(initialShowActivitySpans);
+
+  // Brush/zoom state for the chart (X-axis only)
+  let brushXDomain = $state<[Date, Date] | null>(null);
+  let brushContext = $state<BrushContextValue | undefined>(undefined);
+  let showMiniChart = $state(true);
+
+  // Whether chart is currently zoomed
+  const isZoomed = $derived(brushXDomain !== null);
+
+  // Reset zoom to full range
+  function resetZoom() {
+    brushXDomain = null;
+  }
 
   // Browser check for SSR safety (replaces hasMounted pattern)
   const isBrowser = typeof window !== "undefined";
@@ -385,7 +415,9 @@
 
   // Prediction buffer
   const predictionHours = $derived(predictionMinutes.current / 60);
-  const chartXDomain = $derived({
+
+  // Full X domain (without brush zoom) - used for mini chart
+  const fullXDomain = $derived({
     from: displayDateRange.from,
     to:
       showPredictions && predictionData
@@ -395,6 +427,13 @@
         : displayDateRange.to,
   });
 
+  // Active X domain - respects brush zoom
+  const chartXDomain = $derived({
+    from: brushXDomain?.[0] ?? fullXDomain.from,
+    to: brushXDomain?.[1] ?? fullXDomain.to,
+  });
+
+  
   // Filter entries by date range
   const filteredEntries = $derived(
     entries.filter((e) => {
@@ -607,6 +646,98 @@
       const eventTime = event.time.getTime();
       return eventTime >= rangeStart && eventTime <= rangeEnd;
     });
+  });
+
+  // Filter temp basal spans to visible range and clip to display bounds
+  const tempBasalSpans = $derived.by(() => {
+    if (!stateData?.tempBasalSpans) return [];
+    const rangeStart = displayDateRange.from.getTime();
+    const rangeEnd = displayDateRange.to.getTime();
+
+    return stateData.tempBasalSpans
+      .filter((span) => {
+        const spanStart = span.startTime.getTime();
+        const spanEnd = span.endTime?.getTime() ?? rangeEnd;
+        return spanEnd > rangeStart && spanStart < rangeEnd;
+      })
+      .map((span) => ({
+        ...span,
+        displayStart: new Date(Math.max(span.startTime.getTime(), rangeStart)),
+        displayEnd: new Date(
+          Math.min(span.endTime?.getTime() ?? rangeEnd, rangeEnd)
+        ),
+        // Extract rate from metadata
+        rate:
+          (span.metadata?.rate as number) ??
+          (span.metadata?.absolute as number) ??
+          null,
+        percent: (span.metadata?.percent as number) ?? null,
+      }));
+  });
+
+  // Filter override spans to visible range and clip to display bounds
+  const overrideSpans = $derived.by(() => {
+    if (!stateData?.overrideSpans) return [];
+    const rangeStart = displayDateRange.from.getTime();
+    const rangeEnd = displayDateRange.to.getTime();
+
+    return stateData.overrideSpans
+      .filter((span) => {
+        const spanStart = span.startTime.getTime();
+        const spanEnd = span.endTime?.getTime() ?? rangeEnd;
+        return spanEnd > rangeStart && spanStart < rangeEnd;
+      })
+      .map((span) => ({
+        ...span,
+        displayStart: new Date(Math.max(span.startTime.getTime(), rangeStart)),
+        displayEnd: new Date(
+          Math.min(span.endTime?.getTime() ?? rangeEnd, rangeEnd)
+        ),
+      }));
+  });
+
+  // Filter profile spans to visible range and clip to display bounds
+  const profileSpans = $derived.by(() => {
+    if (!stateData?.profileSpans) return [];
+    const rangeStart = displayDateRange.from.getTime();
+    const rangeEnd = displayDateRange.to.getTime();
+
+    return stateData.profileSpans
+      .filter((span) => {
+        const spanStart = span.startTime.getTime();
+        const spanEnd = span.endTime?.getTime() ?? rangeEnd;
+        return spanEnd > rangeStart && spanStart < rangeEnd;
+      })
+      .map((span) => ({
+        ...span,
+        displayStart: new Date(Math.max(span.startTime.getTime(), rangeStart)),
+        displayEnd: new Date(
+          Math.min(span.endTime?.getTime() ?? rangeEnd, rangeEnd)
+        ),
+        // Extract profile name from metadata
+        profileName: (span.metadata?.profileName as string) ?? span.state,
+      }));
+  });
+
+  // Filter activity spans (sleep, exercise, illness, travel) to visible range
+  const activitySpans = $derived.by(() => {
+    if (!stateData?.activitySpans) return [];
+    const rangeStart = displayDateRange.from.getTime();
+    const rangeEnd = displayDateRange.to.getTime();
+
+    return stateData.activitySpans
+      .filter((span) => {
+        const spanStart = span.startTime.getTime();
+        const spanEnd = span.endTime?.getTime() ?? rangeEnd;
+        return spanEnd > rangeStart && spanStart < rangeEnd;
+      })
+      .map((span) => ({
+        ...span,
+        displayStart: new Date(Math.max(span.startTime.getTime(), rangeStart)),
+        displayEnd: new Date(
+          Math.min(span.endTime?.getTime() ?? rangeEnd, rangeEnd)
+        ),
+      }));
   });
 
   // Scheduled tracker expiration markers
@@ -1029,6 +1160,36 @@
   </CardHeader>
 
   <CardContent class="p-2">
+    <!-- Zoom indicator and reset button -->
+    {#if isZoomed}
+      <div
+        class="flex items-center justify-between px-4 py-2 mb-2 bg-primary/5 border border-primary/20 rounded-lg"
+      >
+        <div class="flex items-center gap-2 text-sm text-primary">
+          <span class="font-medium">Zoomed view</span>
+          {#if brushXDomain}
+            <span class="text-xs text-muted-foreground">
+              {brushXDomain[0].toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })} - {brushXDomain[1].toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          {/if}
+        </div>
+        <button
+          type="button"
+          class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded transition-colors"
+          onclick={resetZoom}
+        >
+          <RotateCcw size={12} />
+          Reset zoom
+        </button>
+      </div>
+    {/if}
+
     <!-- Single compound chart with remapped scales for basal, glucose, and IOB -->
     <div class="h-[450px] p-4">
       <Chart
@@ -1040,7 +1201,6 @@
         yDomain={[0, glucoseYMax]}
         padding={{ left: 48, bottom: 30, top: 8, right: 48 }}
         tooltip={{ mode: "quadtree-x" }}
-        brush
       >
         {#snippet children({ context })}
           <Svg>
@@ -1135,6 +1295,131 @@
                 </foreignObject>
               </Group>
             {/each}
+
+            <!-- Temp basal span indicators (shown in basal track when basal is visible) -->
+            {#if showBasal}
+              {#each tempBasalSpans as span (span.id)}
+                <AnnotationRange
+                  x={[span.displayStart.getTime(), span.displayEnd.getTime()]}
+                  y={[
+                    basalScale(maxBasalRate * 0.9),
+                    basalScale(maxBasalRate * 0.7),
+                  ]}
+                  fill={span.color}
+                  class="opacity-40"
+                />
+                <!-- Show temp basal rate label -->
+                {#if span.rate !== null}
+                  <Group
+                    x={context.xScale(span.displayStart)}
+                    y={context.yScale(basalScale(maxBasalRate * 0.8))}
+                  >
+                    <Text
+                      x={4}
+                      y={0}
+                      class="text-[7px] fill-insulin-basal font-medium"
+                    >
+                      {span.rate.toFixed(2)}U/h
+                    </Text>
+                  </Group>
+                {:else if span.percent !== null}
+                  <Group
+                    x={context.xScale(span.displayStart)}
+                    y={context.yScale(basalScale(maxBasalRate * 0.8))}
+                  >
+                    <Text
+                      x={4}
+                      y={0}
+                      class="text-[7px] fill-insulin-basal font-medium"
+                    >
+                      {span.percent}%
+                    </Text>
+                  </Group>
+                {/if}
+              {/each}
+            {/if}
+
+            <!-- Override span indicators (shown in basal track) -->
+            {#if showOverrideSpans}
+              {#each overrideSpans as span (span.id)}
+                <AnnotationRange
+                  x={[span.displayStart.getTime(), span.displayEnd.getTime()]}
+                  y={[
+                    basalScale(maxBasalRate * 0.65),
+                    basalScale(maxBasalRate * 0.45),
+                  ]}
+                  fill={span.color}
+                  class="opacity-30"
+                />
+                <Group
+                  x={context.xScale(span.displayStart)}
+                  y={context.yScale(basalScale(maxBasalRate * 0.55))}
+                >
+                  <Text
+                    x={4}
+                    y={0}
+                    class="text-[6px] fill-muted-foreground font-medium"
+                  >
+                    {span.state}
+                  </Text>
+                </Group>
+              {/each}
+            {/if}
+
+            <!-- Profile span indicators (shown in basal track) -->
+            {#if showProfileSpans}
+              {#each profileSpans as span (span.id)}
+                <AnnotationRange
+                  x={[span.displayStart.getTime(), span.displayEnd.getTime()]}
+                  y={[
+                    basalScale(maxBasalRate * 0.4),
+                    basalScale(maxBasalRate * 0.2),
+                  ]}
+                  fill={span.color}
+                  class="opacity-20"
+                />
+                <Group
+                  x={context.xScale(span.displayStart)}
+                  y={context.yScale(basalScale(maxBasalRate * 0.3))}
+                >
+                  <Text
+                    x={4}
+                    y={0}
+                    class="text-[6px] fill-muted-foreground font-medium"
+                  >
+                    {span.profileName}
+                  </Text>
+                </Group>
+              {/each}
+            {/if}
+
+            <!-- Activity span indicators (sleep, exercise, illness, travel) - shown in glucose track as subtle backgrounds -->
+            {#if showActivitySpans}
+              {#each activitySpans as span (span.id)}
+                {@const spanXPos = context.xScale(span.displayStart)}
+                <AnnotationRange
+                  x={[span.displayStart.getTime(), span.displayEnd.getTime()]}
+                  y={[glucoseScale(glucoseYMax), glucoseScale(0)]}
+                  fill={span.color}
+                  class="opacity-10"
+                />
+                <!-- Activity icon at the start of each span -->
+                <Group
+                  x={spanXPos}
+                  y={context.yScale(glucoseScale(glucoseYMax - 10))}
+                >
+                  <foreignObject x="2" y="-8" width="16" height="16">
+                    <div class="flex items-center justify-center w-full h-full">
+                      <ActivityCategoryIcon
+                        category={span.category}
+                        size={12}
+                        color={span.color}
+                      />
+                    </div>
+                  </foreignObject>
+                </Group>
+              {/each}
+            {/if}
 
             {#if staleBasalData}
               <ChartClipPath>
@@ -1711,9 +1996,72 @@
               />
             {/snippet}
           </Tooltip.Root>
+
+          <!-- BrushContext for X-axis zoom selection -->
+          <BrushContext
+            bind:brushContext
+            axis="x"
+            xDomain={brushXDomain ?? [chartXDomain.from, chartXDomain.to]}
+            classes={{
+              range: "bg-primary/15 border border-primary/30 rounded",
+              handle: "bg-primary/50 hover:bg-primary/70 rounded-sm",
+            }}
+            onBrushEnd={(e) => {
+              if (e.xDomain && Array.isArray(e.xDomain)) {
+                brushXDomain = [
+                  new Date(e.xDomain[0] as number),
+                  new Date(e.xDomain[1] as number),
+                ];
+              }
+            }}
+            onReset={resetZoom}
+          >
+            {#snippet children({ brushContext: bc })}
+              <!-- Handle labels showing time values -->
+              {#if bc.isActive && bc.xDomain}
+                <!-- Left handle label -->
+                <div
+                  class="absolute text-[10px] font-medium text-primary bg-background/95 px-1.5 py-0.5 rounded shadow-sm border border-border whitespace-nowrap pointer-events-none z-30"
+                  style="left: {bc.range.x}px; top: {bc.range.y - 20}px; transform: translateX(-50%)"
+                >
+                  {new Date(bc.xDomain[0] as number).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </div>
+
+                <!-- Right handle label -->
+                <div
+                  class="absolute text-[10px] font-medium text-primary bg-background/95 px-1.5 py-0.5 rounded shadow-sm border border-border whitespace-nowrap pointer-events-none z-30"
+                  style="left: {bc.range.x + bc.range.width}px; top: {bc.range.y - 20}px; transform: translateX(-50%)"
+                >
+                  {new Date(bc.xDomain[1] as number).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </div>
+              {/if}
+            {/snippet}
+          </BrushContext>
         {/snippet}
       </Chart>
     </div>
+
+    <!-- Mini Overview Chart for zoom navigation -->
+    {#if glucoseData.length > 0}
+      <MiniOverviewChart
+        data={glucoseData}
+        fullXDomain={[fullXDomain.from, fullXDomain.to]}
+        bind:selectedXDomain={brushXDomain}
+        yDomain={[0, glucoseYMax]}
+        bind:expanded={showMiniChart}
+        highThreshold={Number(highThreshold)}
+        lowThreshold={Number(lowThreshold)}
+        onSelectionChange={(domain) => {
+          brushXDomain = domain;
+        }}
+      />
+    {/if}
 
     <!-- Legend -->
     <div
@@ -1892,6 +2240,57 @@
           </span>
         </button>
       {/if}
+      <!-- Override spans toggle (hidden by default) -->
+      <button
+        type="button"
+        class={cn(
+          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
+          !showOverrideSpans && "opacity-50"
+        )}
+        onclick={() => (showOverrideSpans = !showOverrideSpans)}
+      >
+        <div
+          class="w-3 h-2 rounded border"
+          style="background-color: var(--pump-mode-boost); opacity: 0.3; border-color: var(--pump-mode-boost)"
+        ></div>
+        <span class={cn(!showOverrideSpans && "line-through")}>Overrides</span>
+      </button>
+      <!-- Profile spans toggle (hidden by default) -->
+      <button
+        type="button"
+        class={cn(
+          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
+          !showProfileSpans && "opacity-50"
+        )}
+        onclick={() => (showProfileSpans = !showProfileSpans)}
+      >
+        <div
+          class="w-3 h-2 rounded border"
+          style="background-color: var(--chart-1); opacity: 0.2; border-color: var(--chart-1)"
+        ></div>
+        <span class={cn(!showProfileSpans && "line-through")}>Profile</span>
+      </button>
+      <!-- Activity spans toggle (hidden by default) -->
+      <button
+        type="button"
+        class={cn(
+          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
+          !showActivitySpans && "opacity-50"
+        )}
+        onclick={() => (showActivitySpans = !showActivitySpans)}
+      >
+        <div class="flex items-center gap-0.5">
+          <div
+            class="w-2 h-2 rounded"
+            style="background-color: var(--pump-mode-sleep)"
+          ></div>
+          <div
+            class="w-2 h-2 rounded"
+            style="background-color: var(--pump-mode-exercise)"
+          ></div>
+        </div>
+        <span class={cn(!showActivitySpans && "line-through")}>Activity</span>
+      </button>
     </div>
   </CardContent>
 </Card>

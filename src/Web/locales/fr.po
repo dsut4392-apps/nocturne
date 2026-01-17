@@ -1261,7 +1261,9 @@ msgstr "{0}ms"
 msgid ""
 "vs {0}ms\n"
 "Nightscout"
-msgstr "vs {0}ms\nNightscout"
+msgstr ""
+"vs {0}ms\n"
+"Nightscout"
 
 #: src/routes/dashboard/+page.svelte
 msgid "Response Match Breakdown"
@@ -1543,6 +1545,7 @@ msgstr "Nocturne"
 
 #: src/routes/compatibility/+page.svelte
 #. placeholder {0}: formatDuration(analysis.nocturneResponseTimeMs || 0)
+#, fuzzy
 msgid "NC: {0}"
 msgstr "NC : {0}"
 
@@ -1550,7 +1553,9 @@ msgstr "NC : {0}"
 msgid ""
 "No analyses found. Make sure the compatibility proxy service is\n"
 "running and receiving traffic."
-msgstr "Aucune analyse trouvée. Assurez-vous que le service proxy de compatibilité fonctionne et reçoit du trafic."
+msgstr ""
+"Aucune analyse trouvée. Assurez-vous que le service proxy de compatibilité "
+"fonctionne et reçoit du trafic."
 
 #: src/routes/food/food-state.svelte.ts
 msgid "Database loaded"
@@ -2136,7 +2141,7 @@ msgstr "Repas - Nocturne"
 
 #: src/routes/meals/+page.svelte
 msgid "Review carb treatments and add food breakdowns for better meal documentation"
-msgstr "Revoyez les traitements de glucides et ajoutez des détails alimentaires pour mieux documenter les repas"
+msgstr "Revoyez les traitements glucidiques et ajoutez une ventilation alimentaire pour mieux documenter vos repas."
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/meals/+page.svelte
@@ -2715,7 +2720,7 @@ msgstr "Thérapie (Profil)"
 
 #: src/routes/settings/+page.svelte
 msgid "Configure insulin ratios, sensitivity factors, and targets via your Profile"
-msgstr "Configurez ratios d'insuline, facteurs de sensibilité et cibles via votre profil"
+msgstr "Configurez les ratios d'insuline, facteurs de sensibilité et cibles via votre profil."
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/+page.svelte
@@ -3260,7 +3265,7 @@ msgstr "Traitements multiples"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 msgid "Several treatments occurred around this time. Select one to edit."
-msgstr "Plusieurs traitements ont eu lieu à cette heure. Sélectionnez-en un pour modifier."
+msgstr "Plusieurs traitements ont eu lieu à cette heure. Sélectionnez-en un pour le modifier."
 
 #: src/lib/components/dashboard/RecentEntriesCard.svelte
 msgid "Recent Entries"
@@ -3872,7 +3877,7 @@ msgstr "<0/> Ce que vos données indiquent"
 
 #: src/lib/components/reports/ClinicalInsights.svelte
 msgid "Not enough data yet to generate insights. Keep tracking!"
-msgstr "Pas encore assez de données pour générer des analyses. Continuez à enregistrer !"
+msgstr "Pas encore assez de données pour générer des insights. Continuez à enregistrer !"
 
 #: src/lib/components/reports/ClinicalInsights.svelte
 msgid "For healthcare providers"
@@ -3931,7 +3936,7 @@ msgstr "Résumé quotidien"
 
 #: src/lib/components/reports/DailySummaryTable.svelte
 msgid "Daily glucose statistics and time in range data."
-msgstr "Statistiques quotidiennes de la glycémie et données sur le temps dans la plage."
+msgstr "Statistiques glycémiques quotidiennes et données sur le temps dans la plage."
 
 #: src/lib/components/reports/DailySummaryTable.svelte
 msgid "Date"
@@ -4306,7 +4311,7 @@ msgstr "Début"
 
 #: src/lib/components/reports/RetrospectiveTimeScrubber.svelte
 msgid "Time scrubber - use arrow keys to navigate, space to play/pause"
-msgstr "Curseur de temps - utilisez les flèches pour naviguer, espace pour lire/mettre en pause"
+msgstr "Curseur temporel - utilisez les flèches pour naviguer, espace pour lire/mettre en pause."
 
 #: src/lib/components/reports/RetrospectiveTimeScrubber.svelte
 msgid "Scrub time to see data at that moment"
@@ -4424,7 +4429,7 @@ msgstr "Aucune donnée de changement de site disponible"
 
 #: src/lib/components/reports/SiteChangeImpactChart.svelte
 msgid "Site changes are required to analyze glucose patterns"
-msgstr "Les changements de site sont nécessaires pour analyser les tendances glycémiques"
+msgstr "Des changements de site sont nécessaires pour analyser les schémas glycémiques."
 
 #: src/lib/components/reports/TreatmentSummary.svelte
 msgid "Overall Treatment Summary"
@@ -4676,7 +4681,7 @@ msgstr "Heure de début"
 
 #: src/lib/components/profile/ProfileEditDialog.svelte
 msgid "No time blocks configured. Click \"Add Time Block\" to get started."
-msgstr "Aucun bloc horaire configuré. Cliquez sur « Ajouter un bloc horaire » pour commencer."
+msgstr "Aucun bloc horaire configuré. Cliquez sur « Ajouter un bloc horaire » pour démarrer."
 
 #: src/lib/components/profile/ProfileIconPicker.svelte
 msgid "Select an icon"
@@ -5411,7 +5416,7 @@ msgstr "Jours actifs"
 
 #: src/lib/components/settings/AlarmProfileDialog.svelte
 msgid "Click to toggle. If none selected, alarm is active every day."
-msgstr "Cliquez pour activer/désactiver. Si aucun jour n'est sélectionné, l'alarme est active tous les jours."
+msgstr "Cliquez pour activer/désactiver. Si aucun jour sélectionné, l'alarme est active tous les jours."
 
 #: src/lib/components/settings/AlarmProfileDialog.svelte
 msgid "Active Time Ranges"
@@ -5526,7 +5531,7 @@ msgstr "Test Nocturne"
 
 #: src/lib/components/settings/BrowserCapabilities.svelte
 msgid "This is a test notification from Nocturne. Alarms will appear like this!"
-msgstr "Ceci est une notification de test de Nocturne. Les alarmes apparaîtront ainsi !"
+msgstr "Ceci est une notification de test de Nocturne. Les alarmes s'afficheront ainsi !"
 
 #: src/lib/components/settings/BrowserCapabilities.svelte
 msgid "<0/> Browser Capabilities"
@@ -5620,7 +5625,7 @@ msgstr "<0/> Widgets du tableau de bord"
 #: src/lib/components/settings/DashboardWidgetConfigurator.svelte
 #. placeholder {0}: maxWidgets
 msgid "Customize the {0} widgets shown above the glucose chart. Drag to reorder."
-msgstr "Personnalisez les {0} widgets affichés au-dessus du graphique glycémique. Glissez pour réorganiser."
+msgstr "Personnalisez les {0} widgets affichés au-dessus du graphique glycémique. Glissez pour réordonner."
 
 #: src/lib/components/settings/DashboardWidgetConfigurator.svelte
 msgid "Active Widgets"
@@ -5913,7 +5918,7 @@ msgstr "Ventilation alimentaire"
 
 #: src/lib/components/treatments/TreatmentFoodBreakdown.svelte
 msgid "Add foods to match carbs when it helps. Partial attribution is fine."
-msgstr "Ajoutez des aliments pour matcher les glucides si besoin. L'attribution partielle est acceptable."
+msgstr "Ajoutez des aliments pour correspondre aux glucides quand c'est utile. L'attribution partielle est acceptable."
 
 #: src/lib/components/treatments/TreatmentFoodBreakdown.svelte
 msgid "Loading breakdown..."
@@ -6298,7 +6303,7 @@ msgstr ""
 
 #: src/routes/auth/error/+page.svelte
 msgid "There was a problem with the authentication request. Please try again."
-msgstr "Un problème est survenu lors de la demande d'authentification. Veuillez réessayer."
+msgstr "Un problème est survenu avec la requête d'authentification. Veuillez réessayer."
 
 #: src/routes/auth/error/+page.svelte
 msgid "The authentication process was interrupted. Please try logging in again."
@@ -7421,15 +7426,15 @@ msgstr ""
 
 #: src/routes/reports/basal-analysis/+page.svelte
 msgid "The <0>median line</0> shows your most common basal rate at each hour"
-msgstr "La <0>ligne médiane</0> montre votre taux basal le plus fréquent à chaque heure"
+msgstr "La <0>ligne médiane</0> montre votre taux basal le plus fréquent à chaque heure."
 
 #: src/routes/reports/basal-analysis/+page.svelte
 msgid "The <0>shaded bands</0> show the range of variation (10th-90th percentile)"
-msgstr "Les <0>bandes ombrées</0> montrent l'étendue des variations (10e-90e percentile)"
+msgstr "Les <0>bandes ombrées</0> montrent l'étendue des variations (10e-90e percentile)."
 
 #: src/routes/reports/basal-analysis/+page.svelte
 msgid "Wider bands indicate more variability in your basal needs"
-msgstr "Des bandes plus larges indiquent une variabilité plus forte de vos besoins basaux"
+msgstr "Des bandes plus larges indiquent une variabilité plus marquée de vos besoins basaux."
 
 #: src/routes/reports/basal-analysis/+page.svelte
 msgid ""
@@ -7530,11 +7535,11 @@ msgstr ""
 
 #: src/routes/reports/basal-analysis/+page.svelte
 msgid "No temp basal activity recorded in this period."
-msgstr "Aucune activité de basal temporaire enregistrée durant cette période."
+msgstr "Aucune activité de basal temporaire enregistrée pendant cette période."
 
 #: src/routes/reports/basal-analysis/+page.svelte
 msgid "Suspend/Zero Temp Basals"
-msgstr "Suspendre/Zero basals temporaires"
+msgstr "Suspendre/Temp basals à zéro"
 
 #: src/routes/reports/basal-analysis/+page.svelte
 msgid ""
@@ -7594,7 +7599,7 @@ msgstr "<0/> Profil glycémique ambulatoire"
 
 #: src/routes/reports/agp/+page.svelte
 msgid "Your typical daily glucose pattern — a standardized clinical report"
-msgstr "Votre profil glycémique quotidien type — un rapport clinique standardisé"
+msgstr "Votre schéma glycémique quotidien habituel — un rapport clinique standardisé."
 
 #: src/routes/reports/agp/+page.svelte
 msgid "Summary <0/>"
@@ -7679,7 +7684,7 @@ msgstr "Objectif : <25 %"
 
 #: src/routes/reports/agp/+page.svelte
 msgid "<0/> Glucose Pattern (24-hour overlay)"
-msgstr "<0/> Schéma glycémique (superposition 24 h)"
+msgstr "<0/> Schéma glycémique (superposition sur 24 h)"
 
 #: src/routes/reports/agp/+page.svelte
 msgid ""
@@ -7697,7 +7702,7 @@ msgstr "Comment votre temps est réparti entre les plages glycémiques"
 
 #: src/routes/reports/agp/+page.svelte
 msgid "<0/> Pattern Observations"
-msgstr "<0/> Observations de schéma"
+msgstr "<0/> Observations des schémas"
 
 #: src/routes/reports/agp/+page.svelte
 msgid "What your AGP reveals about your glucose patterns"
@@ -7723,7 +7728,7 @@ msgstr ""
 
 #: src/routes/reports/agp/+page.svelte
 msgid "Let's Work on This"
-msgstr "Travaillez dessus"
+msgstr "Travaillons dessus"
 
 #: src/routes/reports/agp/+page.svelte
 #. placeholder {0}: (tir.target ?? 0).toFixed(0)
@@ -8168,7 +8173,7 @@ msgstr "Des progrès — trouvons des axes d'amélioration."
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "Some areas need focus. Your care team can help."
-msgstr "Certaines zones nécessitent de l'attention. Votre équipe soignante peut aider."
+msgstr "Certaines zones nécessitent de l'attention. Votre équipe soignante peut vous aider."
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "Please discuss with your healthcare provider soon."
@@ -8341,76 +8346,76 @@ msgstr "Plus bas (mg/dL)"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "Highest (mg/dL)"
-msgstr ""
+msgstr "Plus haut (mg/dL)"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "10th %ile"
-msgstr ""
+msgstr "10e percentile"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "25th %ile"
-msgstr ""
+msgstr "25e percentile"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "75th %ile"
-msgstr ""
+msgstr "75e percentile"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "90th %ile"
-msgstr ""
+msgstr "90e percentile"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "<0/> Data Quality"
-msgstr ""
+msgstr "<0/> Qualité des données"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "How complete is your CGM data?"
-msgstr ""
+msgstr "Quelle est la couverture de vos données CGM ?"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "CGM Active Time"
-msgstr ""
+msgstr "Temps actif CGM"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "<0/> Excellent data coverage!"
-msgstr ""
+msgstr "<0/> Excellente couverture des données !"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "<0/> Good coverage. For best insights, aim for 90%+"
-msgstr ""
+msgstr "<0/> Bonne couverture. Pour de meilleurs insights, visez 90+ %"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "<0/> Limited data may affect report accuracy"
-msgstr ""
+msgstr "<0/> Des données limitées peuvent affecter la précision du rapport"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "Total readings"
-msgstr ""
+msgstr "Lectures totales"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "Days analyzed"
-msgstr ""
+msgstr "Jours analysés"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "<0/> Explore More Reports"
-msgstr ""
+msgstr "<0/> Explorez d'autres rapports"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "AGP Report"
-msgstr ""
+msgstr "Rapport AGP"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "Day-by-Day"
-msgstr ""
+msgstr "Jour par jour"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "All Reports"
-msgstr ""
+msgstr "Tous les rapports"
 
 #: src/routes/reports/executive-summary/+page.svelte
 #. placeholder {0}: new Date(dateRange.lastUpdated).toLocaleString()
 msgid "Report generated: {0}"
-msgstr ""
+msgstr "Rapport généré : {0}"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid ""
@@ -8420,7 +8425,7 @@ msgstr ""
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Your basal/bolus ratio is well-balanced."
-msgstr ""
+msgstr "Votre ratio basale/bolus est bien équilibré."
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid ""
@@ -8436,11 +8441,11 @@ msgstr ""
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Insufficient data to assess ratio."
-msgstr ""
+msgstr "Données insuffisantes pour évaluer le ratio."
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Insulin Delivery Report - Nocturne Reports"
-msgstr ""
+msgstr "Rapport d'administration d'insuline - Rapports Nocturne"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid ""
@@ -8450,28 +8455,28 @@ msgstr ""
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "<0/> Insulin Delivery Report"
-msgstr ""
+msgstr "<0/> Rapport d'administration d'insuline"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Comprehensive analysis of your basal and bolus insulin patterns"
-msgstr ""
+msgstr "Analyse complète de vos schémas d'insuline basale et bolus"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Basal Analysis <0/>"
-msgstr ""
+msgstr "Analyse basale <0/>"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 #. placeholder {0}: insulinStats.bolusCount + insulinStats.basalCount
 msgid "{0} insulin events"
-msgstr ""
+msgstr "{0} événements d'insuline"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "<0/> Understanding Basal/Bolus Balance"
-msgstr ""
+msgstr "<0/> Comprendre l'équilibre basale/bolus"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Your <0>Total Daily Dose (TDD)</0> is split between two types of insulin:"
-msgstr ""
+msgstr "Votre <0>dose quotidienne totale (TDD)</0> se répartit entre deux types d'insuline :"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid ""
@@ -8481,7 +8486,7 @@ msgstr ""
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "<0>Bolus insulin:</0> Insulin taken for meals and to correct high glucose"
-msgstr ""
+msgstr "<0>Insuline bolus :</0> Insuline prise pour les repas et corriger une glycémie élevée"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid ""
@@ -8492,85 +8497,85 @@ msgstr ""
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "units/day"
-msgstr ""
+msgstr "unités/jour"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 #: src/routes/reports/insulin-delivery/+page.svelte
 #. placeholder {0}: insulinStats.totalBasal.toFixed(1)
 #. placeholder {0}: insulinStats.totalBolus.toFixed(1)
 msgid "{0}U total"
-msgstr ""
+msgstr "{0} U au total"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Boluses/Day"
-msgstr ""
+msgstr "Bolus/jour"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 #. placeholder {0}: insulinStats.avgBolus.toFixed(1)
 msgid "avg {0}U each"
-msgstr ""
+msgstr "en moyenne {0} U chacun"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Avg I:C"
-msgstr ""
+msgstr "Ratio glucides/insuline moyen"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 #. placeholder {0}: insulinStats.basalPercent.toFixed(0)
 #. placeholder {1}: insulinStats.bolusPercent.toFixed( 0 )
 msgid "Basal/Bolus Ratio: {0}% / {1}%"
-msgstr ""
+msgstr "Ratio basal/bolus : {0}% / {1}%"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "<0/> Daily Basal/Bolus Breakdown"
-msgstr ""
+msgstr "<0/> Répartition quotidienne basale/bolus"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "See how your insulin was split each day"
-msgstr ""
+msgstr "Voyez comment votre insuline est répartie chaque jour"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "<0/> Hourly Insulin Delivery"
-msgstr ""
+msgstr "<0/> Livraison d'insuline horaire"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Average insulin delivered by hour of day, split by basal and bolus"
-msgstr ""
+msgstr "Insuline moyenne délivrée par heure, répartie entre basal et bolus"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "<0/> Bolus Breakdown"
-msgstr ""
+msgstr "<0/> Répartition des bolus"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Understanding your bolus insulin usage"
-msgstr ""
+msgstr "Comprendre l'utilisation de vos bolus"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Total Boluses"
-msgstr ""
+msgstr "Bolus totaux"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 #. placeholder {0}: dayCount
 msgid "Over {0} days"
-msgstr ""
+msgstr "Sur {0} jours"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Meal Boluses"
-msgstr ""
+msgstr "Bolus repas"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 #: src/routes/reports/insulin-delivery/+page.svelte
 #. placeholder {0}: insulinStats.bolusCount > 0 ? ( (insulinStats.mealBoluses / insulinStats.bolusCount) * 100 ).toFixed(0) : 0
 #. placeholder {0}: insulinStats.bolusCount > 0 ? ( (insulinStats.correctionBoluses / insulinStats.bolusCount) * 100 ).toFixed(0) : 0
 msgid "{0}% of boluses"
-msgstr ""
+msgstr "{0}% des bolus"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Correction Boluses"
-msgstr ""
+msgstr "Bolus de correction"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Bolus Pattern Insights"
-msgstr ""
+msgstr "Insights sur le schéma de bolus"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid ""
@@ -8599,20 +8604,20 @@ msgstr ""
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "larger boluses typical for higher carb meals."
-msgstr ""
+msgstr "Des bolus plus importants typiques des repas riches en glucides."
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "moderate bolus sizes."
-msgstr ""
+msgstr "Tailles de bolus modérées."
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 #. placeholder {0}: insulinStats.avgBolus.toFixed(1)
 msgid "Average bolus size of {0}U — <0/>"
-msgstr ""
+msgstr "Taille moyenne de bolus de {0} U — <0/>"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "<0/> Clinical Reference"
-msgstr ""
+msgstr "<0/> Référence clinique"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid ""
@@ -8630,45 +8635,45 @@ msgstr ""
 #: src/routes/reports/insulin-delivery/+page.svelte
 #. placeholder {0}: insulinStats.icRatio.toFixed( 0 )
 msgid "means you use about 1 unit of insulin for every {0} grams of carbs."
-msgstr ""
+msgstr "signifie que vous utilisez environ 1 unité d'insuline pour {0} grammes de glucides."
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 #. placeholder {0}: insulinStats.icRatio.toFixed( 0 )
 msgid "<0>I:C Ratio Check:</0> Your average insulin-to-carb ratio of 1:{0} <1/>"
-msgstr ""
+msgstr "<0>Vérification du ratio I:C :</0> Votre ratio moyen insuline/glucides est de 1 : {0} <1/>"
 
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Basal Rate Analysis <0/>"
-msgstr ""
+msgstr "Analyse du taux basal <0/>"
 
 #: src/routes/reports/month-to-month/+page.svelte
 msgid "Redirecting to Calendar..."
-msgstr ""
+msgstr "Redirection vers le calendrier..."
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "Treatment Log - Nocturne"
-msgstr ""
+msgstr "Journal de traitement - Nocturne"
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "View and manage your diabetes treatments, insulin doses, and carb entries"
-msgstr ""
+msgstr "Consultez et gérez vos traitements, doses d'insuline et saisies de glucides"
 
 #: src/routes/reports/treatments/+page.svelte
 #. placeholder {0}: treatments.length.toLocaleString()
 msgid "{0} treatments"
-msgstr ""
+msgstr "{0} traitements"
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "Search"
-msgstr ""
+msgstr "Rechercher"
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "<0/> Event Types <1/> <2/>"
-msgstr ""
+msgstr "<0/> Types d'événements <1/> <2/>"
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "Delete Treatment"
-msgstr ""
+msgstr "Supprimer le traitement"
 
 #: src/routes/reports/treatments/+page.svelte
 #. placeholder {0}: treatmentToDelete.eventType
@@ -8679,34 +8684,34 @@ msgstr ""
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "Treatment Details"
-msgstr ""
+msgstr "Détails du traitement"
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "Time:"
-msgstr ""
+msgstr "Heure :"
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "Type:"
-msgstr ""
+msgstr "Type :"
 
 #: src/routes/reports/treatments/+page.svelte
 #. placeholder {0}: formatInsulinDisplay(treatmentToDelete.insulin)
 msgid "<0>Insulin:</0> {0}U"
-msgstr ""
+msgstr "<0>Insuline :</0> {0} U"
 
 #: src/routes/reports/treatments/+page.svelte
 #. placeholder {0}: formatCarbDisplay(treatmentToDelete.carbs)
 msgid "<0>Carbs:</0> {0}g"
-msgstr ""
+msgstr "<0>Glucides :</0> {0} g"
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "Treatment deleted successfully"
-msgstr ""
+msgstr "Traitement supprimé avec succès"
 
 #: src/routes/reports/treatments/+page.svelte
 #. placeholder {0}: treatmentsToDelete.length
 msgid "Delete {0} Treatments"
-msgstr ""
+msgstr "Supprimer {0} traitements"
 
 #: src/routes/reports/treatments/+page.svelte
 #. placeholder {0}: treatmentsToDelete.length
@@ -8718,69 +8723,69 @@ msgstr ""
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "Selected Treatments"
-msgstr ""
+msgstr "Traitements sélectionnés"
 
 #: src/routes/reports/treatments/+page.svelte
 #. placeholder {0}: treatmentsToDelete.length - 5
 msgid "... and {0} more treatments"
-msgstr ""
+msgstr "... et {0} autres traitements"
 
 #: src/routes/reports/treatments/+page.svelte
 msgid "Failed to delete treatments"
-msgstr ""
+msgstr "Échec de la suppression des traitements"
 
 #: src/routes/reports/treatments/+page.svelte
 #. placeholder {0}: treatmentsToDelete.length
 #. placeholder {1}: treatmentsToDelete.length !== 1 ? "s" : ""
 msgid "Delete {0} Treatment{1}"
-msgstr ""
+msgstr "Supprimer {0} traitement{1}"
 
 #: src/routes/reports/week-to-week/+page.svelte
 msgid "No data available for this week"
-msgstr ""
+msgstr "Pas de données disponibles pour cette semaine"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "Site Change Impact - Nocturne Reports"
-msgstr ""
+msgstr "Impact du changement de site - Rapports Nocturne"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "Analyze how pump site changes affect your glucose control"
-msgstr ""
+msgstr "Analysez comment les changements de site de pompe affectent votre glycémie"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "<0/> Site Change Impact"
-msgstr ""
+msgstr "<0/> Impact du changement de site"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "Analyze glucose patterns before and after pump site changes"
-msgstr ""
+msgstr "Analysez les schémas glycémiques avant et après les changements de site"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "<0/> Back to Reports"
-msgstr ""
+msgstr "<0/> Retour aux rapports"
 
 #: src/lib/components/ui/duration-input/duration-input.svelte
 #: src/routes/reports/site-change-impact/+page.svelte
 #. placeholder {0}: (computedHours / 24).toFixed(1)
 #. placeholder {0}: dayCount
 msgid "({0} days)"
-msgstr ""
+msgstr "({0} jours)"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "site changes analyzed"
-msgstr ""
+msgstr "changements de site analysés"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "<0/> Glucose Pattern Around Site Changes"
-msgstr ""
+msgstr "<0/> Schéma glycémique autour des changements de site"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "Average glucose levels in the hours before and after each site change"
-msgstr ""
+msgstr "Niveaux glycémiques moyens dans les heures avant et après chaque changement de site"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "Loading site change data..."
-msgstr ""
+msgstr "Chargement des données de changement de site..."
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid ""
@@ -8792,7 +8797,7 @@ msgstr ""
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "Before Site Change (Left)"
-msgstr ""
+msgstr "Avant le changement de site (à gauche)"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid ""
@@ -8803,7 +8808,7 @@ msgstr ""
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "After Site Change (Right)"
-msgstr ""
+msgstr "Après le changement de site (à droite)"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid ""
@@ -8813,7 +8818,7 @@ msgstr ""
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "💡 Tip"
-msgstr ""
+msgstr "💡 Astuce"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid ""
@@ -8824,11 +8829,11 @@ msgstr ""
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "<0/> Key Insights"
-msgstr ""
+msgstr "<0/> Principaux enseignements"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "Significant Improvement"
-msgstr ""
+msgstr "Amélioration significative"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 #. placeholder {0}: percentImprovement.toFixed(1)
@@ -8840,7 +8845,7 @@ msgstr ""
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "Post-Change Rise"
-msgstr ""
+msgstr "Hausse post-change"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 #. placeholder {0}: Math.abs(percentImprovement).toFixed(1)
@@ -8852,7 +8857,7 @@ msgstr ""
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "Stable Control"
-msgstr ""
+msgstr "Contrôle stable"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid ""
@@ -8862,215 +8867,215 @@ msgstr ""
 
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "TIR Improvement"
-msgstr ""
+msgstr "Amélioration du TIR"
 
 #: src/routes/reports/site-change-impact/+page.svelte
 #. placeholder {0}: tirBefore.toFixed(0)
 #. placeholder {1}: tirAfter.toFixed( 0 )
 msgid "Time in range improves from {0}% to {1}% after site changes."
-msgstr ""
+msgstr "Le temps dans la plage passe de {0}% à {1}% après les changements de site."
 
 #: src/routes/settings/account/+page.svelte
 msgid "Account - Settings - Nocturne"
-msgstr ""
+msgstr "Compte - Paramètres - Nocturne"
 
 #: src/routes/settings/account/+page.svelte
 msgid "View and manage your account information"
-msgstr ""
+msgstr "Consultez et gérez les informations de votre compte"
 
 #: src/routes/settings/account/+page.svelte
 msgid "Account Details"
-msgstr ""
+msgstr "Détails du compte"
 
 #: src/routes/settings/account/+page.svelte
 msgid "Subject ID"
-msgstr ""
+msgstr "ID du sujet"
 
 #: src/routes/settings/account/+page.svelte
 msgid "Session Expires"
-msgstr ""
+msgstr "Session expire"
 
 #: src/routes/settings/account/+page.svelte
 msgid "<0/> Roles"
-msgstr ""
+msgstr "<0/> Rôles"
 
 #: src/routes/settings/account/+page.svelte
 #: src/routes/settings/admin/+page.svelte
 msgid "No roles assigned"
-msgstr ""
+msgstr "Aucun rôle attribué"
 
 #: src/routes/settings/account/+page.svelte
 msgid "<0/> Permissions"
-msgstr ""
+msgstr "<0/> Permissions"
 
 #: src/routes/settings/account/+page.svelte
 msgid "No explicit permissions"
-msgstr ""
+msgstr "Aucune permission explicite"
 
 #: src/routes/settings/account/+page.svelte
 msgid "<0/> Back to Settings"
-msgstr ""
+msgstr "<0/> Retour aux paramètres"
 
 #: src/routes/settings/account/+page.svelte
 msgid "<0/> Log Out"
-msgstr ""
+msgstr "<0/> Déconnexion"
 
 #: src/routes/settings/account/+page.svelte
 msgid "Not Signed In"
-msgstr ""
+msgstr "Non connecté"
 
 #: src/routes/settings/account/+page.svelte
 msgid "Sign in to access your account dashboard and manage your settings."
-msgstr ""
+msgstr "Connectez-vous pour accéder à votre tableau de bord et gérer vos paramètres."
 
 #: src/routes/settings/account/+page.svelte
 msgid "<0/> Sign In with Nocturne"
-msgstr ""
+msgstr "<0/> Se connecter avec Nocturne"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Failed to load admin data"
-msgstr ""
+msgstr "Échec du chargement des données admin"
 
 #: src/routes/settings/admin/+page.svelte
 #: src/routes/settings/admin/+page.svelte
 msgid "Public"
-msgstr ""
+msgstr "Public"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Delete this subject? This action cannot be undone."
-msgstr ""
+msgstr "Supprimer ce sujet ? Cette action est irréversible."
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Delete this role? This action cannot be undone."
-msgstr ""
+msgstr "Supprimer ce rôle ? Cette action est irréversible."
 
 #: src/routes/settings/admin/+page.svelte
 msgid "API - Entries"
-msgstr ""
+msgstr "API - Entrées"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "API - Treatments"
-msgstr ""
+msgstr "API - Traitements"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "API - Device Status"
-msgstr ""
+msgstr "API - Statut des appareils"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "API - Profile"
-msgstr ""
+msgstr "API - Profil"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "API - Food"
-msgstr ""
+msgstr "API - Aliments"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Care Portal"
-msgstr ""
+msgstr "Portail de soins"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Administration - Settings - Nocturne"
-msgstr ""
+msgstr "Administration - Paramètres - Nocturne"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> Accounts <1/>"
-msgstr ""
+msgstr "<0/> Comptes <1/>"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> Roles <1/>"
-msgstr ""
+msgstr "<0/> Rôles <1/>"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> Tokens"
-msgstr ""
+msgstr "<0/> Jetons"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> Password Resets <1/>"
-msgstr ""
+msgstr "<0/> Réinitialisations de mot de passe <1/>"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Subjects"
-msgstr ""
+msgstr "Sujets"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Users, devices, and services that can access the system"
-msgstr ""
+msgstr "Utilisateurs, appareils et services pouvant accéder au système"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> New Subject"
-msgstr ""
+msgstr "<0/> Nouveau sujet"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "No subjects found"
-msgstr ""
+msgstr "Aucun sujet trouvé"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Create your first subject to get started"
-msgstr ""
+msgstr "Créez votre premier sujet pour commencer"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> Unauthenticated Access"
-msgstr ""
+msgstr "<0/> Accès non authentifié"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Has Token"
-msgstr ""
+msgstr "Possède un jeton"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Shows what users without login can see"
-msgstr ""
+msgstr "Affiche ce que voient les utilisateurs non connectés"
 
 #: src/routes/settings/admin/+page.svelte
 #: src/routes/settings/admin/+page.svelte
 #. placeholder {0}: subject.roles.join(", ")
 #. placeholder {0}: subject.roles?.join(", ") || "None"
 msgid "Roles: {0}"
-msgstr ""
+msgstr "Rôles : {0}"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> View Token"
-msgstr ""
+msgstr "<0/> Voir le jeton"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Define permission sets that can be assigned to subjects"
-msgstr ""
+msgstr "Définissez des ensembles de permissions attribuables aux sujets"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> New Role"
-msgstr ""
+msgstr "<0/> Nouveau rôle"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "No roles found"
-msgstr ""
+msgstr "Aucun rôle trouvé"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Create your first role to get started"
-msgstr ""
+msgstr "Créez votre premier rôle pour commencer"
 
 #: src/routes/settings/admin/+page.svelte
 #: src/routes/settings/appearance/+page.svelte
 #: src/routes/settings/appearance/+page.svelte
 msgid "<0/> System"
-msgstr ""
+msgstr "<0/> Système"
 
 #: src/routes/settings/admin/+page.svelte
 #. placeholder {0}: role.permissions.length
 #. placeholder {1}: role .permissions.length === 1 ? "" : "s"
 msgid "{0} permission{1}"
-msgstr ""
+msgstr "{0} permission{1}"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "No permissions"
-msgstr ""
+msgstr "Aucune permission"
 
 #: src/routes/settings/admin/+page.svelte
 #. placeholder {0}: role.permissions.length - 3
 msgid "+{0} more"
-msgstr ""
+msgstr "+{0} de plus"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "API Tokens"
-msgstr ""
+msgstr "Jetons API"
 
 #: src/routes/settings/admin/+page.svelte
 msgid ""
@@ -9086,73 +9091,73 @@ msgstr ""
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> Create Subject with Token"
-msgstr ""
+msgstr "<0/> Créer un sujet avec jeton"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Subjects with Tokens"
-msgstr ""
+msgstr "Sujets avec jetons"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> Copy Token"
-msgstr ""
+msgstr "<0/> Copier le jeton"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Pending Password Resets"
-msgstr ""
+msgstr "Réinitialisations de mot de passe en attente"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Review password reset requests and provide temporary access."
-msgstr ""
+msgstr "Examinez les demandes de réinitialisation et accordez un accès temporaire."
 
 #: src/routes/settings/admin/+page.svelte
 msgid "No pending password reset requests"
-msgstr ""
+msgstr "Aucune demande de réinitialisation en attente"
 
 #: src/routes/settings/admin/+page.svelte
 #. placeholder {0}: request.requestedFromIp
 msgid "IP: {0}"
-msgstr ""
+msgstr "IP : {0}"
 
 #: src/routes/settings/admin/+page.svelte
 #. placeholder {0}: formatDate(request.createdAt)
 msgid "Requested: {0} <0/>"
-msgstr ""
+msgstr "Demandé : {0} <0/>"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Set Password"
-msgstr ""
+msgstr "Définir un mot de passe"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Generate Link"
-msgstr ""
+msgstr "Générer un lien"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "New Subject"
-msgstr ""
+msgstr "Nouveau sujet"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Edit Subject"
-msgstr ""
+msgstr "Modifier le sujet"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Create a new subject that can access the system."
-msgstr ""
+msgstr "Créez un nouveau sujet pouvant accéder au système."
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Update subject details and role assignments."
-msgstr ""
+msgstr "Mettez à jour les détails du sujet et les rôles associés."
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Description or notes about this subject"
-msgstr ""
+msgstr "Description ou notes concernant ce sujet"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> Create New Role"
-msgstr ""
+msgstr "<0/> Créer un nouveau rôle"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "No roles available"
-msgstr ""
+msgstr "Aucun rôle disponible"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "System"
@@ -9166,7 +9171,7 @@ msgstr ""
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Full Admin Access"
-msgstr ""
+msgstr "Accès administrateur complet"
 
 #: src/routes/settings/admin/+page.svelte
 msgid ""
@@ -9182,7 +9187,7 @@ msgstr ""
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Edit Role"
-msgstr ""
+msgstr "Modifier le rôle"
 
 #: src/routes/settings/admin/+page.svelte
 msgid ""
@@ -9192,52 +9197,52 @@ msgstr ""
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Create a new role with specific permissions."
-msgstr ""
+msgstr "Créez un nouveau rôle avec des permissions spécifiques."
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Update role details and permissions."
-msgstr ""
+msgstr "Mettez à jour le rôle et ses permissions."
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Description of this role's purpose"
-msgstr ""
+msgstr "Description de l'objectif de ce rôle"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Permissions"
-msgstr ""
+msgstr "Permissions"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Custom Permission"
-msgstr ""
+msgstr "Permission personnalisée"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Add"
-msgstr ""
+msgstr "Ajouter"
 
 #: src/routes/settings/admin/+page.svelte
 #. placeholder {0}: roleFormPermissions.length
 msgid "Selected Permissions ({0})"
-msgstr ""
+msgstr "Permissions sélectionnées ({0})"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Access Token"
-msgstr ""
+msgstr "Jeton d'accès"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Use this token to authenticate API requests."
-msgstr ""
+msgstr "Utilisez ce jeton pour authentifier les requêtes API."
 
 #: src/routes/settings/admin/+page.svelte
 #: src/routes/settings/admin/+page.svelte
 #: src/routes/settings/support/+page.svelte
 msgid "<0/> Copied!"
-msgstr ""
+msgstr "<0/> Copié !"
 
 #: src/routes/settings/admin/+page.svelte
 #: src/routes/settings/admin/+page.svelte
 #: src/routes/settings/support/+page.svelte
 msgid "<0/> Copy to Clipboard"
-msgstr ""
+msgstr "<0/> Copier dans le presse-papiers"
 
 #: src/routes/settings/admin/+page.svelte
 msgid ""
@@ -9247,7 +9252,7 @@ msgstr ""
 
 #: src/routes/settings/admin/+page.svelte
 msgid "No access token available for this subject."
-msgstr ""
+msgstr "Aucun jeton d'accès disponible pour ce sujet."
 
 #: src/lib/components/ui/dialog/dialog-content.svelte
 #: src/lib/components/ui/sheet/sheet-content.svelte
@@ -9257,11 +9262,11 @@ msgstr ""
 #: src/routes/settings/services/+page.svelte
 #: src/routes/settings/services/+page.svelte
 msgid "Close"
-msgstr ""
+msgstr "Fermer"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Set Temporary Password"
-msgstr ""
+msgstr "Définir un mot de passe temporaire"
 
 #: src/routes/settings/admin/+page.svelte
 #. placeholder {0}: selectedResetRequest?.email
@@ -9272,11 +9277,11 @@ msgstr ""
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Temporary Password"
-msgstr ""
+msgstr "Mot de passe temporaire"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Leave empty for no password"
-msgstr ""
+msgstr "Laissez vide pour aucun mot de passe"
 
 #: src/routes/settings/admin/+page.svelte
 msgid ""
@@ -9286,294 +9291,294 @@ msgstr ""
 
 #: src/routes/settings/admin/+page.svelte
 msgid "<0/> Set Password"
-msgstr ""
+msgstr "<0/> Définir le mot de passe"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Password Reset Link"
-msgstr ""
+msgstr "Lien de réinitialisation du mot de passe"
 
 #: src/routes/settings/admin/+page.svelte
 msgid "Share this link securely with the user."
-msgstr ""
+msgstr "Partagez ce lien en toute sécurité avec l'utilisateur."
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Alarms - Settings - Nocturne"
-msgstr ""
+msgstr "Alarmes - Paramètres - Nocturne"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Saved!"
-msgstr ""
+msgstr "Enregistré !"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "<0/> Global Settings"
-msgstr ""
+msgstr "<0/> Paramètres globaux"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Master controls for all notifications"
-msgstr ""
+msgstr "Contrôles principaux pour toutes les notifications"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "All Alarms"
-msgstr ""
+msgstr "Toutes les alarmes"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Master switch for all glucose alarms"
-msgstr ""
+msgstr "Interrupteur principal pour toutes les alarmes glycémiques"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Sound"
-msgstr ""
+msgstr "Son"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Global Volume"
-msgstr ""
+msgstr "Volume global"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "<0/> Device Capabilities"
-msgstr ""
+msgstr "<0/> Capacités de l'appareil"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Check what alarm features your browser supports"
-msgstr ""
+msgstr "Vérifiez les fonctionnalités d'alarme prises en charge par votre navigateur"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "<0/> Alarm Profiles"
-msgstr ""
+msgstr "<0/> Profils d'alarme"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Customizable alarms with advanced xDrip+-style features"
-msgstr ""
+msgstr "Alarmes personnalisables avec fonctionnalités avancées à la xDrip+"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "<0/> New Alarm"
-msgstr ""
+msgstr "<0/> Nouvelle alarme"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "No alarms configured"
-msgstr ""
+msgstr "Aucune alarme configurée"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Create your first alarm to get started"
-msgstr ""
+msgstr "Créez votre première alarme pour démarrer"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "<0/> Create Alarm"
-msgstr ""
+msgstr "<0/> Créer une alarme"
 
 #: src/routes/settings/alarms/+page.svelte
 #. placeholder {0}: profile.persistenceMinutes
 msgid "<0/> {0}m delay"
-msgstr ""
+msgstr "<0/> Délai de {0} min"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "<0/> Ascending"
-msgstr ""
+msgstr "<0/> Ascendante"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "<0/> Scheduled"
-msgstr ""
+msgstr "<0/> Planifiée"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Stop preview"
-msgstr ""
+msgstr "Arrêter l'aperçu"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Preview alarm"
-msgstr ""
+msgstr "Aperçu de l'alarme"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Duplicate"
-msgstr ""
+msgstr "Dupliquer"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "<0/> Quiet Hours"
-msgstr ""
+msgstr "<0/> Heures calmes"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Reduce notification noise during specified hours"
-msgstr ""
+msgstr "Réduisez le bruit des notifications pendant les heures indiquées"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Enable quiet hours"
-msgstr ""
+msgstr "Activer les heures calmes"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Start time"
-msgstr ""
+msgstr "Heure de début"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "End time"
-msgstr ""
+msgstr "Heure de fin"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Allow Critical Alarms"
-msgstr ""
+msgstr "Autoriser les alarmes critiques"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Critical priority alarms will still sound"
-msgstr ""
+msgstr "Les alarmes prioritaires critiques continueront de sonner"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Reduce Volume Instead"
-msgstr ""
+msgstr "Réduire le volume à la place"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Play alarms at reduced volume rather than silencing"
-msgstr ""
+msgstr "Jouez les alarmes à volume réduit plutôt qu'en silence"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Quiet Hours Volume"
-msgstr ""
+msgstr "Volume des heures calmes"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "<0/> Notification Channels"
-msgstr ""
+msgstr "<0/> Canaux de notification"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Choose how you receive notifications"
-msgstr ""
+msgstr "Choisissez comment recevoir les notifications"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Push Notifications"
-msgstr ""
+msgstr "Notifications push"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Alerts on this device"
-msgstr ""
+msgstr "Alertes sur cet appareil"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Daily summaries and urgent alerts"
-msgstr ""
+msgstr "Résumés quotidiens et alertes urgentes"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "SMS"
-msgstr ""
+msgstr "SMS"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Text messages for urgent alerts"
-msgstr ""
+msgstr "Messages texte pour alertes urgentes"
 
 #: src/lib/components/settings/alarm-preview/AlarmActiveView.svelte
 #: src/lib/components/settings/alarm-preview/EmergencyOverlay.svelte
 #: src/routes/settings/alarms/+page.svelte
 msgid "Emergency Contacts"
-msgstr ""
+msgstr "Contacts d'urgence"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "People to notify during urgent glucose events"
-msgstr ""
+msgstr "Personnes à prévenir lors d'événements glycémiques urgents"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "<0/> Add Contact"
-msgstr ""
+msgstr "<0/> Ajouter un contact"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "No emergency contacts"
-msgstr ""
+msgstr "Aucun contact d'urgence"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Add contacts to notify during urgent events"
-msgstr ""
+msgstr "Ajoutez des contacts à prévenir lors des urgences"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Contact name"
-msgstr ""
+msgstr "Nom du contact"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Phone"
-msgstr ""
+msgstr "Téléphone"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Delay before notification"
-msgstr ""
+msgstr "Délai avant notification"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Critical only"
-msgstr ""
+msgstr "Critiques uniquement"
 
 #: src/routes/settings/alarms/+page.svelte
 msgid "Enabled"
-msgstr ""
+msgstr "Activé"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Algorithm - Settings - Nocturne"
-msgstr ""
+msgstr "Algorithme - Paramètres - Nocturne"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Algorithm Settings"
-msgstr ""
+msgstr "Paramètres de l'algorithme"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Configure prediction algorithms and automation parameters"
-msgstr ""
+msgstr "Configurez les algorithmes de prédiction et les paramètres d'automatisation"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Glucose Predictions"
-msgstr ""
+msgstr "Prédictions glycémie"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Configure how future glucose values are predicted"
-msgstr ""
+msgstr "Configurez la prédiction des futures valeurs glycémiques"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Prediction horizon"
-msgstr ""
+msgstr "Horizon de prédiction"
 
 #: src/routes/settings/algorithm/+page.svelte
 #. placeholder {0}: store.algorithm.prediction.minutes ?? 30
 msgid "{0} minutes"
-msgstr ""
+msgstr "{0} minutes"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Prediction model"
-msgstr ""
+msgstr "Modèle de prédiction"
 
 #: src/routes/settings/algorithm/+page.svelte
 #: src/routes/settings/algorithm/+page.svelte
 msgid "AR2 (Second-order auto-regressive)"
-msgstr ""
+msgstr "AR2 (auto-régressif d'ordre 2)"
 
 #: src/routes/settings/algorithm/+page.svelte
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Linear extrapolation"
-msgstr ""
+msgstr "Extrapolation linéaire"
 
 #: src/routes/settings/algorithm/+page.svelte
 #: src/routes/settings/algorithm/+page.svelte
 msgid "IOB-based prediction"
-msgstr ""
+msgstr "Prédiction basée sur l'IOB"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Select model"
-msgstr ""
+msgstr "Sélectionnez un modèle"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "COB-based prediction"
-msgstr ""
+msgstr "Prédiction basée sur le COB"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "UAM (Unannounced meals)"
-msgstr ""
+msgstr "UAM (repas non déclarés)"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "The algorithm used to forecast future glucose values"
-msgstr ""
+msgstr "L'algorithme utilisé pour prédire les futures valeurs glycémiques"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Autosens"
-msgstr ""
+msgstr "Autosens"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Automatic sensitivity adjustments based on recent data"
-msgstr ""
+msgstr "Ajustements automatiques de la sensibilité basés sur les données récentes"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Minimum adjustment"
-msgstr ""
+msgstr "Ajustement minimum"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Maximum adjustment"
-msgstr ""
+msgstr "Ajustement maximum"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid ""
@@ -9583,35 +9588,35 @@ msgstr ""
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "<0/> Carb Absorption"
-msgstr ""
+msgstr "<0/> Absorption des glucides"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "How the algorithm estimates carbohydrate absorption"
-msgstr ""
+msgstr "Comment l'algorithme estime l'absorption des glucides"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Default absorption time"
-msgstr ""
+msgstr "Temps d'absorption par défaut"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Minimum absorption rate"
-msgstr ""
+msgstr "Taux d'absorption minimum"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "g/hour"
-msgstr ""
+msgstr "g/heure"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Closed Loop"
-msgstr ""
+msgstr "Boucle fermée"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Automatic insulin delivery adjustments"
-msgstr ""
+msgstr "Ajustements automatiques d'administration d'insuline"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Advanced Feature"
-msgstr ""
+msgstr "Fonctionnalité avancée"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid ""
@@ -9621,82 +9626,82 @@ msgstr ""
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Loop mode"
-msgstr ""
+msgstr "Mode boucle"
 
 #: src/routes/settings/algorithm/+page.svelte
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Open Loop (suggestions only)"
-msgstr ""
+msgstr "Boucle ouverte (suggestions seulement)"
 
 #: src/routes/settings/algorithm/+page.svelte
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Closed Loop (automatic adjustments)"
-msgstr ""
+msgstr "Boucle fermée (ajustements automatiques)"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Select mode"
-msgstr ""
+msgstr "Sélectionnez un mode"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Max basal rate"
-msgstr ""
+msgstr "Taux basal maximal"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Max bolus"
-msgstr ""
+msgstr "Bolus maximal"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Super Micro Bolus (SMB)"
-msgstr ""
+msgstr "Super micro bolus (SMB)"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Allow small automatic correction boluses"
-msgstr ""
+msgstr "Autoriser de petits bolus correctifs automatiques"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Unannounced Meals (UAM)"
-msgstr ""
+msgstr "Repas non déclarés (UAM)"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Detect and respond to meals without carb entry"
-msgstr ""
+msgstr "Détecter et réagir aux repas sans saisie de glucides"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Safety Limits"
-msgstr ""
+msgstr "Limites de sécurité"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Hard limits to prevent excessive insulin delivery"
-msgstr ""
+msgstr "Limites strictes pour éviter un surdosage d'insuline"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Always Active"
-msgstr ""
+msgstr "Toujours actif"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Maximum IOB"
-msgstr ""
+msgstr "IOB maximal"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Maximum insulin on board from boluses"
-msgstr ""
+msgstr "Insuline active maximale issue des bolus"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Max daily safety multiplier"
-msgstr ""
+msgstr "Multiplicateur de sécurité quotidien max"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "x"
-msgstr ""
+msgstr "x"
 
 #: src/routes/settings/algorithm/+page.svelte
 msgid "Maximum basal as multiplier of highest scheduled rate"
-msgstr ""
+msgstr "Basal maximal comme multiple du taux programmé le plus élevé"
 
 #: src/routes/settings/devices/+page.svelte
 #: src/routes/settings/services/+page.svelte
 msgid "Stale"
-msgstr ""
+msgstr "Périmé"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Devices - Settings - Nocturne"
@@ -9704,103 +9709,103 @@ msgstr ""
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Manage your CGM, insulin pump, and other connected devices"
-msgstr ""
+msgstr "Gérez vos CGM, pompe à insuline et autres appareils connectés"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Active Devices"
-msgstr ""
+msgstr "Appareils actifs"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Devices actively reporting data to Nocturne"
-msgstr ""
+msgstr "Appareils transmettant activement des données à Nocturne"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "No active devices found"
-msgstr ""
+msgstr "Aucun appareil actif trouvé"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Connect a CGM or pump app to see it here"
-msgstr ""
+msgstr "Connectez un CGM ou une application de pompe pour l'afficher ici"
 
 #: src/routes/settings/devices/+page.svelte
 #. placeholder {0}: formatLastSeen(device.lastSeen)
 msgid "Last seen: {0}"
-msgstr ""
+msgstr "Dernière vue : {0}"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Failed to load devices"
-msgstr ""
+msgstr "Échec du chargement des appareils"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Device Settings"
-msgstr ""
+msgstr "Paramètres de l'appareil"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Configure how devices connect and sync data"
-msgstr ""
+msgstr "Configurez comment les appareils se connectent et synchronisent les données"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Auto-connect on startup"
-msgstr ""
+msgstr "Connexion automatique au démarrage"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Automatically reconnect to known devices when the app starts"
-msgstr ""
+msgstr "Reconnectez automatiquement les appareils connus au démarrage de l'appli"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Cloud upload"
-msgstr ""
+msgstr "Téléversement dans le cloud"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Upload device data to your Nightscout site"
-msgstr ""
+msgstr "Téléversez les données des appareils vers votre site Nightscout"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Show raw sensor data"
-msgstr ""
+msgstr "Afficher les données brutes du capteur"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Display unfiltered readings alongside calibrated values"
-msgstr ""
+msgstr "Afficher les lectures non filtrées aux côtés des valeurs calibrées"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "CGM Configuration"
-msgstr ""
+msgstr "Configuration CGM"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Settings specific to continuous glucose monitors"
-msgstr ""
+msgstr "Paramètres propres aux moniteurs glycémiques continus"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Data source priority"
-msgstr ""
+msgstr "Priorité des sources de données"
 
 #: src/routes/settings/devices/+page.svelte
 #: src/routes/settings/devices/+page.svelte
 msgid "Meter readings preferred"
-msgstr ""
+msgstr "Lectures du glucomètre préférées"
 
 #: src/routes/settings/devices/+page.svelte
 #: src/routes/settings/devices/+page.svelte
 msgid "Average both sources"
-msgstr ""
+msgstr "Moyenne des deux sources"
 
 #: src/routes/settings/devices/+page.svelte
 #: src/routes/settings/devices/+page.svelte
 msgid "CGM readings preferred"
-msgstr ""
+msgstr "Lectures CGM préférées"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Choose which data source to prioritize when multiple are available"
-msgstr ""
+msgstr "Choisissez la source à prioriser quand plusieurs sont disponibles"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Sensor warmup period"
-msgstr ""
+msgstr "Période de chauffe du capteur"
 
 #: src/routes/settings/devices/+page.svelte
 msgid "Time to wait before using readings from a new sensor"
-msgstr ""
+msgstr "Temps d'attente avant d'utiliser les lectures d'un nouveau capteur"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Appearance - Settings - Nocturne"
@@ -9808,19 +9813,19 @@ msgstr ""
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Customize the look and feel of Nocturne"
-msgstr ""
+msgstr "Personnalisez l'apparence de Nocturne"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "<0/> Color Theme"
-msgstr ""
+msgstr "<0/> Thème"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Choose between Nocturne's custom theme or match the Trio iOS app"
-msgstr ""
+msgstr "Choisissez entre le thème Nocturne ou celui de l'app Trio iOS"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Custom color palette designed for Nocturne"
-msgstr ""
+msgstr "Palette de couleurs personnalisée conçue pour Nocturne"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Trio"
@@ -9828,7 +9833,7 @@ msgstr ""
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Match the Trio iOS app color scheme"
-msgstr ""
+msgstr "Utiliser la palette de couleurs de l'app Trio iOS"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "LoopGreen"
@@ -9844,37 +9849,37 @@ msgstr ""
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Theme changes take effect immediately"
-msgstr ""
+msgstr "Les changements de thème sont pris en compte immédiatement"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "<0/> Color Scheme"
-msgstr ""
+msgstr "<0/> Schéma de couleurs"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Choose between light and dark mode"
-msgstr ""
+msgstr "Choisissez entre mode clair et sombre"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Mode"
-msgstr ""
+msgstr "Mode"
 
 #: src/routes/settings/appearance/+page.svelte
 #: src/routes/settings/appearance/+page.svelte
 msgid "<0/> Light"
-msgstr ""
+msgstr "<0/> Clair"
 
 #: src/routes/settings/appearance/+page.svelte
 #: src/routes/settings/appearance/+page.svelte
 msgid "<0/> Dark"
-msgstr ""
+msgstr "<0/> Sombre"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Night mode schedule"
-msgstr ""
+msgstr "Programmation du mode nuit"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "Automatically switch to dark theme at night"
-msgstr ""
+msgstr "Passer automatiquement au thème sombre la nuit"
 
 #: src/routes/settings/appearance/+page.svelte
 msgid "<0/> Tracker Pills"

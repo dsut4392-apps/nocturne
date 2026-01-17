@@ -1758,52 +1758,52 @@ msgstr "Catégories et sous-catégories"
 #: src/lib/components/food/CategorySubcategoryCombobox.svelte
 #: src/routes/food/FoodFilters.svelte
 msgid "Search categories and subcategories..."
-msgstr ""
+msgstr "Rechercher des catégories et sous-catégories..."
 
 #: src/routes/food/FoodFilters.svelte
 msgid "No items found."
-msgstr ""
+msgstr "Aucun élément trouvé."
 
 #: src/routes/food/FoodFilters.svelte
 msgid "Search by name..."
-msgstr ""
+msgstr "Rechercher par nom..."
 
 #: src/routes/food/FoodFilters.svelte
 msgid "Selected Categories"
-msgstr ""
+msgstr "Catégories sélectionnées"
 
 #: src/routes/food/FoodFilters.svelte
 msgid "Selected Subcategories"
-msgstr ""
+msgstr "Sous-catégories sélectionnées"
 
 #: src/routes/food/QuickPickItem.svelte
 msgid "Move to the top"
-msgstr ""
+msgstr "Déplacer en haut"
 
 #: src/routes/food/QuickPickItem.svelte
 msgid "Delete quick pick"
-msgstr ""
+msgstr "Supprimer la sélection rapide"
 
 #: src/routes/food/QuickPickItem.svelte
 msgid "Name:"
-msgstr ""
+msgstr "Nom :"
 
 #: src/routes/food/QuickPickItem.svelte
 msgid "Quick pick name"
-msgstr ""
+msgstr "Nom de la sélection rapide"
 
 #: src/routes/food/QuickPickItem.svelte
 msgid "Hidden"
-msgstr ""
+msgstr "Masqué"
 
 #: src/routes/food/QuickPickItem.svelte
 msgid "Hide after use"
-msgstr ""
+msgstr "Masquer après utilisation"
 
 #: src/routes/food/QuickPickItem.svelte
 #. placeholder {0}: formatMacro(quickPick.carbs)
 msgid "Total: {0}g carbs"
-msgstr ""
+msgstr "Total : {0} g de glucides"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/lib/components/status-pills/COBPill.svelte
@@ -1811,42 +1811,42 @@ msgstr ""
 #: src/routes/food/QuickPickItem.svelte
 #: src/routes/settings/services/+page.svelte
 msgid "Food"
-msgstr ""
+msgstr "Aliment"
 
 #: src/routes/food/QuickPickItem.svelte
 msgid "Servings"
-msgstr ""
+msgstr "Portions"
 
 #: src/routes/food/QuickPickItem.svelte
 msgid "Remove food"
-msgstr ""
+msgstr "Supprimer l'aliment"
 
 #: src/routes/food/QuickPickItem.svelte
 #. placeholder {0}: food.portion
 #. placeholder {1}: food.unit
 #. placeholder {2}: formatMacro(food.carbs)
 msgid "({0} {1} = {2}g)"
-msgstr ""
+msgstr "({0} {1} = {2} g)"
 
 #: src/routes/food/QuickPickItem.svelte
 msgid "Drop food here!"
-msgstr ""
+msgstr "Déposez l'aliment ici !"
 
 #: src/routes/food/QuickPickItem.svelte
 msgid "<0/> Drag & drop food here"
-msgstr ""
+msgstr "<0/> Glisser-déposer l'aliment ici"
 
 #: src/routes/food/QuickPicksList.svelte
 msgid "Quick picks"
-msgstr ""
+msgstr "Sélections rapides"
 
 #: src/routes/food/QuickPicksList.svelte
 msgid "<0/> Add new"
-msgstr ""
+msgstr "<0/> Ajouter nouveau"
 
 #: src/routes/food/QuickPicksList.svelte
 msgid "Show hidden <0/>"
-msgstr ""
+msgstr "Afficher les <0/> masqués"
 
 #: src/lib/components/entries/EntryEditDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodEntryEditDialog.svelte
@@ -1856,7 +1856,7 @@ msgstr ""
 #: src/routes/settings/trackers/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Save"
-msgstr ""
+msgstr "Enregistrer"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1865,7 +1865,7 @@ msgstr ""
 #: src/routes/settings/migration/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Completed"
-msgstr ""
+msgstr "Terminé"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1879,7 +1879,7 @@ msgstr ""
 #: src/routes/settings/services/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Other"
-msgstr ""
+msgstr "Autre"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1888,7 +1888,7 @@ msgstr ""
 #: src/routes/settings/migration/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Failed"
-msgstr ""
+msgstr "Échoué"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1896,7 +1896,7 @@ msgstr ""
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Fell Off"
-msgstr ""
+msgstr "Tombé"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1904,7 +1904,7 @@ msgstr ""
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Replaced Early"
-msgstr ""
+msgstr "Remplacé en avance"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1912,7 +1912,7 @@ msgstr ""
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Empty"
-msgstr ""
+msgstr "Vide"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1920,7 +1920,7 @@ msgstr ""
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Refilled"
-msgstr ""
+msgstr "Rechargé"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1928,7 +1928,7 @@ msgstr ""
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Attended"
-msgstr ""
+msgstr "Présent"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1936,7 +1936,7 @@ msgstr ""
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Rescheduled"
-msgstr ""
+msgstr "Replanifié"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1945,7 +1945,7 @@ msgstr ""
 #: src/routes/settings/migration/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Cancelled"
-msgstr ""
+msgstr "Annulé"
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
@@ -1953,240 +1953,240 @@ msgstr ""
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Missed"
-msgstr ""
+msgstr "Manqué"
 
 #: src/routes/notifications/+page.svelte
 msgid "Failed to load notification data"
-msgstr ""
+msgstr "Impossible de charger les notifications"
 
 #: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 msgid "Tracker active"
-msgstr ""
+msgstr "Tracker actif"
 
 #: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 #. placeholder {0}: thresholdHours ?? "?"
 #. placeholder {0}: thresholdHours ?? "?"
 msgid "Exceeded {0}h - change urgently!"
-msgstr ""
+msgstr "Dépassement de {0} h - changez d'urgence !"
 
 #: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 #. placeholder {0}: thresholdHours ?? "?"
 #. placeholder {0}: thresholdHours ?? "?"
 msgid "Exceeded {0}h - change soon"
-msgstr ""
+msgstr "Dépassement de {0} h - changez bientôt"
 
 #: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 #. placeholder {0}: thresholdHours ?? def.lifespanHours ?? "?"
 #. placeholder {0}: thresholdHours ?? def.lifespanHours ?? "?"
 msgid "Approaching {0}h limit"
-msgstr ""
+msgstr "Approche de la limite de {0} h"
 
 #: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 #. placeholder {0}: Math.floor(instance.ageHours ?? 0)
 #. placeholder {0}: Math.floor(instance.ageHours ?? 0)
 msgid "Active for {0}h"
-msgstr ""
+msgstr "Actif depuis {0} h"
 
 #: src/routes/notifications/+page.svelte
 msgid "Notifications - Nocturne"
-msgstr ""
+msgstr "Notifications - Nocturne"
 
 #: src/lib/components/layout/SidebarNotifications.svelte
 #: src/lib/components/layout/SidebarNotifications.svelte
 #: src/lib/components/settings/BrowserCapabilities.svelte
 #: src/routes/notifications/+page.svelte
 msgid "Notifications"
-msgstr ""
+msgstr "Notifications"
 
 #: src/routes/notifications/+page.svelte
 #. placeholder {0}: totalActiveCount
 msgid "{0} active"
-msgstr ""
+msgstr "{0} actif"
 
 #: src/routes/notifications/+page.svelte
 msgid "View and manage all notifications and alerts"
-msgstr ""
+msgstr "Consultez et gérez toutes les notifications et alertes"
 
 #: src/routes/notifications/+page.svelte
 msgid "<0/> Admin Actions Required"
-msgstr ""
+msgstr "<0/> Actions administratives requises"
 
 #: src/routes/notifications/+page.svelte
 msgid "Administrative tasks requiring your attention"
-msgstr ""
+msgstr "Tâches administratives requérant votre attention"
 
 #: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 msgid "Password Reset Request"
-msgstr ""
+msgstr "Demande de réinitialisation du mot de passe"
 
 #: src/routes/notifications/+page.svelte
 msgid "<0/> Handle Request"
-msgstr ""
+msgstr "<0/> Traiter la demande"
 
 #: src/routes/notifications/+page.svelte
 msgid "<0/> Tracker Alerts"
-msgstr ""
+msgstr "<0/> Alertes du tracker"
 
 #: src/routes/notifications/+page.svelte
 msgid "Consumable and reminder notifications"
-msgstr ""
+msgstr "Notifications de consommables et rappels"
 
 #: src/routes/notifications/+page.svelte
 #. placeholder {0}: urgentCount
 msgid "{0} urgent"
-msgstr ""
+msgstr "{0} urgent"
 
 #: src/routes/notifications/+page.svelte
 #. placeholder {0}: hazardCount
 msgid "{0} hazard"
-msgstr ""
+msgstr "{0} danger"
 
 #: src/routes/notifications/+page.svelte
 #. placeholder {0}: warnCount
 msgid "{0} warning"
-msgstr ""
+msgstr "{0} avertissement"
 
 #: src/routes/notifications/+page.svelte
 msgid "<0/> Manage"
-msgstr ""
+msgstr "<0/> Gérer"
 
 #: src/routes/notifications/+page.svelte
 msgid "All caught up! No active tracker alerts."
-msgstr ""
+msgstr "À jour ! Aucune alerte de tracker active."
 
 #: src/lib/components/status-pills/TrackerPill.svelte
 #: src/routes/notifications/+page.svelte
 #. placeholder {0}: new Date(instance.startedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", })
 #. placeholder {0}: formatDate(notification.startedAt)
 msgid "Started {0}"
-msgstr ""
+msgstr "Démarré {0}"
 
 #: src/routes/notifications/+page.svelte
 msgid "<0/> Notification History"
-msgstr ""
+msgstr "<0/> Historique des notifications"
 
 #: src/routes/notifications/+page.svelte
 msgid "Past tracker notifications and completions"
-msgstr ""
+msgstr "Notifications et complétions passées du tracker"
 
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "No history yet"
-msgstr ""
+msgstr "Aucun historique pour le moment"
 
 #: src/routes/notifications/+page.svelte
 msgid "Completed trackers will appear here"
-msgstr ""
+msgstr "Les trackers terminés apparaîtront ici"
 
 #: src/routes/notifications/+page.svelte
 #. placeholder {0}: formatAge(instance.ageHours ?? 0)
 #. placeholder {1}: completionReasonLabels[ instance.completionReason ?? CompletionReason.Completed ]
 msgid "Duration: {0} · {1} <0/>"
-msgstr ""
+msgstr "Durée : {0} · {1} <0/>"
 
 #: src/lib/components/icons/TreatmentTypeIcon.svelte
 #: src/routes/meals/+page.svelte
 #: src/routes/meals/+page.svelte
 msgid "Meal"
-msgstr ""
+msgstr "Repas"
 
 #: src/routes/meals/+page.svelte
 msgid "Food added"
-msgstr ""
+msgstr "Aliment ajouté"
 
 #: src/routes/meals/+page.svelte
 msgid "Failed to add food"
-msgstr ""
+msgstr "Échec de l'ajout de l'aliment"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
 #: src/routes/meals/+page.svelte
 msgid "Treatment updated"
-msgstr ""
+msgstr "Traitement mis à jour"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
 #: src/routes/meals/+page.svelte
 #: src/routes/reports/treatments/+page.svelte
 msgid "Failed to update treatment"
-msgstr ""
+msgstr "Échec de la mise à jour du traitement"
 
 #: src/routes/meals/+page.svelte
 msgid "Treatment deleted"
-msgstr ""
+msgstr "Traitement supprimé"
 
 #: src/routes/meals/+page.svelte
 #: src/routes/reports/treatments/+page.svelte
 msgid "Failed to delete treatment"
-msgstr ""
+msgstr "Échec de la suppression du traitement"
 
 #: src/routes/meals/+page.svelte
 msgid "No foods attributed"
-msgstr ""
+msgstr "Aucun aliment attribué"
 
 #: src/routes/meals/+page.svelte
 msgid "Meals - Nocturne"
-msgstr ""
+msgstr "Repas - Nocturne"
 
 #: src/routes/meals/+page.svelte
 msgid "Review carb treatments and add food breakdowns for better meal documentation"
-msgstr ""
+msgstr "Revoyez les traitements de glucides et ajoutez des détails alimentaires pour mieux documenter les repas"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/meals/+page.svelte
 msgid "Meals"
-msgstr ""
+msgstr "Repas"
 
 #: src/routes/meals/+page.svelte
 msgid "Meal Attribution"
-msgstr ""
+msgstr "Attribution de repas"
 
 #: src/routes/meals/+page.svelte
 msgid "Pair carb treatments with foods when you want more detail."
-msgstr ""
+msgstr "Associez les traitements glucidiques aux aliments pour plus de détails."
 
 #: src/routes/meals/+page.svelte
 msgid "Unattributed only"
-msgstr ""
+msgstr "Uniquement non attribués"
 
 #: src/routes/meals/+page.svelte
 msgid "Search meals..."
-msgstr ""
+msgstr "Rechercher des repas..."
 
 #: src/routes/meals/+page.svelte
 msgid "<0/> Foods <1/> <2/>"
-msgstr ""
+msgstr "<0/> Aliments <1/> <2/>"
 
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 #: src/routes/meals/+page.svelte
 msgid "Search foods..."
-msgstr ""
+msgstr "Rechercher des aliments..."
 
 #: src/routes/meals/+page.svelte
 msgid "No foods found."
-msgstr ""
+msgstr "Aucun aliment trouvé."
 
 #: src/lib/components/treatments/TreatmentsDataTable.svelte
 #: src/lib/components/treatments/TreatmentsDataTable.svelte
 #: src/routes/meals/+page.svelte
 msgid "<0/> Clear filter"
-msgstr ""
+msgstr "<0/> Effacer le filtre"
 
 #: src/routes/meals/+page.svelte
 #: src/routes/reports/treatments/+page.svelte
 msgid "<0/> Clear filters"
-msgstr ""
+msgstr "<0/> Effacer les filtres"
 
 #: src/routes/meals/+page.svelte
 #: src/routes/reports/treatments/+page.svelte
 msgid "Showing:"
-msgstr ""
+msgstr "Affichage :"
 
 #: src/routes/meals/+page.svelte
 #: src/routes/reports/treatments/+page.svelte
@@ -2195,34 +2195,34 @@ msgstr ""
 #. placeholder {0}: filteredTreatments.length
 #. placeholder {1}: treatments.length
 msgid "{0} of {1}"
-msgstr ""
+msgstr "{0} sur {1}"
 
 #: src/routes/meals/+page.svelte
 msgid "No meals found in this range."
-msgstr ""
+msgstr "Aucun repas trouvé dans cette plage."
 
 #: src/routes/meals/+page.svelte
 msgid "No meals match the current filters."
-msgstr ""
+msgstr "Aucun repas ne correspond aux filtres actuels."
 
 #: src/routes/meals/+page.svelte
 #: src/routes/reports/day-in-review/+page.svelte
 msgid "Time <0/>"
-msgstr ""
+msgstr "Heure <0/>"
 
 #: src/routes/meals/+page.svelte
 msgid "Meal <0/>"
-msgstr ""
+msgstr "Repas <0/>"
 
 #: src/routes/meals/+page.svelte
 #: src/routes/reports/day-in-review/+page.svelte
 msgid "Carbs <0/>"
-msgstr ""
+msgstr "Glucides <0/>"
 
 #: src/routes/meals/+page.svelte
 #: src/routes/reports/day-in-review/+page.svelte
 msgid "Insulin <0/>"
-msgstr ""
+msgstr "Insuline <0/>"
 
 #: src/lib/components/dashboard/widgets/MealsWidget.svelte
 #: src/routes/meals/+page.svelte
@@ -2231,155 +2231,155 @@ msgstr ""
 #. placeholder {0}: day.meals.length
 #. placeholder {1}: day.meals.length !== 1 ? "s" : ""
 msgid "{0} meal{1}"
-msgstr ""
+msgstr "{0} repas{1}"
 
 #: src/routes/meals/+page.svelte
 msgid "Attributed"
-msgstr ""
+msgstr "Attribué"
 
 #: src/lib/components/treatments/CarbBreakdownBar.svelte
 #: src/routes/meals/+page.svelte
 msgid "Unattributed"
-msgstr ""
+msgstr "Non attribué"
 
 #: src/routes/meals/+page.svelte
 #: src/routes/settings/alarms/+page.svelte
 msgid "Edit"
-msgstr ""
+msgstr "Modifier"
 
 #: src/routes/meals/+page.svelte
 #. placeholder {0}: meal.foods?.length
 msgid "Foods ({0})"
-msgstr ""
+msgstr "Aliments ({0})"
 
 #: src/routes/meals/+page.svelte
 #. placeholder {0}: meal.attributedCarbs ?? 0
 msgid "Attributed: {0}g"
-msgstr ""
+msgstr "Attribués : {0} g"
 
 #: src/routes/meals/+page.svelte
 #. placeholder {0}: meal.unspecifiedCarbs ?? 0
 msgid "Unspecified: {0}g"
-msgstr ""
+msgstr "Non spécifiés : {0} g"
 
 #: src/routes/meals/+page.svelte
 #. placeholder {0}: meal.treatment.notes
 msgid "Notes: {0}"
-msgstr ""
+msgstr "Notes : {0}"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/reports/+layout.svelte
 msgid "Reports"
-msgstr ""
+msgstr "Rapports"
 
 #: src/routes/reports/+layout.svelte
 msgid "Report"
-msgstr ""
+msgstr "Rapport"
 
 #: src/routes/reports/+layout.svelte
 #. placeholder {0}: params.days
 msgid "Last {0} days"
-msgstr ""
+msgstr "Derniers {0} jours"
 
 #: src/routes/reports/+layout.svelte
 msgid "Last 7 days"
-msgstr ""
+msgstr "7 derniers jours"
 
 #: src/routes/reports/+layout.svelte
 #. placeholder {0}: reportName
 msgid "{0} - Nightscout"
-msgstr ""
+msgstr "{0} - Nightscout"
 
 #: src/routes/reports/+layout.svelte
 #. placeholder {0}: reportName.toLowerCase()
 msgid "Nightscout {0} with comprehensive data analysis and filtering capabilities"
-msgstr ""
+msgstr "Nightscout {0} avec analyse et filtrage complets des données"
 
 #: src/routes/reports/+page.svelte
 msgid "The Big Picture"
-msgstr ""
+msgstr "La vue d'ensemble"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/reports/+page.svelte
 msgid "Executive Summary"
-msgstr ""
+msgstr "Résumé exécutif"
 
 #: src/routes/reports/+page.svelte
 msgid "Glucose Profile (AGP)"
-msgstr ""
+msgstr "Profil glycémique (AGP)"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/reports/+page.svelte
 #: src/routes/reports/executive-summary/+page.svelte
 #: src/routes/reports/glucose-distribution/+page.svelte
 msgid "Glucose Distribution"
-msgstr ""
+msgstr "Répartition glycémique"
 
 #: src/routes/reports/+page.svelte
 msgid "Patterns & Trends"
-msgstr ""
+msgstr "Schémas et tendances"
 
 #: src/routes/reports/+page.svelte
 msgid "Hourly Patterns"
-msgstr ""
+msgstr "Schémas horaires"
 
 #: src/routes/reports/+page.svelte
 msgid "Day-by-Day View"
-msgstr ""
+msgstr "Vue jour par jour"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/reports/+page.svelte
 msgid "Week to Week"
-msgstr ""
+msgstr "Semaine après semaine"
 
 #: src/routes/reports/+page.svelte
 msgid "Lifestyle Impact"
-msgstr ""
+msgstr "Impact sur le mode de vie"
 
 #: src/routes/reports/+page.svelte
 msgid "Meal Analysis"
-msgstr ""
+msgstr "Analyse des repas"
 
 #: src/routes/reports/+page.svelte
 msgid "Exercise Impact"
-msgstr ""
+msgstr "Impact de l'exercice"
 
 #: src/routes/reports/+page.svelte
 msgid "Sleep & Overnight"
-msgstr ""
+msgstr "Sommeil et nuit"
 
 #: src/routes/reports/+page.svelte
 msgid "Treatment Insights"
-msgstr ""
+msgstr "Aperçus de traitement"
 
 #: src/routes/reports/+page.svelte
 #: src/routes/reports/basal-analysis/+page.svelte
 #: src/routes/reports/insulin-delivery/+page.svelte
 #: src/routes/reports/treatments/+page.svelte
 msgid "Treatment Log"
-msgstr ""
+msgstr "Journal des traitements"
 
 #: src/routes/reports/+page.svelte
 msgid "Basal Rate Analysis"
-msgstr ""
+msgstr "Analyse du taux basal"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/reports/+page.svelte
 msgid "Insulin Delivery"
-msgstr ""
+msgstr "Administration d'insuline"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/reports/+page.svelte
 msgid "Site Change Impact"
-msgstr ""
+msgstr "Impact du changement de site"
 
 #: src/routes/reports/+page.svelte
 msgid "Reports - Nocturne"
-msgstr ""
+msgstr "Rapports - Nocturne"
 
 #: src/routes/reports/+page.svelte
 msgid "Comprehensive diabetes management analytics and insights"
-msgstr ""
+msgstr "Analyses complètes et aperçus de la gestion du diabète"
 
 #: src/routes/auth/reset-password/+page.svelte
 #: src/routes/auth/verify-email/+page.svelte
@@ -2388,7 +2388,7 @@ msgstr ""
 #: src/routes/reports/executive-summary/+page.svelte
 #: src/routes/reports/glucose-distribution/+page.svelte
 msgid "Try again"
-msgstr ""
+msgstr "Réessayer"
 
 #: src/lib/components/dashboard/widgets/DailySummaryWidget.svelte
 #: src/lib/components/dashboard/widgets/TirChartWidget.svelte
@@ -2399,48 +2399,48 @@ msgstr ""
 #. placeholder {0}: entries.length.toLocaleString()
 #. placeholder {0}: readings.length
 msgid "{0} readings"
-msgstr ""
+msgstr "{0} lectures"
 
 #: src/routes/reports/+page.svelte
 msgid "Your Glucose Report"
-msgstr ""
+msgstr "Votre rapport glycémique"
 
 #: src/routes/reports/+page.svelte
 msgid "<0/> Executive Summary"
-msgstr ""
+msgstr "<0/> Résumé exécutif"
 
 #: src/routes/reports/+page.svelte
 msgid "<0/> AGP Report"
-msgstr ""
+msgstr "<0/> Rapport AGP"
 
 #: src/routes/reports/+page.svelte
 msgid "<0/> Day-by-Day"
-msgstr ""
+msgstr "<0/> Jour par jour"
 
 #: src/routes/reports/agp/+page.svelte
 #: src/routes/reports/basal-analysis/+page.svelte
 #: src/routes/reports/insulin-delivery/+page.svelte
 #: src/routes/reports/site-change-impact/+page.svelte
 msgid "<0/> Print"
-msgstr ""
+msgstr "<0/> Imprimer"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "<0/> Time in Range"
-msgstr ""
+msgstr "<0/> Temps dans la plage"
 
 #: src/routes/reports/+page.svelte
 msgid "<0/> Your Typical Day"
-msgstr ""
+msgstr "<0/> Votre journée type"
 
 #: src/routes/reports/+page.svelte
 msgid "Full Report <0/>"
-msgstr ""
+msgstr "Rapport complet <0/>"
 
 #: src/lib/components/reports/DailyStatistics.svelte
 #: src/routes/reports/+page.svelte
 #: src/routes/reports/agp/+page.svelte
 msgid "Average"
-msgstr ""
+msgstr "Moyenne"
 
 #: src/lib/components/ambulatory-glucose-profile/AmbulatoryGlucoseProfile.svelte
 #: src/lib/components/reports/BasalRatePercentileChart.svelte
@@ -2448,21 +2448,21 @@ msgstr ""
 #: src/lib/components/reports/SiteChangeImpactChart.svelte
 #: src/routes/reports/day-in-review/+page.svelte
 msgid "Median"
-msgstr ""
+msgstr "Médiane"
 
 #: src/lib/components/reports/DailySummaryTable.svelte
 #: src/routes/reports/day-in-review/+page.svelte
 #: src/routes/reports/glucose-distribution/+page.svelte
 msgid "Std Dev"
-msgstr ""
+msgstr "Écart-type"
 
 #: src/routes/reports/+page.svelte
 msgid "Dive deeper into specific aspects of your diabetes management"
-msgstr ""
+msgstr "Approfondissez des aspects spécifiques de votre gestion du diabète"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "Clinical details"
-msgstr ""
+msgstr "Détails cliniques"
 
 #: src/routes/reports/basal-analysis/+page.svelte
 #: src/routes/reports/insulin-delivery/+page.svelte
@@ -2473,33 +2473,33 @@ msgstr ""
 
 #: src/routes/profile/+page.svelte
 msgid "Yesterday"
-msgstr ""
+msgstr "Hier"
 
 #: src/routes/profile/+page.svelte
 msgid "Profile - Nocturne"
-msgstr ""
+msgstr "Profil - Nocturne"
 
 #: src/routes/profile/+page.svelte
 msgid "Manage your diabetes therapy profile settings"
-msgstr ""
+msgstr "Gérez les paramètres de votre profil thérapeutique"
 
 #: src/routes/profile/+page.svelte
 msgid "Your therapy settings and insulin parameters"
-msgstr ""
+msgstr "Vos paramètres thérapeutiques et d'insuline"
 
 #: src/routes/profile/+page.svelte
 msgid "<0/> New Profile"
-msgstr ""
+msgstr "<0/> Nouveau profil"
 
 #: src/routes/profile/+page.svelte
 #. placeholder {0}: data.totalProfiles
 #. placeholder {1}: data.totalProfiles !== 1 ? "s" : ""
 msgid "<0/> {0} profile{1}"
-msgstr ""
+msgstr "<0/> {0} profil{1}"
 
 #: src/routes/profile/+page.svelte
 msgid "No Profile Found"
-msgstr ""
+msgstr "Profil introuvable"
 
 #: src/routes/profile/+page.svelte
 msgid ""
@@ -2510,15 +2510,15 @@ msgstr ""
 
 #: src/routes/profile/+page.svelte
 msgid "<0/> Create Profile"
-msgstr ""
+msgstr "<0/> Créer un profil"
 
 #: src/routes/profile/+page.svelte
 msgid "<0/> Configure Data Sources"
-msgstr ""
+msgstr "<0/> Configurer les sources de données"
 
 #: src/routes/profile/+page.svelte
 msgid "<0/> Profile History"
-msgstr ""
+msgstr "<0/> Historique du profil"
 
 #: src/routes/profile/+page.svelte
 msgid ""
@@ -2529,7 +2529,7 @@ msgstr ""
 #: src/lib/components/profile/ProfileDeleteDialog.svelte
 #: src/routes/profile/+page.svelte
 msgid "Unnamed Profile"
-msgstr ""
+msgstr "Profil sans nom"
 
 #: src/routes/profile/+page.svelte
 #: src/routes/profile/+page.svelte
@@ -2540,26 +2540,26 @@ msgstr ""
 #: src/routes/settings/services/+page.svelte
 #: src/routes/settings/support/+page.svelte
 msgid "Active"
-msgstr ""
+msgstr "Actif"
 
 #: src/routes/profile/+page.svelte
 #. placeholder {0}: formatDateDetailed(selectedProfile.created_at)
 msgid "Created {0}"
-msgstr ""
+msgstr "Créé {0}"
 
 #: src/routes/profile/+page.svelte
 msgid "<0/> Edit Profile"
-msgstr ""
+msgstr "<0/> Modifier le profil"
 
 #: src/lib/components/profile/ProfileDeleteDialog.svelte
 #: src/routes/profile/+page.svelte
 msgid "<0/> Delete Profile"
-msgstr ""
+msgstr "<0/> Supprimer le profil"
 
 #: src/routes/profile/+page.svelte
 #: src/routes/profile/+page.svelte
 msgid "Units"
-msgstr ""
+msgstr "Unités"
 
 #: src/lib/components/profile/ProfileCreateDialog.svelte
 #: src/lib/components/profile/ProfileEditDialog.svelte
@@ -2567,17 +2567,17 @@ msgstr ""
 #: src/routes/profile/+page.svelte
 #: src/routes/settings/appearance/+page.svelte
 msgid "Timezone"
-msgstr ""
+msgstr "Fuseau horaire"
 
 #: src/lib/components/status-pills/TrackerPill.svelte
 #: src/routes/profile/+page.svelte
 msgid "Not set"
-msgstr ""
+msgstr "Non défini"
 
 #: src/routes/profile/+page.svelte
 #: src/routes/profile/+page.svelte
 msgid "DIA"
-msgstr ""
+msgstr "DIA"
 
 #: src/routes/profile/+page.svelte
 #: src/routes/profile/+page.svelte
@@ -2588,36 +2588,36 @@ msgstr ""
 #. placeholder {0}: store.devices.cgmConfiguration?.sensorWarmupHours ?? 2
 #. placeholder {0}: store.features.display?.focusHours ?? 3
 msgid "{0} hours"
-msgstr ""
+msgstr "{0} heures"
 
 #: src/routes/profile/+page.svelte
 #: src/routes/profile/+page.svelte
 msgid "Carbs/hr"
-msgstr ""
+msgstr "Glucides/heure"
 
 #: src/routes/profile/+page.svelte
 #: src/routes/profile/+page.svelte
 #. placeholder {0}: defaultStore?.carbs_hr ?? "–"
 #. placeholder {0}: store.carbs_hr ?? "–"
 msgid "{0} g/hr"
-msgstr ""
+msgstr "{0} g/heure"
 
 #: src/routes/profile/+page.svelte
 msgid "Default"
-msgstr ""
+msgstr "Par défaut"
 
 #: src/routes/profile/+page.svelte
 msgid "<0/> Edit"
-msgstr ""
+msgstr "<0/> Modifier"
 
 #: src/lib/components/profile/ProfileEditDialog.svelte
 #: src/routes/profile/+page.svelte
 msgid "Basal Rates"
-msgstr ""
+msgstr "Taux basaux"
 
 #: src/routes/profile/+page.svelte
 msgid "Background insulin delivery rates"
-msgstr ""
+msgstr "Taux d'administration d'insuline de fond"
 
 #: src/lib/components/profile/ProfileEditDialog.svelte
 #: src/lib/components/reports/RetrospectiveStats.svelte
@@ -2625,40 +2625,40 @@ msgstr ""
 #: src/routes/reports/basal-analysis/+page.svelte
 #: src/routes/settings/algorithm/+page.svelte
 msgid "U/hr"
-msgstr ""
+msgstr "U/heure"
 
 #: src/lib/components/profile/ProfileEditDialog.svelte
 #: src/routes/profile/+page.svelte
 msgid "Carb Ratios (I:C)"
-msgstr ""
+msgstr "Ratios glucides (I:C)"
 
 #: src/routes/profile/+page.svelte
 msgid "Grams of carbs per unit of insulin"
-msgstr ""
+msgstr "Grammes de glucides par unité d'insuline"
 
 #: src/routes/profile/+page.svelte
 msgid "Insulin Sensitivity (ISF)"
-msgstr ""
+msgstr "Sensibilité à l'insuline (ISF)"
 
 #: src/routes/profile/+page.svelte
 msgid "BG drop per unit of insulin"
-msgstr ""
+msgstr "Baisse de glycémie par unité d'insuline"
 
 #: src/routes/profile/+page.svelte
 msgid "Target Range"
-msgstr ""
+msgstr "Plage cible"
 
 #: src/routes/profile/+page.svelte
 msgid "Desired blood glucose range"
-msgstr ""
+msgstr "Plage glycémique souhaitée"
 
 #: src/routes/profile/+page.svelte
 msgid "Profile Settings"
-msgstr ""
+msgstr "Paramètres de profil"
 
 #: src/routes/profile/+page.svelte
 msgid "No data available for this profile store."
-msgstr ""
+msgstr "Aucune donnée disponible pour cette boutique de profils."
 
 #: src/routes/profile/+page.svelte
 msgid ""
@@ -2668,166 +2668,166 @@ msgstr ""
 
 #: src/routes/profile/+page.svelte
 msgid "<0/> Add Settings"
-msgstr ""
+msgstr "<0/> Ajouter des paramètres"
 
 #: src/routes/profile/+page.svelte
 msgid "Loading profiles..."
-msgstr ""
+msgstr "Chargement des profils..."
 
 #: src/routes/profile/+page.svelte
 msgid "Failed to load profiles"
-msgstr ""
+msgstr "Impossible de charger les profils"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/lib/components/layout/UserMenu.svelte
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/account/+page.svelte
 msgid "Account"
-msgstr ""
+msgstr "Compte"
 
 #: src/routes/settings/+page.svelte
 msgid "View your profile, roles, and session information"
-msgstr ""
+msgstr "Consultez votre profil, rôles et session"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/appearance/+page.svelte
 msgid "Appearance"
-msgstr ""
+msgstr "Apparence"
 
 #: src/routes/settings/+page.svelte
 msgid "Customize themes, colors, units, and display preferences"
-msgstr ""
+msgstr "Personnalisez thèmes, couleurs, unités et préférences d'affichage"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/devices/+page.svelte
 msgid "Devices"
-msgstr ""
+msgstr "Appareils"
 
 #: src/routes/settings/+page.svelte
 msgid "Manage CGM devices, pumps, and connected hardware"
-msgstr ""
+msgstr "Gérez les appareils CGM, pompes et matériels connectés"
 
 #: src/routes/settings/+page.svelte
 msgid "Therapy (Profile)"
-msgstr ""
+msgstr "Thérapie (Profil)"
 
 #: src/routes/settings/+page.svelte
 msgid "Configure insulin ratios, sensitivity factors, and targets via your Profile"
-msgstr ""
+msgstr "Configurez ratios d'insuline, facteurs de sensibilité et cibles via votre profil"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/+page.svelte
 msgid "Algorithm"
-msgstr ""
+msgstr "Algorithme"
 
 #: src/routes/settings/+page.svelte
 msgid "Tune prediction algorithms and automation settings"
-msgstr ""
+msgstr "Ajustez algorithmes de prédiction et paramètres d'automatisation"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/features/+page.svelte
 msgid "Features"
-msgstr ""
+msgstr "Fonctionnalités"
 
 #: src/routes/settings/+page.svelte
 msgid "Enable or disable plugins and dashboard widgets"
-msgstr ""
+msgstr "Activez ou désactivez plugins et widgets du tableau de bord"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/alarms/+page.svelte
 msgid "Alarms"
-msgstr ""
+msgstr "Alarmes"
 
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/alarms/+page.svelte
 msgid "Configure glucose alarms, alerts, and notification preferences"
-msgstr ""
+msgstr "Configurez alarmes glycémiques, alertes et préférences de notification"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Notifications & Trackers"
-msgstr ""
+msgstr "Notifications et trackers"
 
 #: src/routes/settings/+page.svelte
 msgid "Track consumables, appointments, and custom reminders"
-msgstr ""
+msgstr "Suivez consommables, rendez-vous et rappels personnalisés"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/+page.svelte
 msgid "Services"
-msgstr ""
+msgstr "Services"
 
 #: src/routes/settings/+page.svelte
 msgid "Connect data sources like Dexcom, Libre, and more"
-msgstr ""
+msgstr "Connectez sources de données comme Dexcom, Libre, etc."
 
 #: src/routes/settings/+page.svelte
 msgid "Connectors"
-msgstr ""
+msgstr "Connecteurs"
 
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/migration/+page.svelte
 msgid "Data Migration"
-msgstr ""
+msgstr "Migration de données"
 
 #: src/routes/settings/+page.svelte
 msgid "Import data from Nightscout or MongoDB"
-msgstr ""
+msgstr "Importer des données depuis Nightscout ou MongoDB"
 
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/admin/+page.svelte
 msgid "Administration"
-msgstr ""
+msgstr "Administration"
 
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/admin/+page.svelte
 msgid "Manage subjects, roles, and access tokens"
-msgstr ""
+msgstr "Gérez sujets, rôles et jetons d'accès"
 
 #: src/lib/components/layout/UserMenu.svelte
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/admin/+page.svelte
 msgid "Admin"
-msgstr ""
+msgstr "Admin"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/support/+page.svelte
 msgid "Support & Community"
-msgstr ""
+msgstr "Support et communauté"
 
 #: src/routes/settings/+page.svelte
 msgid "Get help, join the community, and share logs"
-msgstr ""
+msgstr "Obtenez de l'aide, rejoignez la communauté et partagez des journaux"
 
 #: src/routes/settings/+page.svelte
 msgid "Settings - Nocturne"
-msgstr ""
+msgstr "Paramètres - Nocturne"
 
 #: src/routes/settings/+page.svelte
 msgid "Configure your Nocturne diabetes management settings"
-msgstr ""
+msgstr "Configurez vos paramètres de gestion du diabète Nocturne"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/lib/components/layout/UserMenu.svelte
 #: src/routes/settings/+page.svelte
 msgid "Settings"
-msgstr ""
+msgstr "Paramètres"
 
 #: src/routes/settings/+page.svelte
 msgid "Configure your Nocturne experience"
-msgstr ""
+msgstr "Personnalisez votre expérience Nocturne"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/routes/time-spans/+page.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Pump Mode"
-msgstr ""
+msgstr "Mode pompe"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
@@ -2836,115 +2836,116 @@ msgstr ""
 #: src/routes/time-spans/+page.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Temp Basal"
-msgstr ""
+msgstr "Basal temporaire"
 
 #: src/routes/time-spans/+page.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Override"
-msgstr ""
+msgstr "Dérogation"
 
 #: src/routes/compatibility/test/+page.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "<0/> Back to Dashboard"
-msgstr ""
+msgstr "<0/> Retour au tableau de bord"
 
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Time Spans"
-msgstr ""
+msgstr "Périodes"
 
 #: src/routes/time-spans/+page.svelte
 msgid "State changes throughout the selected period"
-msgstr ""
+msgstr "Évolutions d'état pendant la période sélectionnée"
 
 #: src/routes/time-spans/+page.svelte
 msgid "No state spans found for this period"
-msgstr ""
+msgstr "Aucune période d'état trouvée pour cette période"
 
 #: src/routes/time-spans/+page.svelte
 msgid "Glucose Overlay"
-msgstr ""
+msgstr "Superposition glycémique"
 
 #: src/routes/time-spans/+page.svelte
 msgid "Blood glucose readings during this period"
-msgstr ""
+msgstr "Lectures glycémiques durant cette période"
 
 #: src/routes/time-spans/+page.svelte
 msgid "No glucose data"
-msgstr ""
+msgstr "Pas de données glycémiques"
 
 #: src/routes/time-spans/+page.svelte
 msgid "Legend"
-msgstr ""
+msgstr "Légende"
 
 #: src/routes/time-spans/+page.svelte
 msgid "Pump Modes"
-msgstr ""
+msgstr "Modes de pompe"
 
 #: src/lib/components/icons/PumpModeIcon.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Automatic"
-msgstr ""
+msgstr "Automatique"
 
 #: src/lib/components/icons/PumpModeIcon.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Limited"
-msgstr ""
+msgstr "Limité"
 
 #: src/lib/components/icons/PumpModeIcon.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Manual"
-msgstr ""
+msgstr "Manuel"
 
 #: src/lib/components/icons/PumpModeIcon.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Suspended"
-msgstr ""
+msgstr "Suspendu"
 
 #: src/routes/time-spans/+page.svelte
 msgid "Overrides"
-msgstr ""
+msgstr "Dérogations"
 
 #: src/lib/components/icons/PumpModeIcon.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Boost"
-msgstr ""
+msgstr "Boost"
 
 #: src/lib/components/icons/PumpModeIcon.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Sleep"
-msgstr ""
+msgstr "Sommeil"
 
 #: src/lib/components/icons/PumpModeIcon.svelte
 #: src/routes/time-spans/+page.svelte
+#, fuzzy
 msgid "EaseOff"
-msgstr ""
+msgstr "EaseOff"
 
 #: src/lib/components/status-pills/BasalPill.svelte
 #: src/routes/time-spans/+page.svelte
 msgid "Active Temp Basal"
-msgstr ""
+msgstr "Basal temporaire actif"
 
 #: src/routes/time-spans/+page.svelte
 msgid "Glucose Line"
-msgstr ""
+msgstr "Courbe de glycémie"
 
 #: src/lib/components/ambulatory-glucose-profile/AmbulatoryGlucoseProfile.svelte
 msgid "No pattern data"
-msgstr ""
+msgstr "Pas de données de motif"
 
 #: src/lib/components/ambulatory-glucose-profile/AmbulatoryGlucoseProfile.svelte
 msgid "Need more readings to show your typical day"
-msgstr ""
+msgstr "Plus de lectures nécessaires pour afficher votre journée type"
 
 #: src/lib/components/calendar/DayStackedBar.svelte
 msgid "Near optimal carb/insulin ratio"
-msgstr ""
+msgstr "Ratio glucides/insuline presque optimal"
 
 #: src/lib/components/dashboard/BGStatisticsCards.svelte
 #: src/lib/components/dashboard/widgets/BgDeltaWidget.svelte
 msgid "BG Delta"
-msgstr ""
+msgstr "Delta glycémique"
 
 #: src/lib/components/dashboard/BGStatisticsCards.svelte
 #: src/lib/components/dashboard/BGStatisticsCards.svelte
@@ -2953,132 +2954,132 @@ msgstr ""
 #: src/lib/components/dashboard/widgets/LastUpdatedWidget.svelte
 #: src/lib/components/dashboard/widgets/LastUpdatedWidget.svelte
 msgid "Last Updated"
-msgstr ""
+msgstr "Dernière mise à jour"
 
 #: src/lib/components/dashboard/CurrentBGDisplay.svelte
 #: src/lib/components/layout/SidebarGlucoseWidget.svelte
 msgid "Connection Error"
-msgstr ""
+msgstr "Erreur de connexion"
 
 #: src/lib/components/dashboard/CurrentBGDisplay.svelte
 msgid "<0/> Demo Mode"
-msgstr ""
+msgstr "<0/> Mode démo"
 
 #: src/lib/components/dashboard/CurrentBGDisplay.svelte
 #. placeholder {0}: timeSince
 msgid "Last reading: {0}"
-msgstr ""
+msgstr "Dernière lecture : {0}"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "Predictions unavailable"
-msgstr ""
+msgstr "Prédictions indisponibles"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "<0/> Retry"
-msgstr ""
+msgstr "<0/> Réessayer"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "Cone of probabilities"
-msgstr ""
+msgstr "Cône de probabilités"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "Cone"
-msgstr ""
+msgstr "Cône"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "All prediction lines"
-msgstr ""
+msgstr "Toutes les courbes de prédiction"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "Lines"
-msgstr ""
+msgstr "Lignes"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "IOB only"
-msgstr ""
+msgstr "IOB uniquement"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/PredictionSettings.svelte
 #: src/lib/components/reports/RetrospectiveStats.svelte
 msgid "IOB"
-msgstr ""
+msgstr "IOB"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "Zero Temp"
-msgstr ""
+msgstr "Température zéro"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "ZT"
-msgstr ""
+msgstr "ZT"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "UAM"
-msgstr ""
+msgstr "UAM"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "Off"
-msgstr ""
+msgstr "Désactivé"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "Disable"
-msgstr ""
+msgstr "Désactiver"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 #: src/routes/settings/algorithm/+page.svelte
 msgid "15 min"
-msgstr ""
+msgstr "15 min"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 msgid "30 min"
-msgstr ""
+msgstr "30 min"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 #: src/routes/settings/devices/+page.svelte
 #: src/routes/settings/features/+page.svelte
 msgid "1 hour"
-msgstr ""
+msgstr "1 h"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 #: src/routes/settings/devices/+page.svelte
 #: src/routes/settings/features/+page.svelte
 msgid "2 hours"
-msgstr ""
+msgstr "2 h"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 #: src/routes/settings/features/+page.svelte
 msgid "3 hours"
-msgstr ""
+msgstr "3 h"
 
 #: src/lib/components/dashboard/PredictionSettings.svelte
 #: src/routes/settings/algorithm/+page.svelte
 #: src/routes/settings/devices/+page.svelte
 msgid "4 hours"
-msgstr ""
+msgstr "4 h"
 
 #: src/lib/components/dashboard/PredictionVisualizations.svelte
 msgid "Loading predictions..."
-msgstr ""
+msgstr "Chargement des prédictions..."
 
 #: src/lib/components/dashboard/PredictionVisualizations.svelte
 #. placeholder {0}: error instanceof Error ? error.message : "Error"
 msgid "Prediction unavailable: {0}"
-msgstr ""
+msgstr "Prédiction indisponible : {0}"
 
 #: src/lib/components/dashboard/PredictionVisualizations.svelte
 msgid "Prediction unavailable"
-msgstr ""
+msgstr "Prédiction indisponible"
 
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
 msgid "Recent Treatments"
-msgstr ""
+msgstr "Traitements récents"
 
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
 msgid "Last 6 hours"
-msgstr ""
+msgstr "Dernières 6 heures"
 
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
 msgid "Error loading recent treatments."
-msgstr ""
+msgstr "Erreur lors du chargement des traitements récents."
 
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
@@ -3093,16 +3094,16 @@ msgstr ""
 #. placeholder {0}: foodCarbs
 #. placeholder {0}: insulinStats.totalCarbs.toFixed(0)
 msgid "{0}g carbs"
-msgstr ""
+msgstr "{0} g de glucides"
 
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
 #. placeholder {0}: treatment.insulin
 msgid "{0}u insulin"
-msgstr ""
+msgstr "{0} U d'insuline"
 
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
 msgid "No recent treatments"
-msgstr ""
+msgstr "Aucun traitement récent"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
@@ -3112,21 +3113,21 @@ msgstr ""
 #: src/lib/components/reports/InsulinDonutChart.svelte
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Bolus"
-msgstr ""
+msgstr "Bolus"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 msgid "Bolus Wizard"
-msgstr ""
+msgstr "Assistant bolus"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 msgid "Combo Bolus"
-msgstr ""
+msgstr "Bolus combiné"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/icons/DeviceEventIcon.svelte
 msgid "Sensor Stop"
-msgstr ""
+msgstr "Arrêt du capteur"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
@@ -3136,20 +3137,20 @@ msgstr ""
 #: src/routes/settings/trackers/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Sensor"
-msgstr ""
+msgstr "Capteur"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/icons/TreatmentTypeIcon.svelte
 msgid "Site"
-msgstr ""
+msgstr "Site"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/routes/settings/trackers/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Reservoir"
-msgstr ""
+msgstr "Réservoir"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
@@ -3158,7 +3159,7 @@ msgstr ""
 #: src/routes/settings/trackers/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Battery"
-msgstr ""
+msgstr "Batterie"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/settings/AlarmProfileDialog.svelte
@@ -3166,46 +3167,46 @@ msgstr ""
 #: src/routes/settings/trackers/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Custom"
-msgstr ""
+msgstr "Personnalisé"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/status-pills/TrackerPill.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 msgid "Tracker"
-msgstr ""
+msgstr "Tracker"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 msgid "Treatment"
-msgstr ""
+msgstr "Traitement"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/layout/SidebarGlucoseWidget.svelte
 msgid "Demo"
-msgstr ""
+msgstr "Démo"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 msgid "Blood Glucose <0/>"
-msgstr ""
+msgstr "Glycémie <0/>"
 
 #: src/lib/components/charts/BasalRateTrack.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 msgid "Last pump sync"
-msgstr ""
+msgstr "Dernière synchronisation de la pompe"
 
 #: src/lib/components/charts/BasalRateTrack.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/BasalRateChart.svelte
 msgid "BASAL"
-msgstr ""
+msgstr "BASAL"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 msgid "IOB/COB"
-msgstr ""
+msgstr "IOB/COB"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/RetrospectiveStats.svelte
 msgid "Glucose"
-msgstr ""
+msgstr "Glycémie"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
@@ -3216,19 +3217,19 @@ msgstr ""
 #: src/lib/components/reports/RetrospectiveStats.svelte
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Basal"
-msgstr ""
+msgstr "Basal"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/RetrospectiveStats.svelte
 msgid "Scheduled"
-msgstr ""
+msgstr "Planifié"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/TIRStackedChart.svelte
 #: src/routes/reports/glucose-distribution/+page.svelte
 #: src/routes/reports/glucose-distribution/+page.svelte
 msgid "Very High"
-msgstr ""
+msgstr "Très élevé"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/TIRStackedChart.svelte
@@ -3236,61 +3237,61 @@ msgstr ""
 #: src/routes/reports/glucose-distribution/+page.svelte
 #: src/routes/settings/appearance/+page.svelte
 msgid "Very Low"
-msgstr ""
+msgstr "Très bas"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/RetrospectiveStats.svelte
 msgid "COB"
-msgstr ""
+msgstr "COB"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #. placeholder {0}: systemEvents.length
 msgid "Alarms ({0})"
-msgstr ""
+msgstr "Alertes ({0})"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #. placeholder {0}: scheduledTrackerMarkers.length
 msgid "Scheduled ({0})"
-msgstr ""
+msgstr "Planifié ({0})"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 msgid "Multiple Treatments"
-msgstr ""
+msgstr "Traitements multiples"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 msgid "Several treatments occurred around this time. Select one to edit."
-msgstr ""
+msgstr "Plusieurs traitements ont eu lieu à cette heure. Sélectionnez-en un pour modifier."
 
 #: src/lib/components/dashboard/RecentEntriesCard.svelte
 msgid "Recent Entries"
-msgstr ""
+msgstr "Entrées récentes"
 
 #: src/lib/components/dashboard/RecentEntriesCard.svelte
 msgid "No recent entries"
-msgstr ""
+msgstr "Aucune entrée récente"
 
 #: src/lib/components/food/AddFoodDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 msgid "Please enter a food name"
-msgstr ""
+msgstr "Veuillez entrer un nom d'aliment"
 
 #: src/lib/components/food/AddFoodDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 msgid "Add Food"
-msgstr ""
+msgstr "Ajouter un aliment"
 
 #: src/lib/components/food/AddFoodDialog.svelte
 msgid "Update"
-msgstr ""
+msgstr "Mettre à jour"
 
 #: src/lib/components/food/AddFoodDialog.svelte
 #: src/routes/settings/admin/+page.svelte
 #: src/routes/settings/admin/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Create"
-msgstr ""
+msgstr "Créer"
 
 #: src/lib/components/food/AddFoodDialog.svelte
 msgid "Update the food's nutritional information."

@@ -1,12 +1,13 @@
 <script lang="ts">
-  import type {
-    Entry,
-    Treatment,
-    DeviceStatus,
-    TreatmentFood,
-    TrackerInstanceDto,
-    TrackerDefinitionDto,
-    TrackerCategory,
+  import {
+    type Entry,
+    type Treatment,
+    type DeviceStatus,
+    type TreatmentFood,
+    type TrackerInstanceDto,
+    type TrackerDefinitionDto,
+    type TrackerCategory,
+    StateSpanCategory,
   } from "$lib/api";
 
   // Extended Treatment type that may include foods (populated externally)
@@ -22,7 +23,6 @@
   } from "$lib/components/ui/card";
   import { Badge } from "$lib/components/ui/badge";
   import * as Dialog from "$lib/components/ui/dialog";
-  import * as ToggleGroup from "$lib/components/ui/toggle-group";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
   import {
     Chart,
@@ -42,6 +42,7 @@
     Rule,
     AnnotationPoint,
     BrushContext,
+    Rect,
   } from "layerchart";
   import type { BrushContextValue } from "layerchart";
   import MiniOverviewChart from "./MiniOverviewChart.svelte";
@@ -66,7 +67,7 @@
     predictionEnabled,
     predictionDisplayMode,
     glucoseChartLookback,
-    type TimeRangeOption,
+    GLUCOSE_CHART_FETCH_HOURS,
   } from "$lib/stores/appearance-store.svelte";
   import { bg } from "$lib/utils/formatting";
   import PredictionSettings from "./PredictionSettings.svelte";
@@ -87,6 +88,7 @@
     ActivityCategoryIcon,
   } from "$lib/components/icons";
   import Clock from "lucide-svelte/icons/clock";
+  import ChevronDown from "lucide-svelte/icons/chevron-down";
 
   interface ComponentProps {
     entries?: Entry[];
@@ -187,18 +189,53 @@
   let showOverrideSpans = $state(initialShowOverrideSpans);
   let showProfileSpans = $state(initialShowProfileSpans);
   let showActivitySpans = $state(initialShowActivitySpans);
+  let showPumpModes = $state(true);
+  let expandedPumpModes = $state(false);
 
   // Brush/zoom state for the chart (X-axis only)
+  // When null, uses the default sliding window (lookbackHours ending at now)
   let brushXDomain = $state<[Date, Date] | null>(null);
   let brushContext = $state<BrushContextValue | undefined>(undefined);
-  let showMiniChart = $state(true);
+  // Track brush start position to detect clicks vs drags
+  let brushStartDomain = $state<[number, number] | null>(null);
 
-  // Whether chart is currently zoomed
+  // Whether chart is currently showing a custom time range (not the default sliding window)
   const isZoomed = $derived(brushXDomain !== null);
 
-  // Reset zoom to full range
+  // Reset zoom to the default sliding window
   function resetZoom() {
     brushXDomain = null;
+    brushContext?.reset();
+  }
+
+  // Handle main chart brush - temporarily zooms without saving span
+  function handleMainChartBrush(domain: [Date, Date] | null) {
+    brushXDomain = domain;
+  }
+
+  // Handle mini chart brush - saves span for future sessions
+  function handleMiniChartBrush(domain: [Date, Date] | null) {
+    if (domain) {
+      // Calculate the historical span (excluding prediction lookahead)
+      // The selection may extend into the future for predictions, but we only
+      // save the "lookback" portion as the span preference
+      const now = Date.now();
+      const selectionEnd = Math.min(domain[1].getTime(), now);
+      const spanMs = selectionEnd - domain[0].getTime();
+      const spanHours = spanMs / (60 * 60 * 1000);
+
+      // Save the span to persisted settings for use on next page load
+      // Round to nearest 0.5 hour for cleaner values
+      const roundedSpan = Math.round(spanHours * 2) / 2;
+      // Clamp between 1 and 48 hours
+      const clampedSpan = Math.max(1, Math.min(48, roundedSpan));
+      glucoseChartLookback.current = clampedSpan;
+
+      // Show the selected range now
+      brushXDomain = domain;
+    } else {
+      brushXDomain = null;
+    }
   }
 
   // Browser check for SSR safety (replaces hasMounted pattern)
@@ -290,18 +327,6 @@
     return null;
   });
 
-  // Time range selection (in hours)
-
-  // Time range selection (in hours)
-
-  const timeRangeOptions: { value: TimeRangeOption; label: string }[] = [
-    { value: "2", label: "2h" },
-    { value: "4", label: "4h" },
-    { value: "6", label: "6h" },
-    { value: "12", label: "12h" },
-    { value: "24", label: "24h" },
-  ];
-
   function normalizeDate(
     date: Date | string | undefined,
     fallback: Date
@@ -312,35 +337,39 @@
 
   const displayDemoMode = $derived(demoMode ?? realtimeStore.demoMode);
 
-  // Local reactive copy of lookback for UI display (synced from PersistedState)
-  // Declared before displayDateRange because it's used in the calculation
-  let lookbackValue = $state(glucoseChartLookback.current);
+  // Lookback value for view window (from persisted settings) - this is the span width in hours
+  const lookbackHours = $derived(glucoseChartLookback.current);
 
-  // Sync lookback changes TO the chart (when user changes via toggle)
-  function handleLookbackChange(value: string | undefined) {
-    const newValue = value as TimeRangeOption | undefined;
-    if (newValue && newValue !== lookbackValue) {
-      lookbackValue = newValue;
-      glucoseChartLookback.current = newValue;
-    }
-  }
-
-  // Display date range - uses local lookbackValue for immediate reactivity
-  const displayDateRange = $derived({
+  // Full data range - always fetch 48 hours of data
+  const fullDataRange = $derived({
     from: dateRange
       ? normalizeDate(dateRange.from, new Date())
-      : new Date(nowMinute - parseInt(lookbackValue) * 60 * 60 * 1000),
+      : new Date(nowMinute - GLUCOSE_CHART_FETCH_HOURS * 60 * 60 * 1000),
     to: dateRange
       ? normalizeDate(dateRange.to, new Date())
       : new Date(nowMinute),
   });
 
-  // Track when PersistedState changes (for cross-tab sync) to update local value
-  $effect(() => {
-    const persistedValue = glucoseChartLookback.current;
-    if (persistedValue !== lookbackValue) {
-      lookbackValue = persistedValue;
-    }
+  // Display date range - the visible window, controlled by lookbackHours
+  // This is a sliding window that always ends at "now" (or dateRange.to if provided)
+  // Note: "to" is just the data end time - prediction extension is added separately
+  const displayDateRange = $derived({
+    from: dateRange
+      ? normalizeDate(dateRange.from, new Date())
+      : new Date(nowMinute - lookbackHours * 60 * 60 * 1000),
+    to: dateRange
+      ? normalizeDate(dateRange.to, new Date())
+      : new Date(nowMinute),
+  });
+
+  // Display date range including prediction lookahead (for chart view and mini chart selection)
+  const displayDateRangeWithPredictions = $derived({
+    from: displayDateRange.from,
+    to: showPredictions
+      ? new Date(
+          displayDateRange.to.getTime() + predictionMinutes.current * 60 * 1000
+        )
+      : displayDateRange.to,
   });
 
   // Local reactive copy of prediction mode for UI display
@@ -356,12 +385,12 @@
     }
   }
 
-  // Stable date range for fetching - rounds to 5-minute boundaries to prevent
-  // rapid re-fetches as nowMinute updates every minute
+  // Stable date range for fetching - always fetches full 48 hours
+  // Rounds to 5-minute boundaries to prevent rapid re-fetches
   const stableFetchRange = $derived.by(() => {
     if (!isBrowser) return null;
-    const fromTime = displayDateRange.from.getTime();
-    const toTime = displayDateRange.to.getTime();
+    const fromTime = fullDataRange.from.getTime();
+    const toTime = fullDataRange.to.getTime();
     if (isNaN(fromTime) || isNaN(toTime)) return null;
     // Round to 5-minute boundaries for fetch stability
     const intervalMs = 5 * 60 * 1000;
@@ -416,43 +445,50 @@
   // Prediction buffer
   const predictionHours = $derived(predictionMinutes.current / 60);
 
-  // Full X domain (without brush zoom) - used for mini chart
+  // Full X domain - all 48 hours of fetched data (used for mini chart)
   const fullXDomain = $derived({
-    from: displayDateRange.from,
+    from: fullDataRange.from,
     to:
       showPredictions && predictionData
         ? new Date(
+            fullDataRange.to.getTime() + predictionHours * 60 * 60 * 1000
+          )
+        : fullDataRange.to,
+  });
+
+  // Active X domain - the currently visible window
+  // When not zoomed (brushXDomain is null), shows the sliding window based on lookbackHours
+  // When zoomed, shows the brush selection
+  const chartXDomain = $derived({
+    from: brushXDomain?.[0] ?? displayDateRange.from,
+    to:
+      brushXDomain?.[1] ??
+      (showPredictions && predictionData
+        ? new Date(
             displayDateRange.to.getTime() + predictionHours * 60 * 60 * 1000
           )
-        : displayDateRange.to,
+        : displayDateRange.to),
   });
 
-  // Active X domain - respects brush zoom
-  const chartXDomain = $derived({
-    from: brushXDomain?.[0] ?? fullXDomain.from,
-    to: brushXDomain?.[1] ?? fullXDomain.to,
-  });
-
-  
-  // Filter entries by date range
+  // Filter entries by full data range (48h) - so all data is available for mini chart
   const filteredEntries = $derived(
     entries.filter((e) => {
       const entryTime = e.mills ?? 0;
       return (
-        entryTime >= displayDateRange.from.getTime() &&
-        entryTime <= displayDateRange.to.getTime()
+        entryTime >= fullDataRange.from.getTime() &&
+        entryTime <= fullDataRange.to.getTime()
       );
     })
   );
 
-  // Filter treatments by date range
+  // Filter treatments by full data range (48h) - so all data is available for mini chart
   const filteredTreatments = $derived(
     treatments.filter((t) => {
       const treatmentTime =
         t.mills ?? (t.created_at ? new Date(t.created_at).getTime() : 0);
       return (
-        treatmentTime >= displayDateRange.from.getTime() &&
-        treatmentTime <= displayDateRange.to.getTime()
+        treatmentTime >= fullDataRange.from.getTime() &&
+        treatmentTime <= fullDataRange.to.getTime()
       );
     })
   );
@@ -635,6 +671,28 @@
         ),
       }));
   });
+
+  // Get the current (most recent) pump mode state
+  const currentPumpMode = $derived.by(() => {
+    if (pumpModeSpans.length === 0) return "Automatic";
+    // Find the most recent pump mode (highest end time, or the one covering "now")
+    const now = Date.now();
+    const activeSpan = pumpModeSpans.find((span) => {
+      const spanEnd = span.endTime?.getTime() ?? now + 1;
+      return span.startTime.getTime() <= now && spanEnd >= now;
+    });
+    if (activeSpan) return activeSpan.state;
+    // If no active span, return the most recent one
+    const sorted = [...pumpModeSpans].sort(
+      (a, b) => (b.endTime?.getTime() ?? now) - (a.endTime?.getTime() ?? now)
+    );
+    return sorted[0]?.state ?? "Automatic";
+  });
+
+  // Get unique pump modes present in the current view
+  const uniquePumpModes = $derived([
+    ...new Set(pumpModeSpans.map((s) => s.state)),
+  ]);
 
   // Filter system events to visible range
   const systemEvents = $derived.by(() => {
@@ -822,19 +880,40 @@
   }
 
   // ===== COMPOUND CHART CONFIGURATION =====
+  // Swim lane configuration for state span tracks
+  // Each swim lane is a thin horizontal band that shows spans of a specific category
+  const SWIM_LANE_HEIGHT = 0.04; // 4% of chart height per swim lane
+
   // Helper function to compute track ratios based on visibility
   // Using a function instead of $derived to avoid reactivity loops
   function getTrackRatios() {
     const showBasalTrack = showBasal;
     const showIobTrack = showIob || showCob;
+
+    // Calculate swim lane visibility and count
+    // Activity types share a single combined lane
+    const swimLanes = {
+      pumpMode: showPumpModes && pumpModeSpans.length > 0,
+      override: showOverrideSpans && overrideSpans.length > 0,
+      profile: showProfileSpans && profileSpans.length > 0,
+      activity: showActivitySpans && activitySpans.length > 0,
+    };
+
+    const visibleSwimLaneCount =
+      Object.values(swimLanes).filter(Boolean).length;
+    const swimLanesRatio = visibleSwimLaneCount * SWIM_LANE_HEIGHT;
+
     const basalRatio = showBasalTrack ? 0.12 : 0;
     const iobRatio = showIobTrack ? 0.18 : 0;
-    // Glucose gets the remaining space (base 0.7 + any hidden track space)
-    const glucoseRatio = 1 - basalRatio - iobRatio;
+    // Glucose gets the remaining space after basal, IOB, and swim lanes
+    const glucoseRatio = 1 - basalRatio - iobRatio - swimLanesRatio;
+
     return {
       basal: basalRatio,
       glucose: glucoseRatio,
       iob: iobRatio,
+      swimLanes,
+      swimLanesRatio,
       showBasalTrack,
       showIobTrack,
     };
@@ -1098,15 +1177,40 @@
     );
   }
 
-  // Find active pump mode span at a given time
-  function findActivePumpMode(time: Date) {
+  // Generic helper to find active span(s) at a given time
+  function findActiveSpan<T extends { startTime: Date; endTime?: Date | null }>(
+    spans: T[],
+    time: Date,
+    findAll: false
+  ): T | undefined;
+  function findActiveSpan<T extends { startTime: Date; endTime?: Date | null }>(
+    spans: T[],
+    time: Date,
+    findAll: true
+  ): T[];
+  function findActiveSpan<T extends { startTime: Date; endTime?: Date | null }>(
+    spans: T[],
+    time: Date,
+    findAll: boolean
+  ): T | T[] | undefined {
     const timeMs = time.getTime();
-    return pumpModeSpans.find((span) => {
+    const predicate = (span: T) => {
       const spanStart = span.startTime.getTime();
       const spanEnd = span.endTime?.getTime() ?? Date.now();
       return timeMs >= spanStart && timeMs <= spanEnd;
-    });
+    };
+    return findAll ? spans.filter(predicate) : spans.find(predicate);
   }
+
+  // Convenience wrappers using the generic helper
+  const findActivePumpMode = (time: Date) =>
+    findActiveSpan(pumpModeSpans, time, false);
+  const findActiveOverride = (time: Date) =>
+    findActiveSpan(overrideSpans, time, false);
+  const findActiveProfile = (time: Date) =>
+    findActiveSpan(profileSpans, time, false);
+  const findActiveActivities = (time: Date) =>
+    findActiveSpan(activitySpans, time, true);
 
   // Find nearby system event
   function findNearbySystemEvent(time: Date) {
@@ -1116,6 +1220,39 @@
     );
   }
 </script>
+
+{#snippet legendToggle(
+  show: boolean,
+  toggle: () => void,
+  label: string,
+  children: import("svelte").Snippet
+)}
+  <button
+    type="button"
+    class={cn(
+      "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
+      !show && "opacity-50"
+    )}
+    onclick={toggle}
+  >
+    {@render children()}
+    <span class={cn(!show && "line-through")}>{label}</span>
+  </button>
+{/snippet}
+
+{#snippet legendIndicator(children: import("svelte").Snippet, label: string)}
+  <div class="flex items-center gap-1">
+    {@render children()}
+    <span>{label}</span>
+  </div>
+{/snippet}
+
+{#snippet glucoseRangeIndicator(colorClass: string, label: string)}
+  <div class="flex items-center gap-1">
+    <div class="w-2 h-2 rounded-full {colorClass}"></div>
+    <span>{label}</span>
+  </div>
+{/snippet}
 
 <Card class="bg-card border-border">
   <CardHeader class="pb-2">
@@ -1139,22 +1276,6 @@
           predictionMode={predictionModeValue}
           onPredictionModeChange={handlePredictionModeChange}
         />
-        <!-- Time range selector -->
-        <ToggleGroup.Root
-          type="single"
-          value={lookbackValue}
-          onValueChange={handleLookbackChange}
-          class="bg-muted rounded-lg p-0.5"
-        >
-          {#each timeRangeOptions as option}
-            <ToggleGroup.Item
-              value={option.value}
-              class="px-3 py-1 text-xs font-medium text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground rounded-md transition-colors"
-            >
-              {option.label}
-            </ToggleGroup.Item>
-          {/each}
-        </ToggleGroup.Root>
       </div>
     </div>
   </CardHeader>
@@ -1206,18 +1327,46 @@
           <Svg>
             <!-- Get track configuration (ratios and visibility flags) -->
             {@const trackConfig = getTrackRatios()}
-            {@const { showBasalTrack, showIobTrack } = trackConfig}
+            {@const { showBasalTrack, showIobTrack, swimLanes } = trackConfig}
 
-            <!-- Create remapped scales for basal, glucose, and IOB tracks -->
-            <!-- Layout from top to bottom: BASAL | GLUCOSE | IOB -->
+            <!-- Create remapped scales for basal, glucose, IOB, and swim lane tracks -->
+            <!-- Layout from top to bottom: BASAL | SWIM LANES | GLUCOSE | IOB -->
             {@const basalTrackHeight = context.height * trackConfig.basal}
+            {@const swimLaneHeight = context.height * SWIM_LANE_HEIGHT}
             {@const glucoseTrackHeight = context.height * trackConfig.glucose}
             {@const iobTrackHeight = context.height * trackConfig.iob}
 
             <!-- Track positions (y coordinates in SVG where 0 = top) -->
             {@const basalTrackTop = 0}
             {@const basalTrackBottom = basalTrackHeight}
-            {@const glucoseTrackTop = basalTrackBottom}
+
+            <!-- Swim lanes positioned between basal and glucose -->
+            <!-- Calculate positions for each visible swim lane -->
+            {@const swimLanePositions = (() => {
+              let currentY = basalTrackBottom;
+              // @ts-ignore
+              const positions: Record = {};
+              const laneOrder = [
+                "pumpMode",
+                "override",
+                "profile",
+                "activity",
+              ] as const;
+              for (const lane of laneOrder) {
+                const visible = swimLanes[lane];
+                positions[lane] = {
+                  top: currentY,
+                  bottom: visible ? currentY + swimLaneHeight : currentY,
+                  visible,
+                };
+                if (visible) currentY += swimLaneHeight;
+              }
+              return positions;
+            })()}
+
+            {@const swimLanesBottom =
+              basalTrackBottom + trackConfig.swimLanesRatio * context.height}
+            {@const glucoseTrackTop = swimLanesBottom}
             {@const glucoseTrackBottom = glucoseTrackTop + glucoseTrackHeight}
             {@const iobTrackTop = glucoseTrackBottom}
             {@const iobTrackBottom = iobTrackTop + iobTrackHeight}
@@ -1269,241 +1418,329 @@
             {@const iobAxisScale = scaleLinear()
               .domain([0, maxIOB])
               .range([iobTrackBottom, iobTrackTop])}
-            <!-- ===== BASAL TRACK (TOP) ===== -->
-            <!-- Pump mode background bands (render first, behind everything else) -->
-            {#each pumpModeSpans as span (span.id)}
-              {@const spanXPos = context.xScale(span.displayStart)}
-              <AnnotationRange
-                x={[span.displayStart.getTime(), span.displayEnd.getTime()]}
-                y={[basalScale(maxBasalRate), basalZero]}
-                fill={span.color}
-                class="opacity-20"
-              />
-              <!-- Pump mode icon at the start of each span -->
-              <Group
-                x={spanXPos}
-                y={context.yScale(basalScale(maxBasalRate) + 6)}
-              >
-                <foreignObject x="2" y="-8" width="16" height="16">
-                  <div class="flex items-center justify-center w-full h-full">
-                    <PumpModeIcon
-                      state={span.state}
-                      size={12}
-                      color={span.color}
-                    />
-                  </div>
-                </foreignObject>
-              </Group>
-            {/each}
 
-            <!-- Temp basal span indicators (shown in basal track when basal is visible) -->
-            {#if showBasal}
-              {#each tempBasalSpans as span (span.id)}
-                <AnnotationRange
-                  x={[span.displayStart.getTime(), span.displayEnd.getTime()]}
-                  y={[
-                    basalScale(maxBasalRate * 0.9),
-                    basalScale(maxBasalRate * 0.7),
-                  ]}
-                  fill={span.color}
-                  class="opacity-40"
-                />
-                <!-- Show temp basal rate label -->
-                {#if span.rate !== null}
-                  <Group
-                    x={context.xScale(span.displayStart)}
-                    y={context.yScale(basalScale(maxBasalRate * 0.8))}
-                  >
-                    <Text
-                      x={4}
-                      y={0}
-                      class="text-[7px] fill-insulin-basal font-medium"
+            <ChartClipPath>
+              <!-- ===== BASAL TRACK (TOP) ===== -->
+              <!-- Temp basal span indicators (shown in basal track when basal is visible) -->
+              {#if showBasal}
+                {#each tempBasalSpans as span (span.id)}
+                  <AnnotationRange
+                    x={[span.displayStart.getTime(), span.displayEnd.getTime()]}
+                    y={[
+                      basalScale(maxBasalRate * 0.9),
+                      basalScale(maxBasalRate * 0.7),
+                    ]}
+                    fill={span.color}
+                    class="opacity-40"
+                  />
+                  <!-- Show temp basal rate label -->
+                  {#if span.rate !== null}
+                    <Group
+                      x={context.xScale(span.displayStart)}
+                      y={context.yScale(basalScale(maxBasalRate * 0.8))}
                     >
-                      {span.rate.toFixed(2)}U/h
-                    </Text>
-                  </Group>
-                {:else if span.percent !== null}
-                  <Group
-                    x={context.xScale(span.displayStart)}
-                    y={context.yScale(basalScale(maxBasalRate * 0.8))}
-                  >
-                    <Text
-                      x={4}
-                      y={0}
-                      class="text-[7px] fill-insulin-basal font-medium"
+                      <Text
+                        x={4}
+                        y={0}
+                        class="text-[7px] fill-insulin-basal font-medium"
+                      >
+                        {span.rate.toFixed(2)}U/h
+                      </Text>
+                    </Group>
+                  {:else if span.percent !== null}
+                    <Group
+                      x={context.xScale(span.displayStart)}
+                      y={context.yScale(basalScale(maxBasalRate * 0.8))}
                     >
-                      {span.percent}%
-                    </Text>
-                  </Group>
-                {/if}
-              {/each}
-            {/if}
+                      <Text
+                        x={4}
+                        y={0}
+                        class="text-[7px] fill-insulin-basal font-medium"
+                      >
+                        {span.percent}%
+                      </Text>
+                    </Group>
+                  {/if}
+                {/each}
+              {/if}
 
-            <!-- Override span indicators (shown in basal track) -->
-            {#if showOverrideSpans}
-              {#each overrideSpans as span (span.id)}
-                <AnnotationRange
-                  x={[span.displayStart.getTime(), span.displayEnd.getTime()]}
-                  y={[
-                    basalScale(maxBasalRate * 0.65),
-                    basalScale(maxBasalRate * 0.45),
-                  ]}
-                  fill={span.color}
-                  class="opacity-30"
+              <!-- ===== SWIM LANES (between Basal and Glucose) ===== -->
+              <!-- Each swim lane renders spans for a specific category as horizontal bands -->
+
+              <!-- Pump Mode Swim Lane -->
+              {#if swimLanePositions.pumpMode.visible}
+                {@const lane = swimLanePositions.pumpMode}
+                <!-- Lane background -->
+                <Rect
+                  x={0}
+                  y={lane.top}
+                  width={context.width}
+                  height={lane.bottom - lane.top}
+                  fill="var(--muted)"
+                  class="opacity-20"
                 />
-                <Group
-                  x={context.xScale(span.displayStart)}
-                  y={context.yScale(basalScale(maxBasalRate * 0.55))}
+                <!-- Lane label -->
+                <Text
+                  x={4}
+                  y={lane.top + (lane.bottom - lane.top) / 2 + 3}
+                  class="text-[7px] fill-muted-foreground font-medium"
                 >
+                  MODE
+                </Text>
+                <!-- Pump mode spans -->
+                {#each pumpModeSpans as span (span.id)}
+                  {@const spanXPos = context.xScale(span.displayStart)}
+                  <Rect
+                    x={spanXPos}
+                    y={lane.top + 1}
+                    width={context.xScale(span.displayEnd) - spanXPos}
+                    height={lane.bottom - lane.top - 2}
+                    fill={span.color}
+                    class="opacity-60"
+                    rx="2"
+                  />
+                  <!-- Icon at start of span -->
+                  <Group
+                    x={spanXPos}
+                    y={lane.top + (lane.bottom - lane.top) / 2}
+                  >
+                    <foreignObject x="2" y="-6" width="12" height="12">
+                      <div
+                        class="flex items-center justify-center w-full h-full"
+                      >
+                        <PumpModeIcon
+                          state={span.state}
+                          size={10}
+                          color={span.color}
+                        />
+                      </div>
+                    </foreignObject>
+                  </Group>
+                {/each}
+              {/if}
+
+              <!-- Override Swim Lane -->
+              {#if swimLanePositions.override.visible}
+                {@const lane = swimLanePositions.override}
+                <!-- Lane background -->
+                <Rect
+                  x={0}
+                  y={lane.top}
+                  width={context.width}
+                  height={lane.bottom - lane.top}
+                  fill="var(--muted)"
+                  class="opacity-20"
+                />
+                <!-- Lane label -->
+                <Text
+                  x={4}
+                  y={lane.top + (lane.bottom - lane.top) / 2 + 3}
+                  class="text-[7px] fill-muted-foreground font-medium"
+                >
+                  OVERRIDE
+                </Text>
+                <!-- Override spans -->
+                {#each overrideSpans as span (span.id)}
+                  {@const spanXPos = context.xScale(span.displayStart)}
+                  <Rect
+                    x={spanXPos}
+                    y={lane.top + 1}
+                    width={context.xScale(span.displayEnd) - spanXPos}
+                    height={lane.bottom - lane.top - 2}
+                    fill={span.color}
+                    class="opacity-50"
+                    rx="2"
+                  />
+                  <!-- State label -->
                   <Text
-                    x={4}
-                    y={0}
-                    class="text-[6px] fill-muted-foreground font-medium"
+                    x={spanXPos + 4}
+                    y={lane.top + (lane.bottom - lane.top) / 2 + 3}
+                    class="text-[6px] fill-foreground font-medium"
                   >
                     {span.state}
                   </Text>
-                </Group>
-              {/each}
-            {/if}
+                {/each}
+              {/if}
 
-            <!-- Profile span indicators (shown in basal track) -->
-            {#if showProfileSpans}
-              {#each profileSpans as span (span.id)}
-                <AnnotationRange
-                  x={[span.displayStart.getTime(), span.displayEnd.getTime()]}
-                  y={[
-                    basalScale(maxBasalRate * 0.4),
-                    basalScale(maxBasalRate * 0.2),
-                  ]}
-                  fill={span.color}
+              <!-- Profile Swim Lane -->
+              {#if swimLanePositions.profile.visible}
+                {@const lane = swimLanePositions.profile}
+                <!-- Lane background -->
+                <Rect
+                  x={0}
+                  y={lane.top}
+                  width={context.width}
+                  height={lane.bottom - lane.top}
+                  fill="var(--muted)"
                   class="opacity-20"
                 />
-                <Group
-                  x={context.xScale(span.displayStart)}
-                  y={context.yScale(basalScale(maxBasalRate * 0.3))}
+                <!-- Lane label -->
+                <Text
+                  x={4}
+                  y={lane.top + (lane.bottom - lane.top) / 2 + 3}
+                  class="text-[7px] fill-muted-foreground font-medium"
                 >
+                  PROFILE
+                </Text>
+                <!-- Profile spans -->
+                {#each profileSpans as span (span.id)}
+                  {@const spanXPos = context.xScale(span.displayStart)}
+                  <Rect
+                    x={spanXPos}
+                    y={lane.top + 1}
+                    width={context.xScale(span.displayEnd) - spanXPos}
+                    height={lane.bottom - lane.top - 2}
+                    fill={span.color}
+                    class="opacity-30"
+                    rx="2"
+                  />
+                  <!-- Profile name label -->
                   <Text
-                    x={4}
-                    y={0}
-                    class="text-[6px] fill-muted-foreground font-medium"
+                    x={spanXPos + 4}
+                    y={lane.top + (lane.bottom - lane.top) / 2 + 3}
+                    class="text-[6px] fill-foreground font-medium"
                   >
                     {span.profileName}
                   </Text>
-                </Group>
-              {/each}
-            {/if}
+                {/each}
+              {/if}
 
-            <!-- Activity span indicators (sleep, exercise, illness, travel) - shown in glucose track as subtle backgrounds -->
-            {#if showActivitySpans}
-              {#each activitySpans as span (span.id)}
-                {@const spanXPos = context.xScale(span.displayStart)}
-                <AnnotationRange
-                  x={[span.displayStart.getTime(), span.displayEnd.getTime()]}
-                  y={[glucoseScale(glucoseYMax), glucoseScale(0)]}
-                  fill={span.color}
+              <!-- Activity Swim Lane (Sleep, Exercise, Illness, Travel - all in one lane) -->
+              {#if swimLanePositions.activity?.visible}
+                {@const lane = swimLanePositions.activity}
+                <!-- Lane background -->
+                <Rect
+                  x={0}
+                  y={lane.top}
+                  width={context.width}
+                  height={lane.bottom - lane.top}
+                  fill="var(--muted)"
                   class="opacity-10"
                 />
-                <!-- Activity icon at the start of each span -->
-                <Group
-                  x={spanXPos}
-                  y={context.yScale(glucoseScale(glucoseYMax - 10))}
+                <!-- Lane label -->
+                <Text
+                  x={4}
+                  y={lane.top + (lane.bottom - lane.top) / 2 + 3}
+                  class="text-[7px] fill-muted-foreground font-medium"
                 >
-                  <foreignObject x="2" y="-8" width="16" height="16">
-                    <div class="flex items-center justify-center w-full h-full">
-                      <ActivityCategoryIcon
-                        category={span.category}
-                        size={12}
-                        color={span.color}
-                      />
-                    </div>
-                  </foreignObject>
-                </Group>
-              {/each}
-            {/if}
+                  ACTIVITY
+                </Text>
+                <!-- All activity spans rendered in the same lane -->
+                {#each activitySpans as span (span.id)}
+                  {@const spanXPos = context.xScale(span.displayStart)}
+                  <Rect
+                    x={spanXPos}
+                    y={lane.top + 1}
+                    width={context.xScale(span.displayEnd) - spanXPos}
+                    height={lane.bottom - lane.top - 2}
+                    fill={span.color}
+                    class="opacity-50"
+                    rx="2"
+                  />
+                  <!-- Icon at start -->
+                  <Group
+                    x={spanXPos}
+                    y={lane.top + (lane.bottom - lane.top) / 2}
+                  >
+                    <foreignObject x="2" y="-6" width="12" height="12">
+                      <div
+                        class="flex items-center justify-center w-full h-full"
+                      >
+                        <ActivityCategoryIcon
+                          category={span.category}
+                          size={10}
+                          color={span.color}
+                        />
+                      </div>
+                    </foreignObject>
+                  </Group>
+                {/each}
+              {/if}
 
-            {#if staleBasalData}
-              <ChartClipPath>
-                <AnnotationRange
-                  x={[
-                    staleBasalData.start.getTime(),
-                    staleBasalData.end.getTime(),
-                  ]}
-                  y={[basalScale(maxBasalRate), basalZero]}
-                  pattern={{
-                    size: 8,
-                    lines: {
-                      rotate: -45,
-                      opacity: 0.1,
-                    },
+              {#if staleBasalData}
+                <ChartClipPath>
+                  <AnnotationRange
+                    x={[
+                      staleBasalData.start.getTime(),
+                      staleBasalData.end.getTime(),
+                    ]}
+                    y={[basalScale(maxBasalRate), basalZero]}
+                    pattern={{
+                      size: 8,
+                      lines: {
+                        rotate: -45,
+                        opacity: 0.1,
+                      },
+                    }}
+                  />
+                </ChartClipPath>
+                <AnnotationLine
+                  x={staleBasalData.start}
+                  class="stroke-yellow-500/50 stroke-1"
+                  stroke-dasharray="2,2"
+                />
+                <AnnotationPoint
+                  x={staleBasalData.start.getTime()}
+                  y={basalScale(maxBasalRate)}
+                  label="Last pump sync"
+                  labelPlacement="bottom-right"
+                  fill="yellow"
+                  class="hover:bg-background hover:text-foreground"
+                />
+              {/if}
+
+              <!-- Scheduled basal rate line -->
+              {#if scheduledBasalData.length > 0 && showBasal}
+                <Spline
+                  data={scheduledBasalData}
+                  x={(d) => d.time}
+                  y={(d) => basalScale(d.rate)}
+                  curve={curveStepAfter}
+                  class="stroke-muted-foreground/50 stroke-1 fill-none"
+                  stroke-dasharray="4,4"
+                />
+              {/if}
+
+              <!-- Basal axis on right -->
+              {#if showBasalTrack}
+                <Axis
+                  placement="right"
+                  scale={basalAxisScale}
+                  ticks={2}
+                  tickLabelProps={{
+                    class: "text-[9px] fill-muted-foreground",
                   }}
                 />
-              </ChartClipPath>
-              <AnnotationLine
-                x={staleBasalData.start}
-                class="stroke-yellow-500/50 stroke-1"
-                stroke-dasharray="2,2"
-              />
-              <AnnotationPoint
-                x={staleBasalData.start.getTime()}
-                y={basalScale(maxBasalRate)}
-                label="Last pump sync"
-                labelPlacement="bottom-right"
-                fill="yellow"
-                class="hover:bg-background hover:text-foreground"
-              />
-            {/if}
 
-            <!-- Scheduled basal rate line -->
-            {#if scheduledBasalData.length > 0 && showBasal}
-              <Spline
-                data={scheduledBasalData}
-                x={(d) => d.time}
-                y={(d) => basalScale(d.rate)}
-                curve={curveStepAfter}
-                class="stroke-muted-foreground/50 stroke-1 fill-none"
-                stroke-dasharray="4,4"
-              />
-            {/if}
+                <!-- Basal track label -->
+                <Text
+                  x={4}
+                  y={basalTrackTop + 12}
+                  class="text-[8px] fill-muted-foreground font-medium"
+                >
+                  BASAL
+                </Text>
+              {/if}
 
-            <!-- Basal axis on right -->
-            {#if showBasalTrack}
-              <Axis
-                placement="right"
-                scale={basalAxisScale}
-                ticks={2}
-                tickLabelProps={{
-                  class: "text-[9px] fill-muted-foreground",
-                }}
-              />
-
-              <!-- Basal track label -->
-              <Text
-                x={4}
-                y={basalTrackTop + 12}
-                class="text-[8px] fill-muted-foreground font-medium"
-              >
-                BASAL
-              </Text>
-            {/if}
-
-            <!-- Effective basal area (drips down from top of basal track) -->
-            <!-- y0 = baseline (0 rate at top), y1 = actual rate (grows down) -->
-            {#if basalData.length > 0 && showBasal}
-              <!-- <LinearGradient
+              <!-- Effective basal area (drips down from top of basal track) -->
+              <!-- y0 = baseline (0 rate at top), y1 = actual rate (grows down) -->
+              {#if basalData.length > 0 && showBasal}
+                <!-- <LinearGradient
                 class="from-insulin-basal/95 to-insulin-basal/5"
                 vertical
               > -->
-              <Area
-                data={basalData}
-                x={(d) => d.time}
-                y0={() => basalZero}
-                y1={(d) => basalScale(d.rate)}
-                curve={curveStepAfter}
-                fill="var(--insulin-basal)"
-                class="stroke-insulin stroke-1"
-              />
-              <!-- </LinearGradient> -->
-            {/if}
+                <Area
+                  data={basalData}
+                  x={(d) => d.time}
+                  y0={() => basalZero}
+                  y1={(d) => basalScale(d.rate)}
+                  curve={curveStepAfter}
+                  fill="var(--insulin-basal)"
+                  class="stroke-insulin stroke-1"
+                />
+                <!-- </LinearGradient> -->
+              {/if}
+            </ChartClipPath>
 
             <!-- ===== GLUCOSE TRACK (MIDDLE) ===== -->
             <!-- High threshold line -->
@@ -1528,46 +1765,47 @@
               tickLabelProps={{ class: "text-xs fill-muted-foreground" }}
             />
 
-            <!-- Glucose line -->
-            <Spline
-              data={glucoseData}
-              x={(d) => d.time}
-              y={(d) => glucoseScale(d.sgv)}
-              class="stroke-glucose-in-range stroke-2 fill-none"
-              motion="spring"
-              curve={curveMonotoneX}
-            />
+            <ChartClipPath>
+              <!-- Glucose line -->
+              <Spline
+                data={glucoseData}
+                x={(d) => d.time}
+                y={(d) => glucoseScale(d.sgv)}
+                class="stroke-glucose-in-range stroke-2 fill-none"
+                motion="spring"
+                curve={curveMonotoneX}
+              />
 
-            <!-- Glucose points - only show when density is reasonable (less than 0.5 points per pixel) -->
-            <!-- This prevents points from smashing together on multi-day views -->
-            {@const pointDensity = glucoseData.length / context.width}
-            {@const showGlucosePoints = pointDensity < 0.5}
-            {#if showGlucosePoints}
-              {#each glucoseData as point}
-                <Points
-                  data={[point]}
-                  x={(d) => d.time}
-                  y={(d) => glucoseScale(d.sgv)}
-                  r={3}
-                  fill={point.color}
-                  class="opacity-90"
-                />
-              {/each}
-            {/if}
+              <!-- Glucose points - only show when density is reasonable (less than 0.5 points per pixel) -->
+              <!-- This prevents points from smashing together on multi-day views -->
+              {@const pointDensity = glucoseData.length / context.width}
+              {@const showGlucosePoints = pointDensity < 0.5}
+              {#if showGlucosePoints}
+                {#each glucoseData as point}
+                  <Points
+                    data={[point]}
+                    x={(d) => d.time}
+                    y={(d) => glucoseScale(d.sgv)}
+                    r={3}
+                    fill={point.color}
+                    class="opacity-90"
+                  />
+                {/each}
+              {/if}
 
-            <!-- Prediction visualizations -->
-            <PredictionVisualizations
-              {showPredictions}
-              {predictionData}
-              predictionEnabled={predictionEnabled.current}
-              predictionDisplayMode={predictionDisplayMode.current}
-              {predictionError}
-              {glucoseScale}
-              {glucoseTrackTop}
-              {chartXDomain}
-              {glucoseData}
-            />
-
+              <!-- Prediction visualizations -->
+              <PredictionVisualizations
+                {showPredictions}
+                {predictionData}
+                predictionEnabled={predictionEnabled.current}
+                predictionDisplayMode={predictionDisplayMode.current}
+                {predictionError}
+                {glucoseScale}
+                {glucoseTrackTop}
+                {chartXDomain}
+                {glucoseData}
+              />
+            </ChartClipPath>
             <!-- ===== IOB TRACK (BOTTOM) with Treatment Markers ===== -->
             {#if showIobTrack}
               <!-- IOB axis on right -->
@@ -1588,280 +1826,292 @@
               </Text>
             {/if}
 
-            <!-- COB area (scaled by carb ratio to show on IOB-equivalent scale) -->
-            {#if cobData.length > 0 && cobData.some((d) => d.value > 0.01) && showCob}
-              <Area
-                data={cobData}
-                x={(d) => d.time}
-                y0={() => iobZero}
-                y1={(d) => iobScale(d.value / carbRatio)}
-                motion="spring"
-                curve={curveMonotoneX}
-                fill=""
-                class="fill-carbs/40"
-              />
-            {/if}
+            <ChartClipPath>
+              <!-- COB area (scaled by carb ratio to show on IOB-equivalent scale) -->
+              {#if cobData.length > 0 && cobData.some((d) => d.value > 0.01) && showCob}
+                <Area
+                  data={cobData}
+                  x={(d) => d.time}
+                  y0={() => iobZero}
+                  y1={(d) => iobScale(d.value / carbRatio)}
+                  motion="spring"
+                  curve={curveMonotoneX}
+                  fill=""
+                  class="fill-carbs/40"
+                />
+              {/if}
 
-            <!-- IOB area (grows up from bottom of IOB track) -->
-            {#if iobData.length > 0 && iobData.some((d) => d.value > 0.01) && showIob}
-              <Area
-                data={iobData}
-                x={(d) => d.time}
-                y0={() => iobZero}
-                y1={(d) => iobScale(d.value)}
-                motion="spring"
-                curve={curveMonotoneX}
-                fill=""
-                class="fill-iob-basal/60"
-              />
-            {/if}
+              <!-- IOB area (grows up from bottom of IOB track) -->
+              {#if iobData.length > 0 && iobData.some((d) => d.value > 0.01) && showIob}
+                <Area
+                  data={iobData}
+                  x={(d) => d.time}
+                  y0={() => iobZero}
+                  y1={(d) => iobScale(d.value)}
+                  motion="spring"
+                  curve={curveMonotoneX}
+                  fill=""
+                  class="fill-iob-basal/60"
+                />
+              {/if}
+            </ChartClipPath>
 
             <!-- X-Axis (bottom) -->
             <Axis
               placement="bottom"
-              format={(v) => (v instanceof Date ? formatTime(v) : String(v))}
+              format={"hour"}
               tickLabelProps={{ class: "text-xs fill-muted-foreground" }}
             />
 
-            <!-- Bolus markers (on top layer) - clickable to edit -->
-            <!-- Hemisphere (semicircle pointing down) normally, triangle if manual override -->
-            {#if showBolus}
-              {#each bolusMarkersForIob as marker}
-                {@const xPos = context.xScale(marker.time)}
-                {@const yPos = context.yScale(iobScale(marker.insulin))}
-                {@const t = marker.treatment}
-                {@const suggestedTotal =
-                  (t.insulinRecommendationForCarbs ?? 0) +
-                  (t.insulinRecommendationForCorrection ?? 0)}
-                {@const hasSuggestion = suggestedTotal > 0}
-                {@const isOverride =
-                  hasSuggestion &&
-                  Math.abs(suggestedTotal - marker.insulin) > 0.05}
-                <Group
-                  x={xPos}
-                  y={yPos + 0}
-                  onclick={() => handleMarkerClick(marker.treatment)}
-                  class="cursor-pointer"
-                >
-                  {#if isOverride}
-                    <!-- Triangle for manual override -->
-                    <Polygon
-                      points={[
-                        { x: 0, y: 12 },
-                        { x: -8, y: 0 },
-                        { x: 8, y: 0 },
-                      ]}
-                      class="opacity-90 fill-insulin-bolus hover:opacity-100 transition-opacity"
-                    />
-                  {:else}
-                    <!-- Hemisphere (dome shape - curves above baseline) -->
-                    <path
-                      d="M -8,0 A 8,8 0 0,0 8,0 Z"
-                      class="opacity-90 fill-insulin-bolus hover:opacity-100 transition-opacity"
-                    />
-                  {/if}
-                  <Text
-                    y={-14}
-                    textAnchor="middle"
-                    class="text-[8px] fill-insulin-bolus font-medium"
+            <ChartClipPath>
+              <!-- Bolus markers (on top layer) - clickable to edit -->
+              <!-- Hemisphere (semicircle pointing down) normally, triangle if manual override -->
+              {#if showBolus}
+                {#each bolusMarkersForIob as marker}
+                  {@const xPos = context.xScale(marker.time)}
+                  {@const yPos = context.yScale(iobScale(marker.insulin))}
+                  {@const t = marker.treatment}
+                  {@const suggestedTotal =
+                    (t.insulinRecommendationForCarbs ?? 0) +
+                    (t.insulinRecommendationForCorrection ?? 0)}
+                  {@const hasSuggestion = suggestedTotal > 0}
+                  {@const isOverride =
+                    hasSuggestion &&
+                    Math.abs(suggestedTotal - marker.insulin) > 0.05}
+                  <Group
+                    x={xPos}
+                    y={yPos + 0}
+                    onclick={() => handleMarkerClick(marker.treatment)}
+                    class="cursor-pointer"
                   >
-                    {marker.insulin.toFixed(1)}U
-                  </Text>
-                </Group>
-              {/each}
-            {/if}
-
-            <!-- Carb markers (on top layer) - clickable to edit -->
-            <!-- Hemisphere (semicircle pointing up) to complement bolus hemispheres -->
-            {#if showCarbs}
-              {#each carbMarkersForIob as marker}
-                {@const xPos = context.xScale(marker.time)}
-                {@const yPos = context.yScale(
-                  iobScale(marker.carbs / carbRatio)
-                )}
-                <Group
-                  x={xPos}
-                  y={yPos}
-                  onclick={() => handleMarkerClick(marker.treatment)}
-                  class="cursor-pointer"
-                >
-                  <!-- Food/meal label above the marker -->
-                  {#if marker.label}
+                    {#if isOverride}
+                      <!-- Triangle for manual override -->
+                      <Polygon
+                        points={[
+                          { x: 0, y: 12 },
+                          { x: -8, y: 0 },
+                          { x: 8, y: 0 },
+                        ]}
+                        class="opacity-90 fill-insulin-bolus hover:opacity-100 transition-opacity"
+                      />
+                    {:else}
+                      <!-- Hemisphere (dome shape - curves above baseline) -->
+                      <path
+                        d="M -8,0 A 8,8 0 0,0 8,0 Z"
+                        class="opacity-90 fill-insulin-bolus hover:opacity-100 transition-opacity"
+                      />
+                    {/if}
                     <Text
-                      y={-18}
+                      y={-14}
                       textAnchor="middle"
-                      class="text-[7px] fill-carbs font-medium opacity-80"
+                      class="text-[8px] fill-insulin-bolus font-medium"
                     >
-                      {marker.label}
+                      {marker.insulin.toFixed(1)}U
                     </Text>
-                  {/if}
-                  <!-- Hemisphere (bowl shape - curves below baseline) -->
-                  <path
-                    d="M -8,0 A 8,8 0 0,1 8,0 Z"
-                    fill="var(--carbs)"
-                    class="opacity-90 hover:opacity-100 transition-opacity"
-                  />
-                  <Text
-                    y={18}
-                    textAnchor="middle"
-                    class="text-[8px] fill-carbs font-medium"
+                  </Group>
+                {/each}
+              {/if}
+
+              <!-- Carb markers (on top layer) - clickable to edit -->
+              <!-- Hemisphere (semicircle pointing up) to complement bolus hemispheres -->
+              {#if showCarbs}
+                {#each carbMarkersForIob as marker}
+                  {@const xPos = context.xScale(marker.time)}
+                  {@const yPos = context.yScale(
+                    iobScale(marker.carbs / carbRatio)
+                  )}
+                  <Group
+                    x={xPos}
+                    y={yPos}
+                    onclick={() => handleMarkerClick(marker.treatment)}
+                    class="cursor-pointer"
                   >
-                    {marker.carbs}g
-                  </Text>
-                </Group>
-              {/each}
-            {/if}
+                    <!-- Food/meal label above the marker -->
+                    {#if marker.label}
+                      <Text
+                        y={-18}
+                        textAnchor="middle"
+                        class="text-[7px] fill-carbs font-medium opacity-80"
+                      >
+                        {marker.label}
+                      </Text>
+                    {/if}
+                    <!-- Hemisphere (bowl shape - curves below baseline) -->
+                    <path
+                      d="M -8,0 A 8,8 0 0,1 8,0 Z"
+                      fill="var(--carbs)"
+                      class="opacity-90 hover:opacity-100 transition-opacity"
+                    />
+                    <Text
+                      y={18}
+                      textAnchor="middle"
+                      class="text-[8px] fill-carbs font-medium"
+                    >
+                      {marker.carbs}g
+                    </Text>
+                  </Group>
+                {/each}
+              {/if}
 
-            <!-- Device event markers (positioned at median glucose in glucose track) -->
-            {#if showDeviceEvents}
-              {#each deviceEventMarkers as marker}
-                {@const xPos = context.xScale(marker.time)}
-                {@const yPos = context.yScale(glucoseScale(medianGlucose))}
-                <Group x={xPos} y={yPos}>
-                  <!-- Background circle -->
-                  <circle
-                    r="12"
-                    fill="var(--background)"
-                    stroke={marker.config.color}
-                    stroke-width="2"
-                    class="opacity-95"
-                  />
-                  <!-- Icon using foreignObject to embed Lucide component -->
-                  <foreignObject x="-10" y="-10" width="20" height="20">
-                    <div class="flex items-center justify-center w-full h-full">
-                      <DeviceEventIcon
-                        eventType={marker.eventType}
-                        size={16}
-                        color={marker.config.color}
-                      />
-                    </div>
-                  </foreignObject>
-                </Group>
-              {/each}
-            {/if}
+              <!-- Device event markers (positioned at median glucose in glucose track) -->
+              {#if showDeviceEvents}
+                {#each deviceEventMarkers as marker}
+                  {@const xPos = context.xScale(marker.time)}
+                  {@const yPos = context.yScale(glucoseScale(medianGlucose))}
+                  <Group x={xPos} y={yPos}>
+                    <!-- Background circle -->
+                    <circle
+                      r="12"
+                      fill="var(--background)"
+                      stroke={marker.config.color}
+                      stroke-width="2"
+                      class="opacity-95"
+                    />
+                    <!-- Icon using foreignObject to embed Lucide component -->
+                    <foreignObject x="-10" y="-10" width="20" height="20">
+                      <div
+                        class="flex items-center justify-center w-full h-full"
+                      >
+                        <DeviceEventIcon
+                          eventType={marker.eventType}
+                          size={16}
+                          color={marker.config.color}
+                        />
+                      </div>
+                    </foreignObject>
+                  </Group>
+                {/each}
+              {/if}
 
-            <!-- System event markers (alarms, warnings) positioned at glucose track bottom -->
-            {#if showAlarms}
-              {#each systemEvents as event (event.id)}
-                {@const xPos = context.xScale(event.time)}
-                {@const yPos = context.yScale(glucoseScale(lowThreshold * 0.8))}
-                <Group x={xPos} y={yPos}>
-                  <!-- Icon using foreignObject to embed Lucide component -->
-                  <foreignObject x="-8" y="-8" width="16" height="16">
-                    <div class="flex items-center justify-center w-full h-full">
-                      <SystemEventIcon
-                        eventType={event.eventType}
-                        size={16}
-                        color={event.color}
-                      />
-                    </div>
-                  </foreignObject>
-                </Group>
-              {/each}
-            {/if}
+              <!-- System event markers (alarms, warnings) positioned at glucose track bottom -->
+              {#if showAlarms}
+                {#each systemEvents as event (event.id)}
+                  {@const xPos = context.xScale(event.time)}
+                  {@const yPos = context.yScale(
+                    glucoseScale(lowThreshold * 0.8)
+                  )}
+                  <Group x={xPos} y={yPos}>
+                    <!-- Icon using foreignObject to embed Lucide component -->
+                    <foreignObject x="-8" y="-8" width="16" height="16">
+                      <div
+                        class="flex items-center justify-center w-full h-full"
+                      >
+                        <SystemEventIcon
+                          eventType={event.eventType}
+                          size={16}
+                          color={event.color}
+                        />
+                      </div>
+                    </foreignObject>
+                  </Group>
+                {/each}
+              {/if}
 
-            <!-- Scheduled tracker expiration markers (dashed vertical lines) -->
-            {#if showScheduledTrackers}
-              {#each scheduledTrackerMarkers as marker (marker.id)}
-                {@const xPos = context.xScale(marker.time)}
-                {@const lineTop = basalTrackTop + 20}
-                {@const lineBottom = context.height}
-                <!-- Dashed vertical line spanning the chart height -->
-                <line
-                  x1={xPos}
-                  y1={lineTop}
-                  x2={xPos}
-                  y2={lineBottom}
-                  stroke={marker.color}
-                  stroke-width="1.5"
-                  stroke-dasharray="4,4"
-                  class="opacity-60"
-                />
-                <!-- Icon and label at the top of the basal track -->
-                <Group x={xPos} y={basalTrackTop + 10}>
-                  <!-- Background pill -->
-                  <rect
-                    x="-24"
-                    y="-8"
-                    width="48"
-                    height="16"
-                    rx="8"
-                    fill="var(--background)"
+              <!-- Scheduled tracker expiration markers (dashed vertical lines) -->
+              {#if showScheduledTrackers}
+                {#each scheduledTrackerMarkers as marker (marker.id)}
+                  {@const xPos = context.xScale(marker.time)}
+                  {@const lineTop = basalTrackTop + 20}
+                  {@const lineBottom = context.height}
+                  <!-- Dashed vertical line spanning the chart height -->
+                  <line
+                    x1={xPos}
+                    y1={lineTop}
+                    x2={xPos}
+                    y2={lineBottom}
                     stroke={marker.color}
-                    stroke-width="1"
-                    class="opacity-90"
+                    stroke-width="1.5"
+                    stroke-dasharray="4,4"
+                    class="opacity-60"
                   />
-                  <!-- Icon using foreignObject -->
-                  <foreignObject x="-22" y="-6" width="12" height="12">
-                    <div class="flex items-center justify-center w-full h-full">
-                      <TrackerCategoryIcon
-                        category={marker.category}
-                        size={10}
-                        color={marker.color}
-                      />
-                    </div>
-                  </foreignObject>
-                  <!-- Time label -->
-                  <Text
-                    x={3}
-                    y={0}
-                    textAnchor="start"
-                    class="text-[7px] fill-muted-foreground font-medium"
-                    dy="0.35em"
-                  >
-                    {marker.time.toLocaleTimeString([], {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </Text>
-                </Group>
-              {/each}
-            {/if}
+                  <!-- Icon and label at the top of the basal track -->
+                  <Group x={xPos} y={basalTrackTop + 10}>
+                    <!-- Background pill -->
+                    <Rect
+                      x={-24}
+                      y={-8}
+                      width={48}
+                      height={16}
+                      rx="8"
+                      fill="var(--background)"
+                      stroke={marker.color}
+                      stroke-width="1"
+                      class="opacity-90"
+                    />
+                    <!-- Icon using foreignObject -->
+                    <foreignObject x="-22" y="-6" width="12" height="12">
+                      <div
+                        class="flex items-center justify-center w-full h-full"
+                      >
+                        <TrackerCategoryIcon
+                          category={marker.category}
+                          size={10}
+                          color={marker.color}
+                        />
+                      </div>
+                    </foreignObject>
+                    <!-- Time label -->
+                    <Text
+                      x={3}
+                      y={0}
+                      textAnchor="start"
+                      class="text-[7px] fill-muted-foreground font-medium"
+                      dy="0.35em"
+                    >
+                      {marker.time.toLocaleTimeString([], {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </Group>
+                {/each}
+              {/if}
 
-            <!-- Basal highlight with remapped scale -->
-            {#if showBasal}
+              <!-- Basal highlight with remapped scale -->
+              {#if showBasal}
+                <Highlight
+                  x={(d) => d.time}
+                  y={(d) => {
+                    const basal = findBasalValue(basalData, d.time);
+                    return basalScale(basal?.rate ?? 0);
+                  }}
+                  points={{ class: "fill-insulin-basal" }}
+                />
+              {/if}
+
+              <!-- COB highlight with remapped scale (scaled by carb ratio) -->
+              {#if showCob}
+                <Highlight
+                  x={(d) => d.time}
+                  y={(d) => {
+                    const cob = findSeriesValue(cobData, d.time);
+                    if (!cob || cob.value <= 0) return null;
+                    return iobScale(cob.value / carbRatio);
+                  }}
+                  points={{ class: "fill-carbs" }}
+                />
+              {/if}
+
+              <!-- IOB highlight with remapped scale -->
+              {#if showIob}
+                <Highlight
+                  x={(d) => d.time}
+                  y={(d) => {
+                    const iob = findSeriesValue(iobData, d.time);
+                    if (!iob || iob.value <= 0) return null;
+                    return iobScale(iob.value);
+                  }}
+                  points={{ class: "fill-iob-basal" }}
+                />
+              {/if}
+              <!-- Glucose highlight (main) -->
               <Highlight
                 x={(d) => d.time}
-                y={(d) => {
-                  const basal = findBasalValue(basalData, d.time);
-                  return basalScale(basal?.rate ?? 0);
-                }}
-                points={{ class: "fill-insulin-basal" }}
+                y={(d) => glucoseScale(d.sgv)}
+                points
+                lines
               />
-            {/if}
-
-            <!-- COB highlight with remapped scale (scaled by carb ratio) -->
-            {#if showCob}
-              <Highlight
-                x={(d) => d.time}
-                y={(d) => {
-                  const cob = findSeriesValue(cobData, d.time);
-                  if (!cob || cob.value <= 0) return null;
-                  return iobScale(cob.value / carbRatio);
-                }}
-                points={{ class: "fill-carbs" }}
-              />
-            {/if}
-
-            <!-- IOB highlight with remapped scale -->
-            {#if showIob}
-              <Highlight
-                x={(d) => d.time}
-                y={(d) => {
-                  const iob = findSeriesValue(iobData, d.time);
-                  if (!iob || iob.value <= 0) return null;
-                  return iobScale(iob.value);
-                }}
-                points={{ class: "fill-iob-basal" }}
-              />
-            {/if}
-            <!-- Glucose highlight (main) -->
-            <Highlight
-              x={(d) => d.time}
-              y={(d) => glucoseScale(d.sgv)}
-              points
-              lines
-            />
+            </ChartClipPath>
           </Svg>
 
           <Tooltip.Root
@@ -1872,10 +2122,13 @@
               {@const activeBasal = findBasalValue(basalData, data.time)}
               {@const activeIob = findSeriesValue(iobData, data.time)}
               {@const activeCob = findSeriesValue(cobData, data.time)}
+              {@const activePumpMode = findActivePumpMode(data.time)}
+              {@const activeOverride = findActiveOverride(data.time)}
+              {@const activeProfile = findActiveProfile(data.time)}
+              {@const activeActivities = findActiveActivities(data.time)}
               {@const nearbyBolus = findNearbyBolus(data.time)}
               {@const nearbyCarbs = findNearbyCarbs(data.time)}
               {@const nearbyDeviceEvent = findNearbyDeviceEvent(data.time)}
-              {@const activePumpMode = findActivePumpMode(data.time)}
               {@const nearbySystemEvent = findNearbySystemEvent(data.time)}
 
               <Tooltip.Header
@@ -1893,7 +2146,7 @@
                     class="text-popover-foreground font-bold"
                   />
                 {/if}
-                {#if nearbyBolus}
+                {#if showBolus && nearbyBolus}
                   <Tooltip.Item
                     label="Bolus"
                     value={`${nearbyBolus.insulin.toFixed(1)}U`}
@@ -1901,7 +2154,7 @@
                     class="font-medium"
                   />
                 {/if}
-                {#if nearbyCarbs}
+                {#if showCarbs && nearbyCarbs}
                   <Tooltip.Item
                     label="Carbs"
                     value={`${nearbyCarbs.carbs}g`}
@@ -1909,7 +2162,7 @@
                     class="font-medium"
                   />
                 {/if}
-                {#if nearbyDeviceEvent}
+                {#if showDeviceEvents && nearbyDeviceEvent}
                   <Tooltip.Item
                     label={nearbyDeviceEvent.eventType}
                     value={nearbyDeviceEvent.notes || ""}
@@ -1917,7 +2170,7 @@
                     class="font-medium"
                   />
                 {/if}
-                {#if activeIob}
+                {#if showIob && activeIob}
                   <Tooltip.Item
                     label="IOB"
                     value={activeIob.value}
@@ -1925,14 +2178,14 @@
                     color="var(--iob-basal)"
                   />
                 {/if}
-                {#if activeCob && activeCob.value > 0}
+                {#if showCob && activeCob && activeCob.value > 0}
                   <Tooltip.Item
                     label="COB"
                     value={`${activeCob.value.toFixed(0)}g`}
                     color="var(--carbs)"
                   />
                 {/if}
-                {#if activeBasal}
+                {#if showBasal && activeBasal}
                   {@const isEffectiveTemp =
                     activeBasal.isTemp &&
                     activeBasal.rate !== activeBasal.scheduledRate}
@@ -1958,7 +2211,7 @@
                     />
                   {/if}
                 {/if}
-                {#if activePumpMode}
+                {#if showPumpModes && activePumpMode}
                   <Tooltip.Item
                     label="Pump Mode"
                     value={activePumpMode.state}
@@ -1966,7 +2219,32 @@
                     class="font-medium"
                   />
                 {/if}
-                {#if nearbySystemEvent}
+                {#if showOverrideSpans && activeOverride}
+                  <Tooltip.Item
+                    label="Override"
+                    value={activeOverride.state}
+                    color={activeOverride.color}
+                    class="font-medium"
+                  />
+                {/if}
+                {#if showProfileSpans && activeProfile}
+                  <Tooltip.Item
+                    label="Profile"
+                    value={activeProfile.profileName}
+                    color={activeProfile.color}
+                  />
+                {/if}
+                {#if showActivitySpans}
+                  {#each activeActivities as activity (activity.id)}
+                    <Tooltip.Item
+                      label={activity.category}
+                      value={activity.state}
+                      color={activity.color}
+                      class="font-medium"
+                    />
+                  {/each}
+                {/if}
+                {#if showAlarms && nearbySystemEvent}
                   <Tooltip.Item
                     label={nearbySystemEvent.eventType}
                     value={nearbySystemEvent.description ||
@@ -1997,32 +2275,78 @@
             {/snippet}
           </Tooltip.Root>
 
-          <!-- BrushContext for X-axis zoom selection -->
+          <!--
+            BrushContext for X-axis zoom selection with click-vs-drag detection.
+
+            Problem: By default, BrushContext triggers on any mouse interaction, including
+            single clicks. This caused the chart to enter "zoomed view" mode when users
+            simply clicked on the chart without intending to select a time range.
+
+            Solution: We track the brush start position (brushStartDomain) and compare it
+            to the end position. Only if the selection moved by more than 1 minute (60000ms)
+            do we consider it a real drag selection. This prevents:
+            1. Single clicks from triggering zoom mode
+            2. Accidental tiny selections from activating zoom
+
+            Visual feedback is also gated on this movement check - the brush rectangle,
+            handles, and time labels only appear once there's meaningful drag movement.
+            This prevents confusing visual feedback during clicks.
+          -->
+          {@const brushHasMovement = brushStartDomain && brushContext?.xDomain && (
+            Math.abs((brushContext.xDomain[0] as number) - brushStartDomain[0]) > 60000 ||
+            Math.abs((brushContext.xDomain[1] as number) - brushStartDomain[1]) > 60000
+          )}
           <BrushContext
             bind:brushContext
             axis="x"
             xDomain={brushXDomain ?? [chartXDomain.from, chartXDomain.to]}
             classes={{
-              range: "bg-primary/15 border border-primary/30 rounded",
-              handle: "bg-primary/50 hover:bg-primary/70 rounded-sm",
+              range: brushHasMovement ? "bg-primary/15 border border-primary/30 rounded" : "opacity-0 pointer-events-none",
+              handle: brushHasMovement ? "bg-primary/50 hover:bg-primary/70 rounded-sm" : "opacity-0 cursor-default! pointer-events-none",
+            }}
+            onBrushStart={(e) => {
+              // Capture the starting domain to detect clicks vs drags
+              if (e.xDomain && Array.isArray(e.xDomain)) {
+                brushStartDomain = [e.xDomain[0] as number, e.xDomain[1] as number];
+              }
             }}
             onBrushEnd={(e) => {
-              if (e.xDomain && Array.isArray(e.xDomain)) {
-                brushXDomain = [
-                  new Date(e.xDomain[0] as number),
-                  new Date(e.xDomain[1] as number),
-                ];
+              if (e.xDomain && Array.isArray(e.xDomain) && brushStartDomain) {
+                const start = e.xDomain[0] as number;
+                const end = e.xDomain[1] as number;
+                const TOLERANCE_MS = 60 * 1000; // 1 minute tolerance
+                // Check if the selection changed from when the brush started
+                const startChanged = Math.abs(start - brushStartDomain[0]) > TOLERANCE_MS;
+                const endChanged = Math.abs(end - brushStartDomain[1]) > TOLERANCE_MS;
+                // Clear the start tracking
+                brushStartDomain = null;
+                // If neither edge moved significantly, it's a click - ignore it
+                if (!startChanged && !endChanged) {
+                  return;
+                }
+                // Ignore tiny selections (less than 1 minute span)
+                if (end - start < TOLERANCE_MS) {
+                  return;
+                }
+                // Temporarily zoom without saving span (use mini chart to save)
+                handleMainChartBrush([new Date(start), new Date(end)]);
+              } else {
+                brushStartDomain = null;
               }
             }}
             onReset={resetZoom}
           >
             {#snippet children({ brushContext: bc })}
-              <!-- Handle labels showing time values -->
-              {#if bc.isActive && bc.xDomain}
+              {@const hasMovement = brushStartDomain && bc.xDomain && (
+                Math.abs((bc.xDomain[0] as number) - brushStartDomain[0]) > 60000 ||
+                Math.abs((bc.xDomain[1] as number) - brushStartDomain[1]) > 60000
+              )}
+              {#if bc.isActive && bc.xDomain && hasMovement}
                 <!-- Left handle label -->
                 <div
                   class="absolute text-[10px] font-medium text-primary bg-background/95 px-1.5 py-0.5 rounded shadow-sm border border-border whitespace-nowrap pointer-events-none z-30"
-                  style="left: {bc.range.x}px; top: {bc.range.y - 20}px; transform: translateX(-50%)"
+                  style="left: {bc.range.x}px; top: {bc.range.y -
+                    20}px; transform: translateX(-50%)"
                 >
                   {new Date(bc.xDomain[0] as number).toLocaleTimeString([], {
                     hour: "numeric",
@@ -2033,7 +2357,8 @@
                 <!-- Right handle label -->
                 <div
                   class="absolute text-[10px] font-medium text-primary bg-background/95 px-1.5 py-0.5 rounded shadow-sm border border-border whitespace-nowrap pointer-events-none z-30"
-                  style="left: {bc.range.x + bc.range.width}px; top: {bc.range.y - 20}px; transform: translateX(-50%)"
+                  style="left: {bc.range.x + bc.range.width}px; top: {bc.range
+                    .y - 20}px; transform: translateX(-50%)"
                 >
                   {new Date(bc.xDomain[1] as number).toLocaleTimeString([], {
                     hour: "numeric",
@@ -2047,19 +2372,30 @@
       </Chart>
     </div>
 
-    <!-- Mini Overview Chart for zoom navigation -->
+    <!-- Mini Overview Chart for zoom navigation - always visible to show full 48h context -->
     {#if glucoseData.length > 0}
+      {@const miniPredictionData =
+        showPredictions && predictionData?.curves?.main
+          ? predictionData.curves.main.map((p) => ({
+              time: new Date(p.timestamp),
+              value: Number(bg(p.value)),
+            }))
+          : null}
+      {@const miniSelectedDomain: [Date, Date] = brushXDomain ?? [displayDateRangeWithPredictions.from, displayDateRangeWithPredictions.to]}
       <MiniOverviewChart
         data={glucoseData}
         fullXDomain={[fullXDomain.from, fullXDomain.to]}
-        bind:selectedXDomain={brushXDomain}
+        selectedXDomain={miniSelectedDomain}
         yDomain={[0, glucoseYMax]}
-        bind:expanded={showMiniChart}
+        expanded={true}
         highThreshold={Number(highThreshold)}
         lowThreshold={Number(lowThreshold)}
         onSelectionChange={(domain) => {
-          brushXDomain = domain;
+          // Save span for future sessions (mini chart controls the persistent span)
+          handleMiniChartBrush(domain);
         }}
+        predictionData={miniPredictionData}
+        showPredictions={showPredictions && predictionEnabled.current}
       />
     {/if}
 
@@ -2067,130 +2403,147 @@
     <div
       class="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground pt-2"
     >
-      <div class="flex items-center gap-1">
-        <div class="w-2 h-2 rounded-full bg-glucose-in-range"></div>
-        <span>In Range</span>
-      </div>
-      <!-- only show if very high values are present -->
+      {@render glucoseRangeIndicator("bg-glucose-in-range", "In Range")}
       {#if glucoseData.some((d) => d.sgv > veryHighThreshold)}
-        <div class="flex items-center gap-1">
-          <div class="w-2 h-2 rounded-full bg-glucose-very-high"></div>
-          <span>Very High</span>
-        </div>
+        {@render glucoseRangeIndicator("bg-glucose-very-high", "Very High")}
       {/if}
       {#if glucoseData.some((d) => d.sgv > highThreshold && d.sgv <= veryHighThreshold)}
-        <div class="flex items-center gap-1">
-          <div class="w-2 h-2 rounded-full bg-glucose-high"></div>
-          <span>High</span>
-        </div>
+        {@render glucoseRangeIndicator("bg-glucose-high", "High")}
       {/if}
       {#if glucoseData.some((d) => d.sgv < lowThreshold && d.sgv >= veryLowThreshold)}
-        <div class="flex items-center gap-1">
-          <div class="w-2 h-2 rounded-full bg-glucose-low"></div>
-          <span>Low</span>
-        </div>
+        {@render glucoseRangeIndicator("bg-glucose-low", "Low")}
       {/if}
       {#if glucoseData.some((d) => d.sgv < veryLowThreshold)}
-        <div class="flex items-center gap-1">
-          <div class="w-2 h-2 rounded-full bg-glucose-very-low"></div>
-          <span>Very Low</span>
-        </div>
+        {@render glucoseRangeIndicator("bg-glucose-very-low", "Very Low")}
       {/if}
-      <button
-        type="button"
-        class={cn(
-          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
-          !showBasal && "opacity-50"
-        )}
-        onclick={() => (showBasal = !showBasal)}
-      >
-        <div class="w-3 h-2 bg-insulin-basal border border-insulin"></div>
-        <span class={cn(!showBasal && "line-through")}>Basal</span>
-      </button>
-      <button
-        type="button"
-        class={cn(
-          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
-          !showIob && "opacity-50"
-        )}
-        onclick={() => (showIob = !showIob)}
-      >
-        <div class="w-3 h-2 bg-iob-basal border border-insulin"></div>
-        <span class={cn(!showIob && "line-through")}>IOB</span>
-      </button>
-      <button
-        type="button"
-        class={cn(
-          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
-          !showCob && "opacity-50"
-        )}
-        onclick={() => (showCob = !showCob)}
-      >
-        <div class="w-3 h-2 bg-carbs/40 border border-carbs"></div>
-        <span class={cn(!showCob && "line-through")}>COB</span>
-      </button>
-      <button
-        type="button"
-        class={cn(
-          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
-          !showBolus && "opacity-50"
-        )}
-        onclick={() => (showBolus = !showBolus)}
-      >
-        <BolusIcon size={16} />
-        <span class={cn(!showBolus && "line-through")}>Bolus</span>
-      </button>
-      <button
-        type="button"
-        class={cn(
-          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
-          !showCarbs && "opacity-50"
-        )}
-        onclick={() => (showCarbs = !showCarbs)}
-      >
-        <CarbsIcon size={16} />
-        <span class={cn(!showCarbs && "line-through")}>Carbs</span>
-      </button>
+      {#snippet basalIcon()}<div
+          class="w-3 h-2 bg-insulin-basal border border-insulin"
+        ></div>{/snippet}
+      {#snippet iobIcon()}<div
+          class="w-3 h-2 bg-iob-basal border border-insulin"
+        ></div>{/snippet}
+      {#snippet cobIcon()}<div
+          class="w-3 h-2 bg-carbs/40 border border-carbs"
+        ></div>{/snippet}
+      {#snippet bolusIcon()}<BolusIcon size={16} />{/snippet}
+      {#snippet carbsIcon()}<CarbsIcon size={16} />{/snippet}
+      {@render legendToggle(
+        showBasal,
+        () => (showBasal = !showBasal),
+        "Basal",
+        basalIcon
+      )}
+      {@render legendToggle(
+        showIob,
+        () => (showIob = !showIob),
+        "IOB",
+        iobIcon
+      )}
+      {@render legendToggle(
+        showCob,
+        () => (showCob = !showCob),
+        "COB",
+        cobIcon
+      )}
+      {@render legendToggle(
+        showBolus,
+        () => (showBolus = !showBolus),
+        "Bolus",
+        bolusIcon
+      )}
+      {@render legendToggle(
+        showCarbs,
+        () => (showCarbs = !showCarbs),
+        "Carbs",
+        carbsIcon
+      )}
       <!-- Device event legend items (only show if present in current view) -->
+      {#snippet sensorIcon()}<SensorIcon
+          size={16}
+          color="var(--glucose-in-range)"
+        />{/snippet}
+      {#snippet siteIcon()}<SiteChangeIcon
+          size={16}
+          color="var(--insulin-bolus)"
+        />{/snippet}
+      {#snippet reservoirIcon()}<ReservoirIcon
+          size={16}
+          color="var(--insulin-basal)"
+        />{/snippet}
+      {#snippet batteryIcon()}<BatteryIcon
+          size={16}
+          color="var(--carbs)"
+        />{/snippet}
       {#if deviceEventMarkers.some((m) => m.eventType === "Sensor Start" || m.eventType === "Sensor Change")}
-        <div class="flex items-center gap-1">
-          <SensorIcon size={16} color="var(--glucose-in-range)" />
-          <span>Sensor</span>
-        </div>
+        {@render legendIndicator(sensorIcon, "Sensor")}
       {/if}
       {#if deviceEventMarkers.some((m) => m.eventType === "Site Change")}
-        <div class="flex items-center gap-1">
-          <SiteChangeIcon size={16} color="var(--insulin-bolus)" />
-          <span>Site</span>
-        </div>
+        {@render legendIndicator(siteIcon, "Site")}
       {/if}
       {#if deviceEventMarkers.some((m) => m.eventType === "Insulin Change")}
-        <div class="flex items-center gap-1">
-          <ReservoirIcon size={16} color="var(--insulin-basal)" />
-          <span>Reservoir</span>
-        </div>
+        {@render legendIndicator(reservoirIcon, "Reservoir")}
       {/if}
       {#if deviceEventMarkers.some((m) => m.eventType === "Pump Battery Change")}
-        <div class="flex items-center gap-1">
-          <BatteryIcon size={16} color="var(--carbs)" />
-          <span>Battery</span>
-        </div>
+        {@render legendIndicator(batteryIcon, "Battery")}
       {/if}
-      <!-- Pump mode legend items (only show if present in current view) -->
-      {#each [...new Set(pumpModeSpans.map((s) => s.state))] as state}
-        {@const span = pumpModeSpans.find((s) => s.state === state)}
-        {#if span}
-          <div class="flex items-center gap-1">
-            <PumpModeIcon
-              {state}
-              size={14}
-              class="opacity-70"
-              color={span.color}
+      <!-- Pump mode toggle with expandable dropdown -->
+      <div class="relative flex items-center">
+        <!-- Visibility toggle button -->
+        <button
+          type="button"
+          class={cn(
+            "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded-l transition-colors",
+            !showPumpModes && "opacity-50"
+          )}
+          onclick={() => {
+            showPumpModes = !showPumpModes;
+            if (!showPumpModes) expandedPumpModes = false;
+          }}
+        >
+          <PumpModeIcon
+            state={currentPumpMode}
+            size={14}
+            class={showPumpModes ? "opacity-70" : "opacity-40"}
+          />
+          <span class={cn(!showPumpModes && "line-through")}>
+            {currentPumpMode}
+          </span>
+        </button>
+        <!-- Expand button (only show if multiple modes and visible) -->
+        {#if uniquePumpModes.length > 1 && showPumpModes}
+          <button
+            type="button"
+            class="flex items-center cursor-pointer hover:bg-accent/50 px-0.5 py-0.5 rounded-r transition-colors"
+            onclick={() => (expandedPumpModes = !expandedPumpModes)}
+          >
+            <ChevronDown
+              size={12}
+              class={cn(
+                "transition-transform",
+                expandedPumpModes && "rotate-180"
+              )}
             />
-            <span>{state}</span>
+          </button>
+        {/if}
+        <!-- Expanded pump modes dropdown -->
+        {#if expandedPumpModes && uniquePumpModes.length > 1}
+          <div
+            class="absolute top-full left-0 mt-1 bg-background border border-border rounded shadow-lg z-50 py-1 min-w-[120px]"
+          >
+            {#each uniquePumpModes as state}
+              {@const span = pumpModeSpans.find((s) => s.state === state)}
+              {#if span}
+                <div
+                  class="flex items-center gap-2 px-2 py-1 text-xs hover:bg-accent/50"
+                >
+                  <PumpModeIcon {state} size={14} color={span.color} />
+                  <span>{state}</span>
+                </div>
+              {/if}
+            {/each}
           </div>
         {/if}
-      {/each}
+      </div>
       <!-- System event legend items (only show if present in current view) - clickable to toggle -->
       {#if systemEvents.length > 0}
         {@const uniqueEventTypes = [
@@ -2240,46 +2593,16 @@
           </span>
         </button>
       {/if}
-      <!-- Override spans toggle (hidden by default) -->
-      <button
-        type="button"
-        class={cn(
-          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
-          !showOverrideSpans && "opacity-50"
-        )}
-        onclick={() => (showOverrideSpans = !showOverrideSpans)}
-      >
-        <div
+      <!-- Override, Profile, Activity spans toggles -->
+      {#snippet overrideIcon()}<div
           class="w-3 h-2 rounded border"
           style="background-color: var(--pump-mode-boost); opacity: 0.3; border-color: var(--pump-mode-boost)"
-        ></div>
-        <span class={cn(!showOverrideSpans && "line-through")}>Overrides</span>
-      </button>
-      <!-- Profile spans toggle (hidden by default) -->
-      <button
-        type="button"
-        class={cn(
-          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
-          !showProfileSpans && "opacity-50"
-        )}
-        onclick={() => (showProfileSpans = !showProfileSpans)}
-      >
-        <div
+        ></div>{/snippet}
+      {#snippet profileIcon()}<div
           class="w-3 h-2 rounded border"
           style="background-color: var(--chart-1); opacity: 0.2; border-color: var(--chart-1)"
-        ></div>
-        <span class={cn(!showProfileSpans && "line-through")}>Profile</span>
-      </button>
-      <!-- Activity spans toggle (hidden by default) -->
-      <button
-        type="button"
-        class={cn(
-          "flex items-center gap-1 cursor-pointer hover:bg-accent/50 px-1.5 py-0.5 rounded transition-colors",
-          !showActivitySpans && "opacity-50"
-        )}
-        onclick={() => (showActivitySpans = !showActivitySpans)}
-      >
-        <div class="flex items-center gap-0.5">
+        ></div>{/snippet}
+      {#snippet activityIcon()}<div class="flex items-center gap-0.5">
           <div
             class="w-2 h-2 rounded"
             style="background-color: var(--pump-mode-sleep)"
@@ -2288,9 +2611,25 @@
             class="w-2 h-2 rounded"
             style="background-color: var(--pump-mode-exercise)"
           ></div>
-        </div>
-        <span class={cn(!showActivitySpans && "line-through")}>Activity</span>
-      </button>
+        </div>{/snippet}
+      {@render legendToggle(
+        showOverrideSpans,
+        () => (showOverrideSpans = !showOverrideSpans),
+        "Overrides",
+        overrideIcon
+      )}
+      {@render legendToggle(
+        showProfileSpans,
+        () => (showProfileSpans = !showProfileSpans),
+        "Profile",
+        profileIcon
+      )}
+      {@render legendToggle(
+        showActivitySpans,
+        () => (showActivitySpans = !showActivitySpans),
+        "Activity",
+        activityIcon
+      )}
     </div>
   </CardContent>
 </Card>

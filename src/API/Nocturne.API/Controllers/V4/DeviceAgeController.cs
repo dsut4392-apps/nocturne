@@ -4,31 +4,31 @@ using Nocturne.API.Extensions;
 using Nocturne.API.Services;
 using Nocturne.Core.Models;
 
-namespace Nocturne.API.Controllers.V1;
+namespace Nocturne.API.Controllers.V4;
 
 /// <summary>
-/// Legacy device age endpoints for 1:1 compatibility with Nightscout plugins.
+/// Device age endpoints for tracking consumable ages (CAGE, SAGE, IAGE, BAGE).
 /// Uses the Tracker system under the hood.
 /// </summary>
 [ApiController]
 [Authorize]
-[Route("api/v1/deviceage")]
-[Tags("V1 Device Age (Legacy)")]
-public class LegacyDeviceAgeController : ControllerBase
+[Route("api/v4/deviceage")]
+[Tags("V4 Device Age")]
+public class DeviceAgeController : ControllerBase
 {
     private readonly ILegacyDeviceAgeService _deviceAgeService;
-    private readonly ILogger<LegacyDeviceAgeController> _logger;
+    private readonly ILogger<DeviceAgeController> _logger;
 
-    public LegacyDeviceAgeController(
+    public DeviceAgeController(
         ILegacyDeviceAgeService deviceAgeService,
-        ILogger<LegacyDeviceAgeController> logger)
+        ILogger<DeviceAgeController> logger)
     {
         _deviceAgeService = deviceAgeService;
         _logger = logger;
     }
 
     /// <summary>
-    /// Get cannula/site age (CAGE) - equivalent to LegacyApp cage plugin
+    /// Get cannula/site age (CAGE)
     /// </summary>
     [HttpGet("cannula")]
     [ProducesResponseType(typeof(DeviceAgeInfo), 200)]
@@ -47,7 +47,7 @@ public class LegacyDeviceAgeController : ControllerBase
     }
 
     /// <summary>
-    /// Get sensor age (SAGE) - equivalent to LegacyApp sage plugin
+    /// Get sensor age (SAGE)
     /// Returns both Sensor Start and Sensor Change events
     /// </summary>
     [HttpGet("sensor")]
@@ -67,7 +67,7 @@ public class LegacyDeviceAgeController : ControllerBase
     }
 
     /// <summary>
-    /// Get insulin reservoir age (IAGE) - equivalent to LegacyApp iage plugin
+    /// Get insulin reservoir age (IAGE)
     /// </summary>
     [HttpGet("insulin")]
     [ProducesResponseType(typeof(DeviceAgeInfo), 200)]
@@ -86,7 +86,7 @@ public class LegacyDeviceAgeController : ControllerBase
     }
 
     /// <summary>
-    /// Get pump battery age (BAGE) - equivalent to LegacyApp bage plugin
+    /// Get pump battery age (BAGE)
     /// </summary>
     [HttpGet("battery")]
     [ProducesResponseType(typeof(DeviceAgeInfo), 200)]

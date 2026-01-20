@@ -98,6 +98,11 @@ namespace Nocturne.Connectors.Core.Extensions
 
             // Override with environment variables (these take precedence)
             // Common base configuration properties
+            if (bool.TryParse(configuration["Enabled"], out var enabled))
+            {
+                config.Enabled = enabled;
+            }
+
             if (bool.TryParse(configuration["SaveRawData"], out var saveRawData))
             {
                 config.SaveRawData = saveRawData;

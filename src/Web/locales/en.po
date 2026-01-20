@@ -1527,6 +1527,7 @@ msgstr "Nightscout"
 msgid "NS: {0}"
 msgstr "NS: {0}"
 
+#: src/lib/components/SiteHeader.svelte
 #: src/lib/components/dashboard/CurrentBGDisplay.svelte
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/compatibility/+page.svelte
@@ -2988,6 +2989,7 @@ msgstr "Algorithm"
 msgid "Tune prediction algorithms and automation settings"
 msgstr "Tune prediction algorithms and automation settings"
 
+#: src/lib/components/SiteHeader.svelte
 #: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/+page.svelte
 #: src/routes/settings/features/+page.svelte
@@ -3028,6 +3030,7 @@ msgstr "Services"
 msgid "Connect data sources like Dexcom, Libre, and more"
 msgstr "Connect data sources like Dexcom, Libre, and more"
 
+#: src/lib/components/StepIndicator.svelte
 #: src/routes/settings/+page.svelte
 msgid "Connectors"
 msgstr "Connectors"
@@ -3131,6 +3134,7 @@ msgstr "Time Spans"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
+#: src/lib/components/icons/PumpModeIcon.svelte
 msgid "Automatic"
 msgstr "Automatic"
 
@@ -3417,6 +3421,7 @@ msgstr "Tracker"
 msgid "Treatment"
 msgstr "Treatment"
 
+#: src/lib/components/SiteHeader.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/layout/SidebarGlucoseWidget.svelte
 msgid "Demo"
@@ -12363,3 +12368,194 @@ msgstr "Full Range Overview"
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 msgid "ACTIVITY"
 msgstr "ACTIVITY"
+
+#: src/lib/components/SiteHeader.svelte
+msgid "N"
+msgstr "N"
+
+#~ msgid "Nocturne Portal"
+#~ msgstr "Nocturne Portal"
+
+#~ msgid "Nocturne © {0} - Open source diabetes management"
+#~ msgstr "Nocturne © {0} - Open source diabetes management"
+
+#~ msgid "Your Diabetes Data, <0>Your Way</0>"
+#~ msgstr "Your Diabetes Data, <0>Your Way</0>"
+
+#~ msgid ""
+#~ "A modern, open-source platform for managing your glucose data with full\n"
+#~ "Nightscout compatibility. Built by the diabetes community, for the\n"
+#~ "diabetes community."
+#~ msgstr ""
+#~ "A modern, open-source platform for managing your glucose data with full\n"
+#~ "Nightscout compatibility. Built by the diabetes community, for the\n"
+#~ "diabetes community."
+
+#~ msgid "Get Started <0/>"
+#~ msgstr "Get Started <0/>"
+
+#~ msgid "<0/> See it in Action"
+#~ msgstr "<0/> See it in Action"
+
+#~ msgid "Explore Features"
+#~ msgstr "Explore Features"
+
+#~ msgid "Why Choose Nocturne?"
+#~ msgstr "Why Choose Nocturne?"
+
+#~ msgid ""
+#~ "Modern architecture meets proven reliability. Get the features you need\n"
+#~ "without sacrificing compatibility."
+#~ msgstr ""
+#~ "Modern architecture meets proven reliability. Get the features you need\n"
+#~ "without sacrificing compatibility."
+
+#~ msgid "Nightscout Compatible"
+#~ msgstr "Nightscout Compatible"
+
+#~ msgid ""
+#~ "Full API compatibility means your existing apps and devices work\n"
+#~ "seamlessly. No migration headaches."
+#~ msgstr ""
+#~ "Full API compatibility means your existing apps and devices work\n"
+#~ "seamlessly. No migration headaches."
+
+#~ msgid "Modern Performance"
+#~ msgstr "Modern Performance"
+
+#~ msgid ""
+#~ "Built on .NET 10 for blazing fast performance. Handle more data with\n"
+#~ "less resources."
+#~ msgstr ""
+#~ "Built on .NET 10 for blazing fast performance. Handle more data with\n"
+#~ "less resources."
+
+#~ msgid "Self-Hosted Security"
+#~ msgstr "Self-Hosted Security"
+
+#~ msgid ""
+#~ "Your data stays on your server. Full control over your health\n"
+#~ "information, always."
+#~ msgstr ""
+#~ "Your data stays on your server. Full control over your health\n"
+#~ "information, always."
+
+#~ msgid "Multiple Data Sources"
+#~ msgstr "Multiple Data Sources"
+
+#~ msgid ""
+#~ "Connect Dexcom, Libre, Glooko, and more. Bring all your data\n"
+#~ "together in one place."
+#~ msgstr ""
+#~ "Connect Dexcom, Libre, Glooko, and more. Bring all your data\n"
+#~ "together in one place."
+
+#~ msgid "Real-Time Monitoring"
+#~ msgstr "Real-Time Monitoring"
+
+#~ msgid ""
+#~ "Live glucose updates with WebSocket support. Stay informed with\n"
+#~ "instant notifications."
+#~ msgstr ""
+#~ "Live glucose updates with WebSocket support. Stay informed with\n"
+#~ "instant notifications."
+
+#~ msgid "Easy Migration"
+#~ msgstr "Easy Migration"
+
+#~ msgid ""
+#~ "Import your existing Nightscout data with one click. Or run both\n"
+#~ "side-by-side to test first."
+#~ msgstr ""
+#~ "Import your existing Nightscout data with one click. Or run both\n"
+#~ "side-by-side to test first."
+
+#~ msgid "Get Started in Minutes"
+#~ msgstr "Get Started in Minutes"
+
+#~ msgid ""
+#~ "Our configuration wizard generates everything you need for a\n"
+#~ "production-ready deployment."
+#~ msgstr ""
+#~ "Our configuration wizard generates everything you need for a\n"
+#~ "production-ready deployment."
+
+#~ msgid "Step 1"
+#~ msgstr "Step 1"
+
+#~ msgid "Configure"
+#~ msgstr "Configure"
+
+#~ msgid ""
+#~ "Choose your setup type and configure your data sources through our\n"
+#~ "friendly wizard."
+#~ msgstr ""
+#~ "Choose your setup type and configure your data sources through our\n"
+#~ "friendly wizard."
+
+#~ msgid "Step 2"
+#~ msgstr "Step 2"
+
+#~ msgid "Deploy"
+#~ msgstr "Deploy"
+
+#~ msgid ""
+#~ "Download your configuration files and deploy with Docker in one\n"
+#~ "command."
+#~ msgstr ""
+#~ "Download your configuration files and deploy with Docker in one\n"
+#~ "command."
+
+#~ msgid "Step 3"
+#~ msgstr "Step 3"
+
+#~ msgid "Monitor"
+#~ msgstr "Monitor"
+
+#~ msgid ""
+#~ "Start tracking your glucose data with a modern, responsive\n"
+#~ "interface."
+#~ msgstr ""
+#~ "Start tracking your glucose data with a modern, responsive\n"
+#~ "interface."
+
+#~ msgid "Ready to Take Control?"
+#~ msgstr "Ready to Take Control?"
+
+#~ msgid ""
+#~ "Join the community of people managing their diabetes data on their own\n"
+#~ "terms. Free, open source, and always will be."
+#~ msgstr ""
+#~ "Join the community of people managing their diabetes data on their own\n"
+#~ "terms. Free, open source, and always will be."
+
+#~ msgid "Start Configuration <0/>"
+#~ msgstr "Start Configuration <0/>"
+
+#~ msgid "Read the Docs"
+#~ msgstr "Read the Docs"
+
+#: src/lib/components/StepIndicator.svelte
+msgid "Setup"
+msgstr "Setup"
+
+#: src/lib/components/StepIndicator.svelte
+msgid "Download"
+msgstr "Download"
+
+#: src/lib/components/StepIndicator.svelte
+msgid "Setup progress"
+msgstr "Setup progress"
+
+#: src/lib/components/SiteHeader.svelte
+msgid "Docs"
+msgstr "Docs"
+
+#: src/lib/components/SiteHeader.svelte
+#: src/lib/components/SiteHeader.svelte
+msgid "Get Started"
+msgstr "Get Started"
+
+#: src/lib/components/SiteHeader.svelte
+msgid "Toggle menu"
+msgstr "Toggle menu"

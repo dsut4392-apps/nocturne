@@ -80,6 +80,7 @@ if (demoEnabled)
     // Add Nocturne Web pointing to demo API
     demoWeb = builder
         .AddViteApp("demo-web", "../../Web/packages/app")
+        .WithPnpmPackageInstallation()
         .WithReference(demoApi)
         .WaitFor(demoApi)
         .WithEnvironment("PUBLIC_API_URL", demoApi.GetEndpoint("demo-api"))
@@ -93,6 +94,7 @@ if (demoEnabled)
 // Add the Portal Web frontend
 var portalWeb = builder
     .AddViteApp("portal-web", "../../Web/packages/portal")
+    .WithPnpmPackageInstallation()
     .WithReference(api)
     .WaitFor(api)
     .WithEnvironment("VITE_PORTAL_API_URL", api.GetEndpoint("https"))

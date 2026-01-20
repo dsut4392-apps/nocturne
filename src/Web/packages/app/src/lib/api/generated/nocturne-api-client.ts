@@ -11415,6 +11415,7 @@ export class FoodClient {
 
     /**
      * Create new food records with V3 format and deduplication support
+    Nightscout V3 API requires date field validation before processing
      * @param foodData Food data to create (single object or array)
      * @return Created food records
      */
@@ -11520,18 +11521,19 @@ export class FoodClient {
 
     /**
      * Update a food record by ID with V3 format
+    Nightscout V3 API requires date field validation before checking document existence
      * @param id Food ID to update
-     * @param food Updated food data
+     * @param foodData Updated food data as JSON
      * @return Updated food record
      */
-    updateFood(id: string, food: Food, signal?: AbortSignal): Promise<Food> {
+    updateFood(id: string, foodData: any, signal?: AbortSignal): Promise<Food> {
         let url_ = this.baseUrl + "/api/v3/Food/{id}";
         if (id === undefined || id === null)
             throw new globalThis.Error("The parameter 'id' must be defined.");
         url_ = url_.replace("{id}", encodeURIComponent("" + id));
         url_ = url_.replace(/[?&]$/, "");
 
-        const content_ = JSON.stringify(food);
+        const content_ = JSON.stringify(foodData);
 
         let options_: RequestInit = {
             body: content_,
@@ -11785,6 +11787,50 @@ export class FoodClient {
     }
 
     /**
+     * Bulk delete food records by filter query
+    Compatible with Nightscout's DELETE /api/v1/food?find[field]=value
+    Note: Nightscout V1 API doesn't officially support bulk delete, but returns 200 {} for such requests
+     * @return Empty object for parity with Nightscout
+     */
+    deleteFoodByFilter(signal?: AbortSignal): Promise<any> {
+        let url_ = this.baseUrl + "/api/v1/Food";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDeleteFoodByFilter(_response);
+        });
+    }
+
+    protected processDeleteFoodByFilter(response: Response): Promise<any> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as any;
+            return result200;
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<any>(null as any);
+    }
+
+    /**
      * Alternative endpoint with .json extension for compatibility
      * @return Array of food records
      */
@@ -11869,7 +11915,8 @@ export class FoodClient {
     }
 
     /**
-     * Get quickpick food records only (type="quickpick")
+     * Get quickpick food records only (type="quickpick" and hidden="false")
+    Matches Nightscout's listquickpicks behavior which filters by hidden='false' and sorts by position
      * @return Array of quickpick food records ordered by position
      */
     getQuickPickFood(signal?: AbortSignal): Promise<Food[]> {
@@ -17664,6 +17711,7 @@ export interface Food {
     hideafteruse?: boolean;
     hidden?: boolean;
     position?: number;
+    created_at?: string | undefined;
 }
 
 export interface QuickPickFood {

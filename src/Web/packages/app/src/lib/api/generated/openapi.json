@@ -8654,7 +8654,7 @@
         "tags": [
           "Food"
         ],
-        "summary": "Create new food records with V3 format and deduplication support",
+        "summary": "Create new food records with V3 format and deduplication support\nNightscout V3 API requires date field validation before processing",
         "operationId": "Food_CreateFood",
         "requestBody": {
           "x-name": "foodData",
@@ -8746,7 +8746,7 @@
         "tags": [
           "Food"
         ],
-        "summary": "Update a food record by ID with V3 format",
+        "summary": "Update a food record by ID with V3 format\nNightscout V3 API requires date field validation before checking document existence",
         "operationId": "Food_UpdateFood",
         "parameters": [
           {
@@ -8761,13 +8761,11 @@
           }
         ],
         "requestBody": {
-          "x-name": "food",
-          "description": "Updated food data",
+          "x-name": "foodData",
+          "description": "Updated food data as JSON",
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Food"
-              }
+              "schema": {}
             }
           },
           "required": true,
@@ -11552,6 +11550,26 @@
             "description": ""
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Food"
+        ],
+        "summary": "Bulk delete food records by filter query\nCompatible with Nightscout's DELETE /api/v1/food?find[field]=value\nNote: Nightscout V1 API doesn't officially support bulk delete, but returns 200 {} for such requests",
+        "operationId": "Food_DeleteFoodByFilter",
+        "responses": {
+          "200": {
+            "description": "Empty object for parity with Nightscout",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "500": {
+            "description": ""
+          }
+        }
       }
     },
     "/api/v1/food.json": {
@@ -11613,7 +11631,7 @@
         "tags": [
           "Food"
         ],
-        "summary": "Get quickpick food records only (type=\"quickpick\")",
+        "summary": "Get quickpick food records only (type=\"quickpick\" and hidden=\"false\")\nMatches Nightscout's listquickpicks behavior which filters by hidden='false' and sorts by position",
         "operationId": "Food_GetQuickPickFood",
         "responses": {
           "200": {
@@ -18761,6 +18779,10 @@
           "position": {
             "type": "integer",
             "format": "int32"
+          },
+          "created_at": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

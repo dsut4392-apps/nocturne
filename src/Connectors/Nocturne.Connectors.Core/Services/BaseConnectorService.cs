@@ -555,22 +555,33 @@ namespace Nocturne.Connectors.Core.Services
         }
 
         /// <summary>
-        /// Helper method to calculate the since timestamp from a latest timestamp.
-        /// Always syncs 6 months of data to ensure comprehensive backfill.
+        /// Helper method to calculate the since timestamp from a latest timestamp
         /// </summary>
         private DateTime CalculateSinceFromTimestamp(DateTime? latestTimestamp, string dataType)
         {
-            // Always sync 6 months of data
-            var sinceSixMonthsAgo = DateTime.UtcNow.AddMonths(-6);
+            if (latestTimestamp.HasValue)
+            {
+                // Add a small overlap to ensure we don't miss any data due to clock drift
+                var sinceWithOverlap = latestTimestamp.Value.AddMinutes(-5);
 
+                _logger?.LogInformation(
+                    "Starting catch-up sync for {DataType} from {ConnectorSource} since {Since:yyyy-MM-dd HH:mm:ss} UTC",
+                    dataType,
+                    ConnectorSource,
+                    sinceWithOverlap
+                );
+                return sinceWithOverlap;
+            }
+
+            // Fallback to 6 months for initial sync if no existing data found
+            var fallbackSince = DateTime.UtcNow.AddMonths(-6);
             _logger?.LogInformation(
-                "Syncing {DataType} for {ConnectorSource} from {Since:yyyy-MM-dd HH:mm:ss} UTC (6-month backfill)",
+                "No existing {DataType} found for {ConnectorSource}, performing initial sync from {Since:yyyy-MM-dd HH:mm:ss} UTC",
                 dataType,
                 ConnectorSource,
-                sinceSixMonthsAgo
+                fallbackSince
             );
-
-            return sinceSixMonthsAgo;
+            return fallbackSince;
         }
 
         public abstract string ServiceName { get; }

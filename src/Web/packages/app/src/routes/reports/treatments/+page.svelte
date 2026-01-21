@@ -35,7 +35,7 @@
   import { formatDate } from "$lib/utils/formatting";
   import { toast } from "svelte-sonner";
   import { getReportsData } from "$lib/data/reports.remote";
-  import { useDateParams } from "$lib/hooks/date-params.svelte";
+  import { requireDateParamsContext } from "$lib/hooks/date-params.svelte";
   import { resource } from "runed";
 
   // Import remote function forms and commands
@@ -46,8 +46,8 @@
   } from "./data.remote";
   import { invalidateAll } from "$app/navigation";
 
-  // Build date range input from URL parameters
-  const reportsParams = useDateParams();
+  // Get shared date params from context (set by reports layout)
+  const reportsParams = requireDateParamsContext();
 
   // Use resource for controlled reactivity - prevents excessive re-fetches
   const reportsResource = resource(

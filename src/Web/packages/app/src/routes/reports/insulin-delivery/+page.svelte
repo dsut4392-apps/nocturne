@@ -25,12 +25,12 @@
   import InsulinDeliveryChart from "$lib/components/reports/InsulinDeliveryChart.svelte";
   import type { Treatment, TreatmentSummary } from "$lib/api";
   import { getReportsData } from "$lib/data/reports.remote";
-  import { useDateParams } from "$lib/hooks/date-params.svelte";
+  import { requireDateParamsContext } from "$lib/hooks/date-params.svelte";
   import { countTreatmentsByCategory } from "$lib/constants/treatment-categories";
   import { resource } from "runed";
 
-  // Build date range input from URL parameters - default to 30 days
-  const reportsParams = useDateParams(30);
+  // Get shared date params from context (set by reports layout)
+  const reportsParams = requireDateParamsContext();
 
   // Use resource for controlled reactivity - prevents excessive re-fetches
   const reportsResource = resource(

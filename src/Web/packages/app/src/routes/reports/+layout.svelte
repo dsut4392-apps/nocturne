@@ -4,15 +4,17 @@
     import {ReportsFilterSidebar} from "$lib/components/layout";
     import * as Sidebar from "$lib/components/ui/sidebar";
     import {ArrowLeftIcon, Filter, Calendar} from "lucide-svelte";
-    import {useDateParams} from "$lib/hooks/date-params.svelte";
+    import {useDateParams, setDateParamsContext} from "$lib/hooks/date-params.svelte";
 
     let {children} = $props();
 
     // Filter sidebar state
     let filterSidebarOpen = $state(false);
 
-    // Use centralized reports params hook
+    // Create shared date params instance and provide via context
+    // This is the SINGLE source of truth for all report components
     const params = useDateParams();
+    setDateParamsContext(params);
 
     // Extract report name from the URL
     const reportName = $derived.by(() => {

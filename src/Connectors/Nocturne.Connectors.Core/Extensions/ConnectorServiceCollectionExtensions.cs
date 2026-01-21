@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,30 @@ namespace Nocturne.Connectors.Core.Extensions
 {
     public static class ConnectorServiceCollectionExtensions
     {
+        /// <summary>
+        /// Checks if this connector is enabled and logs appropriately.
+        /// Call at the start of Main() and return early if false.
+        /// This supports the runtime configuration model where all connectors are deployed
+        /// but self-disable based on environment variables.
+        /// </summary>
+        /// <param name="configuration">Application configuration</param>
+        /// <param name="connectorName">Name of the connector (e.g., "Dexcom", "Glooko")</param>
+        /// <returns>True if connector should run, false if it should exit</returns>
+        /// <example>
+        /// if (!builder.Configuration.IsConnectorEnabled("Dexcom")) return;
+        /// </example>
+        public static bool IsConnectorEnabled(this IConfiguration configuration, string connectorName)
+        {
+            // Check the standard config path: Parameters:Connectors:{Name}:Enabled
+            // Environment variable form: Parameters__Connectors__{Name}__Enabled
+            var enabled = configuration.GetValue<bool>($"Parameters:Connectors:{connectorName}:Enabled", false);
+            if (!enabled)
+            {
+                Console.WriteLine($"[{connectorName}] Connector not enabled. Exiting.");
+            }
+            return enabled;
+        }
+
         public static IServiceCollection AddBaseConnectorServices(this IServiceCollection services)
         {
             // Core state and metrics services

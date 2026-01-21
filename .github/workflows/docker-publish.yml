@@ -16,7 +16,64 @@ env:
   PNPM_VERSION: "9"
 
 jobs:
+  # Build oref WASM first - used by other jobs and published as release asset
+  build-oref:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      oref-version: ${{ steps.oref-version.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get oref version from Cargo.toml
+        id: oref-version
+        working-directory: src/Core/oref
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build oref.wasm
+        working-directory: src/Core/oref
+        run: cargo build --release --target wasm32-unknown-unknown
+
+      - name: Prepare oref artifact
+        run: |
+          mkdir -p oref-release
+          cp src/Core/oref/target/wasm32-unknown-unknown/release/oref.wasm oref-release/
+
+      - name: Upload oref WASM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oref-wasm
+          path: oref-release/oref.wasm
+          retention-days: 90
+
+      # Create/update the oref release for the MSBuild download target
+      - name: Create oref release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: oref-v${{ steps.oref-version.outputs.version }}
+          name: oref WASM v${{ steps.oref-version.outputs.version }}
+          body: |
+            Pre-built oref WASM binary for Nocturne.
+
+            This release is automatically updated when the oref library changes.
+            Download `oref.wasm` and place it in `src/Core/oref/target/wasm32-unknown-unknown/release/`.
+          files: oref-release/oref.wasm
+          prerelease: false
+          make_latest: false
+
   build-and-push:
+    needs: build-oref
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -77,14 +134,11 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Download oref WASM artifact
+        uses: actions/download-artifact@v4
         with:
-          targets: wasm32-unknown-unknown
-
-      - name: Build oref.wasm
-        working-directory: src/Core/oref
-        run: cargo build --release --target wasm32-unknown-unknown
+          name: oref-wasm
+          path: src/Core/oref/target/wasm32-unknown-unknown/release/
 
       - name: Restore .NET dependencies
         run: dotnet restore
@@ -186,44 +240,24 @@ jobs:
             -p:ContainerRepository=${{ env.IMAGE_REPOSITORY }}/myfitnesspal-connector \
             -p:ContainerImageTag=${{ steps.version.outputs.version }}
 
+      - name: Build and push Tidepool connector
+        if: github.event_name != 'pull_request'
+        working-directory: src/Connectors/Nocturne.Connectors.Tidepool
+        run: |
+          dotnet publish \
+            -c Release \
+            -p:PublishProfile=DefaultContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerRepository=${{ env.IMAGE_REPOSITORY }}/tidepool-connector \
+            -p:ContainerImageTag=${{ steps.version.outputs.version }}
+
       - name: Build and push TConnectSync connector
         if: github.event_name != 'pull_request'
         working-directory: src/Connectors/Nocturne.Connectors.TConnectSync
         run: |
-          # Create Dockerfile for Python FastAPI connector
-          cat > Dockerfile.tconnectsync << 'EOF'
-          FROM python:3.12-slim
-
-          WORKDIR /app
-
-          # Install system dependencies if needed
-          RUN apt-get update && apt-get install -y --no-install-recommends \
-              && rm -rf /var/lib/apt/lists/*
-
-          # Copy requirements first for better caching
-          COPY requirements.txt .
-
-          # Install Python dependencies
-          RUN pip install --no-cache-dir -r requirements.txt
-
-          # Copy application code
-          COPY main.py .
-
-          # Expose port (default 8000, configurable via PORT env var)
-          EXPOSE 8000
-
-          # Health check
-          HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-              CMD python -c "import httpx; httpx.get('http://localhost:8000/health', timeout=5)" || exit 1
-
-          # Run the application
-          CMD ["python", "main.py"]
-          EOF
-
           docker buildx build \
             --platform linux/amd64 \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/tconnectsync-connector:${{ steps.version.outputs.version }} \
-            --file Dockerfile.tconnectsync \
             --push \
             .
 
@@ -301,7 +335,7 @@ jobs:
             .
 
   publish-aspire-manifest:
-    needs: build-and-push
+    needs: [build-oref, build-and-push]
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
     permissions:
@@ -326,14 +360,11 @@ jobs:
       - name: Setup appsettings.json for NSwag
         run: cp appsettings.example.json appsettings.json
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Download oref WASM artifact
+        uses: actions/download-artifact@v4
         with:
-          targets: wasm32-unknown-unknown
-
-      - name: Build oref.wasm
-        working-directory: src/Core/oref
-        run: cargo build --release --target wasm32-unknown-unknown
+          name: oref-wasm
+          path: src/Core/oref/target/wasm32-unknown-unknown/release/
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -378,12 +409,17 @@ jobs:
           mkdir -p ../../../release
 
           # Generate docker-compose artifacts using Aspire CLI
-          # We output to the repo root so it's easy to find/use
+          # Output to repo root for easy access
           aspire publish \
             --project . \
             --publisher docker-compose \
             --output-path ../../../ \
             --no-build
+
+          # Rename .env to .env.example (users copy and customize)
+          if [ -f ../../../.env ]; then
+            mv ../../../.env ../../../.env.example
+          fi
 
           # Also generate the Aspire manifest for advanced deployments
           aspire publish \
@@ -416,6 +452,8 @@ jobs:
           - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/nightscout-connector:${{ steps.version.outputs.version }}`
           - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/myfitnesspal-connector:${{ steps.version.outputs.version }}`
           - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/mylife-connector:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/tidepool-connector:${{ steps.version.outputs.version }}`
+          - `${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/tconnectsync-connector:${{ steps.version.outputs.version }}`
 
 
           ## Files in this release

@@ -451,6 +451,58 @@ namespace Nocturne.Infrastructure.Data.Migrations
                     b.ToTable("auth_audit_log");
                 });
 
+            modelBuilder.Entity("Nocturne.Infrastructure.Data.Entities.ConnectorConfigurationEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConfigurationJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("configuration");
+
+                    b.Property<string>("ConnectorName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("connector_name");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_modified");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("modified_by");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("schema_version");
+
+                    b.Property<string>("SecretsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("secrets");
+
+                    b.Property<DateTime>("SysCreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sys_created_at");
+
+                    b.Property<DateTime>("SysUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sys_updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConnectorName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_connector_configurations_connector_name");
+
+                    b.ToTable("connector_configurations");
+                });
+
             modelBuilder.Entity("Nocturne.Infrastructure.Data.Entities.ConnectorFoodEntryEntity", b =>
                 {
                     b.Property<Guid>("Id")

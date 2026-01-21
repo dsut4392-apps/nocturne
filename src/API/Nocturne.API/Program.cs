@@ -7,6 +7,11 @@ using Microsoft.Extensions.ServiceDiscovery;
 using Microsoft.IdentityModel.Tokens;
 using Nocturne.API.Configuration;
 using Nocturne.API.Extensions;
+using Nocturne.Core.Models.Configuration;
+using JwtOptions = Nocturne.Core.Models.Configuration.JwtOptions;
+using OidcOptions = Nocturne.Core.Models.Configuration.OidcOptions;
+using LocalIdentityOptions = Nocturne.Core.Models.Configuration.LocalIdentityOptions;
+using EmailOptions = Nocturne.Core.Models.Configuration.EmailOptions;
 using Nocturne.API.Hubs;
 using Nocturne.API.Middleware;
 using Nocturne.API.Middleware.Handlers;
@@ -30,6 +35,7 @@ using Nocturne.Infrastructure.Cache.Extensions;
 using Nocturne.Infrastructure.Data.Abstractions;
 using Nocturne.Infrastructure.Data.Extensions;
 using Nocturne.Infrastructure.Data.Services;
+using Nocturne.Infrastructure.Shared.Services;
 using NSwag;
 using OpenTelemetry.Logs;
 using Polly;
@@ -246,6 +252,12 @@ builder.Services.AddScoped<IDeduplicationService, DeduplicationService>();
 // Connector sync service for triggering granular syncs
 builder.Services.AddScoped<IConnectorSyncService, ConnectorSyncService>();
 
+// Secret encryption service - singleton since key derivation should happen once
+builder.Services.AddSingleton<ISecretEncryptionService, SecretEncryptionService>();
+
+// Connector configuration service for runtime config and secrets management
+builder.Services.AddScoped<IConnectorConfigurationService, ConnectorConfigurationService>();
+
 // HTTP client for connector sync operations
 // Connector sync calls can take a long time (multiple API calls to fetch data)
 // Timeouts are set to be less than the minimum sync interval (5 minutes) to prevent overlapping syncs
@@ -453,6 +465,7 @@ app.MapControllers();
 // Map SignalR hubs for real-time communication
 app.MapHub<DataHub>("/hubs/data");
 app.MapHub<AlarmHub>("/hubs/alarms");
+app.MapHub<ConfigHub>("/hubs/config");
 
 // Note: Using NSwag instead of Microsoft.AspNetCore.OpenApi for better compatibility
 // OpenAPI documents are served at /openapi/{documentName}.json

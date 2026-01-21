@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Nocturne.API.Models;
 using Nocturne.Core.Constants;
+using Nocturne.Core.Contracts;
 using Nocturne.Infrastructure.Data.Abstractions;
 
 namespace Nocturne.API.Services;
@@ -12,6 +13,7 @@ public class ConnectorHealthService : IConnectorHealthService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly IPostgreSqlService _postgreSqlService;
+    private readonly IConnectorConfigurationService _connectorConfigService;
     private readonly ILogger<ConnectorHealthService> _logger;
 
     public const string HttpClientName = "ConnectorHealth";
@@ -73,12 +75,14 @@ public class ConnectorHealthService : IConnectorHealthService
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         IPostgreSqlService postgreSqlService,
+        IConnectorConfigurationService connectorConfigService,
         ILogger<ConnectorHealthService> logger
     )
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _postgreSqlService = postgreSqlService;
+        _connectorConfigService = connectorConfigService;
         _logger = logger;
     }
 
@@ -112,7 +116,7 @@ public class ConnectorHealthService : IConnectorHealthService
         CancellationToken cancellationToken
     )
     {
-        var enabledConfig = GetConnectorEnabledConfig(connector.ConfigKey);
+        var enabledConfig = await GetConnectorEnabledConfigAsync(connector.Id, connector.ConfigKey, cancellationToken);
 
         // Always get database stats for historical data (entries + treatments)
         var dbStats = await _postgreSqlService.GetEntryStatsBySourceAsync(
@@ -175,11 +179,22 @@ public class ConnectorHealthService : IConnectorHealthService
 
     /// <summary>
     /// Gets the connector enabled configuration.
+    /// Checks both environment configuration and database-stored runtime configuration.
+    /// Database config takes precedence over environment config.
     /// Returns true if explicitly enabled, false if explicitly disabled, null if not configured.
     /// </summary>
-    private bool? GetConnectorEnabledConfig(string configKey)
+    private async Task<bool?> GetConnectorEnabledConfigAsync(string connectorId, string configKey, CancellationToken cancellationToken)
     {
-        // Check Parameters:Connectors:{ConfigKey}:Enabled
+        // First check database-stored runtime configuration (takes precedence)
+        // This is where the UI stores the enabled state
+        var dbConfig = await _connectorConfigService.GetConfigurationAsync(connectorId, cancellationToken);
+        if (dbConfig != null)
+        {
+            // If we have a database config, use its IsActive state
+            return dbConfig.IsActive;
+        }
+
+        // Fall back to environment configuration: Parameters:Connectors:{ConfigKey}:Enabled
         return _configuration.GetValue<bool?>($"Parameters:Connectors:{configKey}:Enabled");
     }
 

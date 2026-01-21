@@ -278,7 +278,8 @@ public class ConnectorConfigurationService : IConnectorConfigurationService
 
     /// <summary>
     /// Reads the enabled field from the configuration JSON.
-    /// Returns false if the field is not present or there's a parsing error.
+    /// Returns true if the field is not present (backwards compatibility - existing connectors default to enabled).
+    /// Returns false only if explicitly set to false or there's a parsing error.
     /// </summary>
     private bool GetEnabledFromConfig(string configJson)
     {
@@ -289,6 +290,9 @@ public class ConnectorConfigurationService : IConnectorConfigurationService
             {
                 return enabledProp.GetBoolean();
             }
+            // If enabled field is not present, default to true for backwards compatibility
+            // This ensures existing connector configs continue to work after the migration
+            return true;
         }
         catch (JsonException ex)
         {

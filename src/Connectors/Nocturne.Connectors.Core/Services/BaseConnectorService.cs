@@ -555,45 +555,22 @@ namespace Nocturne.Connectors.Core.Services
         }
 
         /// <summary>
-        /// Helper method to calculate the since timestamp from a latest timestamp
+        /// Helper method to calculate the since timestamp from a latest timestamp.
+        /// Always syncs 6 months of data to ensure comprehensive backfill.
         /// </summary>
         private DateTime CalculateSinceFromTimestamp(DateTime? latestTimestamp, string dataType)
         {
-            if (latestTimestamp.HasValue)
-            {
-                // Add a small overlap to ensure we don't miss any data due to clock drift
-                var sinceWithOverlap = latestTimestamp.Value.AddMinutes(-5);
+            // Always sync 6 months of data
+            var sinceSixMonthsAgo = DateTime.UtcNow.AddMonths(-6);
 
-                // Maximum 7 days for safety to avoid overwhelming the source API
-                var maxLookback = DateTime.UtcNow.AddDays(-7);
-                if (sinceWithOverlap < maxLookback)
-                {
-                    _logger?.LogInformation(
-                        "Last {DataType} sync was more than 7 days ago, limiting lookback to 7 days for {ConnectorSource}",
-                        dataType,
-                        ConnectorSource
-                    );
-                    return maxLookback;
-                }
-
-                _logger?.LogInformation(
-                    "Starting catch-up sync for {DataType} from {ConnectorSource} since {Since:yyyy-MM-dd HH:mm:ss} UTC",
-                    dataType,
-                    ConnectorSource,
-                    sinceWithOverlap
-                );
-                return sinceWithOverlap;
-            }
-
-            // Fallback to 24 hours if no existing data found (first sync)
-            var fallbackSince = DateTime.UtcNow.AddHours(-24);
             _logger?.LogInformation(
-                "No existing {DataType} found for {ConnectorSource}, performing initial sync from {Since:yyyy-MM-dd HH:mm:ss} UTC",
+                "Syncing {DataType} for {ConnectorSource} from {Since:yyyy-MM-dd HH:mm:ss} UTC (6-month backfill)",
                 dataType,
                 ConnectorSource,
-                fallbackSince
+                sinceSixMonthsAgo
             );
-            return fallbackSince;
+
+            return sinceSixMonthsAgo;
         }
 
         public abstract string ServiceName { get; }

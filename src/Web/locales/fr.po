@@ -178,6 +178,7 @@ msgstr "Raison de ce traitement"
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/entries/EntryEditDialog.svelte
 #: src/lib/components/food/AddFoodDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/profile/ProfileCreateDialog.svelte
 #: src/lib/components/profile/ProfileDeleteDialog.svelte
 #: src/lib/components/profile/ProfileEditDialog.svelte
@@ -212,6 +213,7 @@ msgstr "Annuler"
 #: src/lib/components/TreatmentEditModal.svelte
 #: src/lib/components/entries/EntryEditDialog.svelte
 #: src/lib/components/food/AddFoodDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/profile/ProfileEditDialog.svelte
 #: src/lib/components/treatments/TreatmentEditDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodEntryEditDialog.svelte
@@ -931,6 +933,12 @@ msgstr "Glucides :"
 #. placeholder {0}: marker.carbs
 #. placeholder {0}: totalCarbs
 #. placeholder {0}: meal.carbs ?? 0
+#. placeholder {0}: foodEntry.protein
+#. placeholder {0}: scaledProtein()
+#. placeholder {0}: foodEntry.protein
+#. placeholder {0}: foodEntry.fat
+#. placeholder {0}: scaledFat()
+#. placeholder {0}: foodEntry.fat
 #. placeholder {0}: formatCarbDisplay(averages.avgCarbs)
 #. placeholder {0}: formatCarbDisplay(averages.avgProtein)
 #. placeholder {0}: formatCarbDisplay(averages.avgFat)
@@ -952,6 +960,12 @@ msgstr "Glucides :"
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/widgets/MealsWidget.svelte
 #: src/lib/components/dashboard/widgets/MealsWidget.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/reports/PeriodAverages.svelte
 #: src/lib/components/reports/PeriodAverages.svelte
 #: src/lib/components/reports/PeriodAverages.svelte
@@ -1665,6 +1679,7 @@ msgid "Key Nutritional Info"
 msgstr "Informations nutritionnelles clés"
 
 #: src/lib/components/food/AddFoodDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodEntryEditDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
@@ -3139,12 +3154,14 @@ msgid "Error loading recent treatments."
 msgstr "Erreur lors du chargement des traitements récents."
 
 #. placeholder {0}: treatment.carbs
+#. placeholder {0}: foodEntry.carbs
 #. placeholder {0}: food.carbs
 #. placeholder {0}: food.carbs
 #. placeholder {0}: food.carbs
 #. placeholder {0}: foodCarbs
 #. placeholder {0}: insulinStats.totalCarbs.toFixed(0)
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
@@ -13750,4 +13767,175 @@ msgstr ""
 
 #: src/lib/components/layout/NotificationItem.svelte
 msgid "Notification"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Missing required data"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/routes/meals/+page.svelte
+msgid "Meal match accepted"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Failed to accept meal match"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Missing food entry ID"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Meal match dismissed"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Failed to dismiss meal match"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Review Meal Match"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Confirm when you ate this food and adjust the carbs if needed."
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/routes/meals/+page.svelte
+msgid "Food entry"
+msgstr ""
+
+#~ msgid "{0} x {1}"
+#~ msgstr ""
+
+#~ msgid "· {0}g protein"
+#~ msgstr ""
+
+#~ msgid "· {0}g fat"
+#~ msgstr ""
+
+#~ msgid "{0}g carbs <0/> <1/>"
+#~ msgstr ""
+
+#. placeholder {0}: treatmentCarbs
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Treatment has {0}g total carbs"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "When did you eat?"
+msgstr ""
+
+#~ msgid "At bolus time ({0})"
+#~ msgstr ""
+
+#~ msgid "At MFP logged time ({0}) <0>({0}{1} min)</0>"
+#~ msgstr ""
+
+#~ msgid "Custom offset"
+#~ msgstr ""
+
+#~ msgid "Minutes after bolus"
+#~ msgstr ""
+
+#~ msgid "Positive = ate after bolusing, Negative = ate before bolusing"
+#~ msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/routes/meals/+page.svelte
+msgid "Dismiss"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/routes/meals/+page.svelte
+msgid "Accept"
+msgstr ""
+
+#: src/routes/meals/+page.svelte
+msgid "Failed to accept match"
+msgstr ""
+
+#: src/routes/meals/+page.svelte
+msgid "Match dismissed"
+msgstr ""
+
+#: src/routes/meals/+page.svelte
+msgid "Failed to dismiss match"
+msgstr ""
+
+#~ msgid "<0/> Suggested Matches <1/>"
+#~ msgstr ""
+
+#~ msgid "MyFitnessPal entries that may match your treatments"
+#~ msgstr ""
+
+#~ msgid "{0}g carbs at {1}"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Matches treatment at {0} ({1}g)\n"
+#~ "· {2}% match"
+#~ msgstr ""
+
+#: src/routes/meals/+page.svelte
+msgid "Review"
+msgstr ""
+
+#. placeholder {0}: treatmentCarbs
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Scale to {0}g"
+msgstr ""
+
+#~ msgid "At logged time ({0}) <0>({0}{1} min)</0>"
+#~ msgstr ""
+
+#. placeholder {0}: foodEntry.servingDescription
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "<0/> x {0}"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "<0>{0}g</0> <1>{0}g</1> carbs"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "· <0/> protein"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "· <0/> fat"
+msgstr ""
+
+#~ msgid "Custom time"
+#~ msgstr ""
+
+#~ msgid "Time you ate"
+#~ msgstr ""
+
+#. placeholder {0}: timeOffsetMinutes() > 0 ? "+" : ""
+#. placeholder {1}: timeOffsetMinutes()
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "({0}{1} min)"
+msgstr ""
+
+#~ msgid "Bolus time"
+#~ msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Logged time"
+msgstr ""
+
+#. placeholder {0}: match.carbs
+#. placeholder {1}: Math.round((match.matchScore ?? 0) * 100)
+#: src/routes/meals/+page.svelte
+msgid ""
+"{0}g carbs\n"
+"· {1}% match"
+msgstr ""
+
+#. placeholder {0}: bolusDateDisplay
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Bolus time ({0})"
 msgstr ""

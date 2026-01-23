@@ -80,31 +80,38 @@ public class SessionCookieHandler : IAuthHandler
                 );
             }
 
-            // Access token expired, try to refresh using refresh token
-            if (validationResult.ErrorCode == JwtValidationError.Expired)
+            // Access token invalid - try to refresh using refresh token
+            // We attempt refresh for any validation error, not just expiry,
+            // as the token may have been invalidated for various reasons
+            var refreshResult = await TryRefreshSessionAsync(context, scope);
+            if (refreshResult != null)
             {
-                var refreshResult = await TryRefreshSessionAsync(context, scope);
-                if (refreshResult != null)
-                {
-                    return refreshResult;
-                }
+                return refreshResult;
             }
+
+            // Only clear cookies if we had an access token but refresh failed
+            // This indicates a definitive auth failure, not just "skip to next handler"
+            _logger.LogDebug("Access token validation failed ({Error}) and refresh failed, clearing session cookies",
+                validationResult.ErrorCode);
             ClearSessionCookies(context);
+            return AuthResult.Skip();
         }
-        else
+
+        // No access token - check if we have a refresh token we can use
+        var refreshToken = context.Request.Cookies[_options.Cookie.RefreshTokenName];
+        if (!string.IsNullOrEmpty(refreshToken))
         {
-            // No access token, but check if we have a refresh token we can use
-            var refreshToken = context.Request.Cookies[_options.Cookie.RefreshTokenName];
-            if (!string.IsNullOrEmpty(refreshToken))
+            var refreshResult = await TryRefreshSessionAsync(context, scope);
+            if (refreshResult != null)
             {
-                var refreshResult = await TryRefreshSessionAsync(context, scope);
-                if (refreshResult != null)
-                {
-                    return refreshResult;
-                }
+                return refreshResult;
             }
+
+            // Had refresh token but it failed - clear cookies and skip
+            _logger.LogDebug("No access token and refresh token validation failed, clearing session cookies");
             ClearSessionCookies(context);
         }
+        // No cookies at all - just skip to next handler without clearing anything
 
         return AuthResult.Skip();
     }

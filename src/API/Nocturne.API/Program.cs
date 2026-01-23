@@ -374,6 +374,10 @@ builder.Services.AddScoped<ITrackerAlertService, TrackerAlertService>();
 builder.Services.AddScoped<InAppNotificationRepository>();
 builder.Services.AddScoped<IInAppNotificationService, InAppNotificationService>();
 
+// Register meal matching repository and service
+builder.Services.AddScoped<IConnectorFoodEntryRepository, ConnectorFoodEntryRepository>();
+builder.Services.AddScoped<IMealMatchingService, MealMatchingService>();
+
 // Register legacy device age service (bridges Tracker system to legacy deviceage endpoints)
 builder.Services.AddScoped<ILegacyDeviceAgeService, LegacyDeviceAgeService>();
 

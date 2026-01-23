@@ -5673,6 +5673,188 @@ export class FoodsClient {
     }
 }
 
+export class MealMatchingClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get a food entry for review
+     */
+    getFoodEntry(id: string, signal?: AbortSignal): Promise<ConnectorFoodEntry> {
+        let url_ = this.baseUrl + "/api/v4/meal-matching/food-entries/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetFoodEntry(_response);
+        });
+    }
+
+    protected processGetFoodEntry(response: Response): Promise<ConnectorFoodEntry> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ConnectorFoodEntry;
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ConnectorFoodEntry>(null as any);
+    }
+
+    /**
+     * Get suggested meal matches for a date range
+     * @param from (optional) 
+     * @param to (optional) 
+     */
+    getSuggestions(from?: Date | null | undefined, to?: Date | null | undefined, signal?: AbortSignal): Promise<SuggestedMealMatch[]> {
+        let url_ = this.baseUrl + "/api/v4/meal-matching/suggestions?";
+        if (from !== undefined && from !== null)
+            url_ += "from=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+        if (to !== undefined && to !== null)
+            url_ += "to=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetSuggestions(_response);
+        });
+    }
+
+    protected processGetSuggestions(response: Response): Promise<SuggestedMealMatch[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as SuggestedMealMatch[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SuggestedMealMatch[]>(null as any);
+    }
+
+    /**
+     * Accept a meal match
+     */
+    acceptMatch(request: AcceptMatchRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/v4/meal-matching/accept";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAcceptMatch(_response);
+        });
+    }
+
+    protected processAcceptMatch(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Dismiss a meal match
+     */
+    dismissMatch(request: DismissMatchRequest, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/v4/meal-matching/dismiss";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDismissMatch(_response);
+        });
+    }
+
+    protected processDismissMatch(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
 export class MigrationClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -17453,6 +17635,7 @@ export interface Treatment extends ProcessableDocumentBase {
     calculationType?: CalculationType | undefined;
     additional_properties?: { [key: string]: any; } | undefined;
     canonicalId?: string | undefined;
+    dbId?: string | undefined;
     sources?: string[] | undefined;
 }
 
@@ -18559,6 +18742,32 @@ export interface ForwardedDiscrepancyDto {
     analysis?: DiscrepancyAnalysisDto;
 }
 
+/** A suggested meal match between a food entry and treatment */
+export interface SuggestedMealMatch {
+    foodEntryId?: string;
+    foodName?: string | undefined;
+    mealName?: string | undefined;
+    carbs?: number;
+    consumedAt?: Date;
+    treatmentId?: string;
+    treatmentCarbs?: number;
+    treatmentMills?: number;
+    matchScore?: number;
+}
+
+/** Request to accept a meal match */
+export interface AcceptMatchRequest {
+    foodEntryId?: string;
+    treatmentId?: string;
+    carbs?: number;
+    timeOffsetMinutes?: number;
+}
+
+/** Request to dismiss a meal match */
+export interface DismissMatchRequest {
+    foodEntryId?: string;
+}
+
 /** Result of testing a migration connection */
 export interface TestMigrationConnectionResult {
     isSuccess?: boolean;
@@ -18687,16 +18896,7 @@ export interface MyFitnessPalMatchingSettings {
     matchTimeWindowMinutes?: number;
     matchCarbTolerancePercent?: number;
     matchCarbToleranceGrams?: number;
-    unmatchedTimeoutHours?: number;
-    unmatchedBehavior?: UnmatchedBehavior;
     enableMatchNotifications?: boolean;
-    enableUnmatchedNotifications?: boolean;
-}
-
-export enum UnmatchedBehavior {
-    Prompt = "Prompt",
-    AutoStandalone = "AutoStandalone",
-    AutoDelete = "AutoDelete",
 }
 
 export interface InAppNotificationDto {
@@ -18706,6 +18906,8 @@ export interface InAppNotificationDto {
     title?: string;
     subtitle?: string | undefined;
     createdAt?: Date;
+    sourceId?: string | undefined;
+    metadata?: { [key: string]: any; } | undefined;
     actions?: NotificationActionDto[];
 }
 

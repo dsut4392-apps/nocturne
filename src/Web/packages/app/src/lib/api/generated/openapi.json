@@ -4461,6 +4461,157 @@
         }
       }
     },
+    "/api/v4/meal-matching/food-entries/{id}": {
+      "get": {
+        "tags": [
+          "V4 Meal Matching"
+        ],
+        "summary": "Get a food entry for review",
+        "operationId": "MealMatching_GetFoodEntry",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorFoodEntry"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/meal-matching/suggestions": {
+      "get": {
+        "tags": [
+          "V4 Meal Matching"
+        ],
+        "summary": "Get suggested meal matches for a date range",
+        "operationId": "MealMatching_GetSuggestions",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SuggestedMealMatch"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/meal-matching/accept": {
+      "post": {
+        "tags": [
+          "V4 Meal Matching"
+        ],
+        "summary": "Accept a meal match",
+        "operationId": "MealMatching_AcceptMatch",
+        "requestBody": {
+          "x-name": "request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptMatchRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/meal-matching/dismiss": {
+      "post": {
+        "tags": [
+          "V4 Meal Matching"
+        ],
+        "summary": "Dismiss a meal match",
+        "operationId": "MealMatching_DismissMatch",
+        "requestBody": {
+          "x-name": "request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissMatchRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v4/migration/test": {
       "post": {
         "tags": [
@@ -16746,6 +16897,11 @@
                 "format": "guid",
                 "nullable": true
               },
+              "dbId": {
+                "type": "string",
+                "format": "guid",
+                "nullable": true
+              },
               "sources": {
                 "type": "array",
                 "nullable": true,
@@ -20244,6 +20400,83 @@
           }
         }
       },
+      "SuggestedMealMatch": {
+        "type": "object",
+        "description": "A suggested meal match between a food entry and treatment",
+        "additionalProperties": false,
+        "properties": {
+          "foodEntryId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "foodName": {
+            "type": "string",
+            "nullable": true
+          },
+          "mealName": {
+            "type": "string",
+            "nullable": true
+          },
+          "carbs": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "consumedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "treatmentId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "treatmentCarbs": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "treatmentMills": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "matchScore": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "AcceptMatchRequest": {
+        "type": "object",
+        "description": "Request to accept a meal match",
+        "additionalProperties": false,
+        "properties": {
+          "foodEntryId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "treatmentId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "carbs": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "timeOffsetMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "DismissMatchRequest": {
+        "type": "object",
+        "description": "Request to dismiss a meal match",
+        "additionalProperties": false,
+        "properties": {
+          "foodEntryId": {
+            "type": "string",
+            "format": "guid"
+          }
+        }
+      },
       "TestMigrationConnectionResult": {
         "type": "object",
         "description": "Result of testing a migration connection",
@@ -20605,34 +20838,10 @@
             "type": "integer",
             "format": "int32"
           },
-          "unmatchedTimeoutHours": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "unmatchedBehavior": {
-            "$ref": "#/components/schemas/UnmatchedBehavior"
-          },
           "enableMatchNotifications": {
-            "type": "boolean"
-          },
-          "enableUnmatchedNotifications": {
             "type": "boolean"
           }
         }
-      },
-      "UnmatchedBehavior": {
-        "type": "string",
-        "description": "",
-        "x-enumNames": [
-          "Prompt",
-          "AutoStandalone",
-          "AutoDelete"
-        ],
-        "enum": [
-          "Prompt",
-          "AutoStandalone",
-          "AutoDelete"
-        ]
       },
       "InAppNotificationDto": {
         "type": "object",
@@ -20658,6 +20867,15 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "sourceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": {}
           },
           "actions": {
             "type": "array",

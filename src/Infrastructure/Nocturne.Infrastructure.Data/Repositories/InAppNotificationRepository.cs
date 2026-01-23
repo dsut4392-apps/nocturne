@@ -180,6 +180,22 @@ public class InAppNotificationRepository
             }
         }
 
+        Dictionary<string, object>? metadata = null;
+        if (!string.IsNullOrEmpty(entity.MetadataJson))
+        {
+            try
+            {
+                metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                    entity.MetadataJson,
+                    JsonOptions
+                );
+            }
+            catch
+            {
+                // Ignore deserialization errors
+            }
+        }
+
         return new InAppNotificationDto
         {
             Id = entity.Id,
@@ -188,8 +204,23 @@ public class InAppNotificationRepository
             Title = entity.Title,
             Subtitle = entity.Subtitle,
             CreatedAt = entity.CreatedAt,
+            SourceId = entity.SourceId,
+            Metadata = metadata,
             Actions = actions
         };
+    }
+
+    /// <summary>
+    /// Serialize metadata to JSON
+    /// </summary>
+    /// <param name="metadata">The metadata to serialize</param>
+    /// <returns>JSON string representation</returns>
+    public static string? SerializeMetadata(Dictionary<string, object>? metadata)
+    {
+        if (metadata == null || metadata.Count == 0)
+            return null;
+
+        return JsonSerializer.Serialize(metadata, JsonOptions);
     }
 
     /// <summary>

@@ -36,6 +36,16 @@ public class InAppNotificationDto
     public DateTime CreatedAt { get; set; }
 
     /// <summary>
+    /// Optional source identifier for the notification (e.g., food entry ID for meal match)
+    /// </summary>
+    public string? SourceId { get; set; }
+
+    /// <summary>
+    /// Optional metadata containing notification-specific data
+    /// </summary>
+    public Dictionary<string, object>? Metadata { get; set; }
+
+    /// <summary>
     /// Available actions the user can take on this notification
     /// </summary>
     public List<NotificationActionDto> Actions { get; set; } = new();

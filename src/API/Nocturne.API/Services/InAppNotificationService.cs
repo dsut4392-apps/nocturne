@@ -12,6 +12,7 @@ public class InAppNotificationService : IInAppNotificationService
 {
     private readonly InAppNotificationRepository _repository;
     private readonly ISignalRBroadcastService _broadcastService;
+    private readonly IConnectorFoodEntryRepository _foodEntryRepository;
     private readonly ILogger<InAppNotificationService> _logger;
 
     /// <summary>
@@ -19,15 +20,18 @@ public class InAppNotificationService : IInAppNotificationService
     /// </summary>
     /// <param name="repository">The notification repository</param>
     /// <param name="broadcastService">The SignalR broadcast service</param>
+    /// <param name="foodEntryRepository">The food entry repository for meal matching dismiss</param>
     /// <param name="logger">The logger</param>
     public InAppNotificationService(
         InAppNotificationRepository repository,
         ISignalRBroadcastService broadcastService,
+        IConnectorFoodEntryRepository foodEntryRepository,
         ILogger<InAppNotificationService> logger
     )
     {
         _repository = repository;
         _broadcastService = broadcastService;
+        _foodEntryRepository = foodEntryRepository;
         _logger = logger;
     }
 
@@ -51,6 +55,7 @@ public class InAppNotificationService : IInAppNotificationService
         string? sourceId = null,
         List<NotificationActionDto>? actions = null,
         ResolutionConditions? resolutionConditions = null,
+        Dictionary<string, object>? metadata = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -63,7 +68,8 @@ public class InAppNotificationService : IInAppNotificationService
             Subtitle = subtitle,
             SourceId = sourceId,
             ActionsJson = InAppNotificationRepository.SerializeActions(actions),
-            ResolutionConditionsJson = InAppNotificationRepository.SerializeConditions(resolutionConditions)
+            ResolutionConditionsJson = InAppNotificationRepository.SerializeConditions(resolutionConditions),
+            MetadataJson = InAppNotificationRepository.SerializeMetadata(metadata)
         };
 
         var created = await _repository.CreateAsync(entity, cancellationToken);
@@ -191,7 +197,41 @@ public class InAppNotificationService : IInAppNotificationService
                 );
 
             default:
-                // For custom actions, log and mark as completed
+                // Check for domain-specific action handling
+                if (notification.Type == InAppNotificationType.SuggestedMealMatch)
+                {
+                    switch (actionId.ToLowerInvariant())
+                    {
+                        case "accept":
+                            // Accept action is handled via MealMatchingController
+                            // Just archive the notification here
+                            return await ArchiveNotificationAsync(
+                                notificationId,
+                                NotificationArchiveReason.Completed,
+                                cancellationToken);
+
+                        case "dismiss":
+                            if (notification.SourceId != null && Guid.TryParse(notification.SourceId, out var foodEntryId))
+                            {
+                                // Mark the food entry as standalone directly to avoid circular dependency
+                                await _foodEntryRepository.UpdateStatusAsync(
+                                    foodEntryId,
+                                    ConnectorFoodEntryStatus.Standalone,
+                                    null,
+                                    cancellationToken);
+                            }
+                            return await ArchiveNotificationAsync(
+                                notificationId,
+                                NotificationArchiveReason.Dismissed,
+                                cancellationToken);
+
+                        case "review":
+                            // Review opens a dialog client-side, just return true
+                            return true;
+                    }
+                }
+
+                // For other custom actions, log and mark as completed
                 _logger.LogInformation(
                     "Executed custom action {ActionId} on notification {NotificationId}",
                     actionId,

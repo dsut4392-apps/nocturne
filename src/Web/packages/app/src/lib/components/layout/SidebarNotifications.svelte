@@ -5,14 +5,21 @@
   import { cn } from "$lib/utils";
   import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
   import * as notificationsRemote from "$lib/data/notifications.remote";
-  import { NotificationUrgency } from "$lib/api/generated/nocturne-api-client";
+  import {
+    NotificationUrgency,
+    InAppNotificationType,
+    type InAppNotificationDto,
+  } from "$lib/api/generated/nocturne-api-client";
   import NotificationItem from "./NotificationItem.svelte";
+  import { MealMatchReviewDialog } from "$lib/components/meal-matching";
 
   // Get the realtime store for reactive notification data
   const realtimeStore = getRealtimeStore();
 
   // State
   let isOpen = $state(false);
+  let reviewDialogOpen = $state(false);
+  let reviewNotification = $state<InAppNotificationDto | null>(null);
 
   // Sort notifications by urgency (Urgent > Hazard > Warn > Info), then by timestamp
   const sortedNotifications = $derived.by(() => {
@@ -62,13 +69,34 @@
   );
 
   // Handle action on a notification
-  async function handleAction(notificationId: string, actionId: string) {
+  async function handleAction(
+    notification: InAppNotificationDto,
+    actionId: string
+  ) {
     isOpen = false;
+
+    // Handle review action for meal match notifications
+    if (
+      notification.type === InAppNotificationType.SuggestedMealMatch &&
+      actionId === "review"
+    ) {
+      reviewNotification = notification;
+      reviewDialogOpen = true;
+      return;
+    }
+
     try {
-      await notificationsRemote.executeAction({ id: notificationId, actionId });
+      await notificationsRemote.executeAction({
+        id: notification.id!,
+        actionId,
+      });
     } catch (err) {
       console.error("Failed to execute notification action:", err);
     }
+  }
+
+  function handleReviewComplete() {
+    reviewNotification = null;
   }
 </script>
 
@@ -127,7 +155,7 @@
         {#each sortedNotifications as notification (notification.id)}
           <NotificationItem
             {notification}
-            onAction={(actionId) => handleAction(notification.id!, actionId)}
+            onAction={(actionId) => handleAction(notification, actionId)}
           />
         {/each}
       </div>
@@ -145,3 +173,13 @@
     </div>
   </Popover.Content>
 </Popover.Root>
+
+<MealMatchReviewDialog
+  bind:open={reviewDialogOpen}
+  onOpenChange={(value) => {
+    reviewDialogOpen = value;
+    if (!value) reviewNotification = null;
+  }}
+  notification={reviewNotification}
+  onComplete={handleReviewComplete}
+/>

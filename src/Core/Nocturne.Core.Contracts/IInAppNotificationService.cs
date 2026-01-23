@@ -29,6 +29,7 @@ public interface IInAppNotificationService
     /// <param name="sourceId">Optional source entity ID for grouping and resolution</param>
     /// <param name="actions">Optional list of available actions</param>
     /// <param name="resolutionConditions">Optional automatic resolution conditions</param>
+    /// <param name="metadata">Optional notification-specific metadata</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The created notification</returns>
     Task<InAppNotificationDto> CreateNotificationAsync(
@@ -40,6 +41,7 @@ public interface IInAppNotificationService
         string? sourceId = null,
         List<NotificationActionDto>? actions = null,
         ResolutionConditions? resolutionConditions = null,
+        Dictionary<string, object>? metadata = null,
         CancellationToken cancellationToken = default
     );
 

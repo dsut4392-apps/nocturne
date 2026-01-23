@@ -85,6 +85,12 @@ public class InAppNotificationEntity
     public string? ResolutionConditionsJson { get; set; }
 
     /// <summary>
+    /// Optional JSON object containing additional notification-specific metadata
+    /// </summary>
+    [Column("metadata_json", TypeName = "jsonb")]
+    public string? MetadataJson { get; set; }
+
+    /// <summary>
     /// Whether this notification has been archived (completed, dismissed, or auto-resolved)
     /// </summary>
     [Column("is_archived")]

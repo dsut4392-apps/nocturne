@@ -42,7 +42,8 @@ import {
   SystemEventsClient,
   MigrationClient,
   DeduplicationClient,
-  ConfigurationClient
+  ConfigurationClient,
+  MealMatchingClient
 } from "./generated/nocturne-api-client";
 
 /**
@@ -98,6 +99,7 @@ export class ApiClient {
   public readonly migration: MigrationClient;
   public readonly deduplication: DeduplicationClient;
   public readonly configuration: ConfigurationClient;
+  public readonly mealMatching: MealMatchingClient;
 
   constructor(
     baseUrl: string,
@@ -152,6 +154,7 @@ export class ApiClient {
     this.migration = new MigrationClient(apiBaseUrl, http);
     this.deduplication = new DeduplicationClient(apiBaseUrl, http);
     this.configuration = new ConfigurationClient(apiBaseUrl, http);
+    this.mealMatching = new MealMatchingClient(apiBaseUrl, http);
   }
 
   /** Get the underlying main client for direct access if needed */

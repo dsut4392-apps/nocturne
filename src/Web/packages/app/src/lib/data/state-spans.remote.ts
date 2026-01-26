@@ -249,6 +249,15 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 			color: getSystemEventColor(event.eventType ?? SystemEventType.Info),
 		}));
 
+		return {
+			pumpModeSpans: processedPumpModes,
+			connectivitySpans: processedConnectivity,
+			tempBasalSpans: processedTempBasals,
+			overrideSpans: processedOverrides,
+			profileSpans: processedProfiles,
+			activitySpans: processedActivities,
+			systemEvents: processedEvents,
+		};
 	} catch (err) {
 		console.error('Error loading state data:', err);
 		throw error(500, 'Failed to load state data');

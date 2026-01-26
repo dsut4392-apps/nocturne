@@ -69,7 +69,6 @@ msgstr ""
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/icons/DeviceEventIcon.svelte
 #: src/lib/components/reports/SiteChangeImpactChart.svelte
-#: src/lib/components/status-pills/StatusPillBar.svelte
 msgid "Site Change"
 msgstr ""
 
@@ -102,7 +101,6 @@ msgstr ""
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/icons/DeviceEventIcon.svelte
 #: src/lib/components/status-pills/SAGEPill.svelte
-#: src/lib/components/status-pills/StatusPillBar.svelte
 msgid "Sensor Change"
 msgstr ""
 
@@ -180,6 +178,7 @@ msgstr ""
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/entries/EntryEditDialog.svelte
 #: src/lib/components/food/AddFoodDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/profile/ProfileCreateDialog.svelte
 #: src/lib/components/profile/ProfileDeleteDialog.svelte
 #: src/lib/components/profile/ProfileEditDialog.svelte
@@ -214,6 +213,7 @@ msgstr ""
 #: src/lib/components/TreatmentEditModal.svelte
 #: src/lib/components/entries/EntryEditDialog.svelte
 #: src/lib/components/food/AddFoodDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/profile/ProfileEditDialog.svelte
 #: src/lib/components/treatments/TreatmentEditDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodEntryEditDialog.svelte
@@ -477,7 +477,6 @@ msgstr ""
 msgid "Failed to load session"
 msgstr ""
 
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/lib/stores/auth-store.svelte.ts
@@ -792,6 +791,7 @@ msgstr ""
 msgid "Calendar"
 msgstr ""
 
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
 #: src/lib/components/layout/ReportsFilterSidebar.svelte
 #: src/lib/components/ui/date-range-picker.svelte
 #: src/routes/calendar/+page.svelte
@@ -833,7 +833,6 @@ msgstr ""
 #: src/routes/settings/alarms/+page.svelte
 #: src/routes/settings/alarms/+page.svelte
 #: src/routes/settings/appearance/+page.svelte
-#: src/routes/settings/profile/+page.svelte
 msgid "Low"
 msgstr ""
 
@@ -855,7 +854,6 @@ msgstr ""
 #: src/routes/settings/alarms/+page.svelte
 #: src/routes/settings/alarms/+page.svelte
 #: src/routes/settings/appearance/+page.svelte
-#: src/routes/settings/profile/+page.svelte
 msgid "High"
 msgstr ""
 
@@ -933,6 +931,12 @@ msgstr ""
 #. placeholder {0}: marker.carbs
 #. placeholder {0}: totalCarbs
 #. placeholder {0}: meal.carbs ?? 0
+#. placeholder {0}: foodEntry.protein
+#. placeholder {0}: scaledProtein()
+#. placeholder {0}: foodEntry.protein
+#. placeholder {0}: foodEntry.fat
+#. placeholder {0}: scaledFat()
+#. placeholder {0}: foodEntry.fat
 #. placeholder {0}: formatCarbDisplay(averages.avgCarbs)
 #. placeholder {0}: formatCarbDisplay(averages.avgProtein)
 #. placeholder {0}: formatCarbDisplay(averages.avgFat)
@@ -954,6 +958,12 @@ msgstr ""
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/widgets/MealsWidget.svelte
 #: src/lib/components/dashboard/widgets/MealsWidget.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/reports/PeriodAverages.svelte
 #: src/lib/components/reports/PeriodAverages.svelte
 #: src/lib/components/reports/PeriodAverages.svelte
@@ -980,7 +990,7 @@ msgid "Insulin:"
 msgstr ""
 
 #. placeholder {0}: marker.insulin.toFixed(1)
-#. placeholder {0}: ( chartData.reduce((sum, d) => sum + d.total, 0) / chartData.length ).toFixed(1)
+#. placeholder {0}: averageTdd.toFixed(1)
 #. placeholder {0}: formatInsulinDisplay(treatmentSummary?.totals?.insulin?.bolus)
 #. placeholder {0}: formatInsulinDisplay(treatmentSummary?.totals?.insulin?.basal)
 #. placeholder {0}: formatInsulinDisplay((treatmentSummary?.totals?.insulin?.bolus ?? 0) + (treatmentSummary?.totals?.insulin?.basal ?? 0))
@@ -1176,6 +1186,7 @@ msgstr ""
 #: src/lib/components/dashboard/BGStatisticsCards.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
+#: src/lib/components/dashboard/widgets/BgDeltaWidget.svelte
 #: src/lib/components/dashboard/widgets/LastUpdatedWidget.svelte
 #: src/lib/components/profile/ProfileEditDialog.svelte
 #: src/lib/components/status-pills/TrackerPill.svelte
@@ -1663,6 +1674,7 @@ msgid "Key Nutritional Info"
 msgstr ""
 
 #: src/lib/components/food/AddFoodDialog.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodEntryEditDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
@@ -1834,6 +1846,7 @@ msgid "Total: {0}g carbs"
 msgstr ""
 
 #: src/lib/components/layout/AppSidebar.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/status-pills/COBPill.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 #: src/routes/food/QuickPickItem.svelte
@@ -1888,7 +1901,6 @@ msgid "Save"
 msgstr ""
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/connectors/+page.svelte
@@ -1904,7 +1916,6 @@ msgstr ""
 
 #: src/lib/components/settings/ConnectorConfigForm.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/lib/components/treatments/CarbBreakdownBar.svelte
 #: src/lib/components/treatments/TreatmentFoodBreakdown.svelte
@@ -1918,7 +1929,6 @@ msgstr ""
 msgid "Other"
 msgstr ""
 
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/routes/notifications/+page.svelte
@@ -1934,14 +1944,12 @@ msgid "Failed"
 msgstr ""
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Fell Off"
 msgstr ""
 
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/routes/notifications/+page.svelte
@@ -1950,14 +1958,12 @@ msgid "Replaced Early"
 msgstr ""
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Empty"
 msgstr ""
 
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/routes/notifications/+page.svelte
@@ -1966,7 +1972,6 @@ msgid "Refilled"
 msgstr ""
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
@@ -1974,14 +1979,12 @@ msgid "Attended"
 msgstr ""
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Rescheduled"
 msgstr ""
 
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/routes/notifications/+page.svelte
@@ -1997,7 +2000,6 @@ msgid "Cancelled"
 msgstr ""
 
 #: src/lib/components/trackers/TrackerCompletionDialog.svelte
-#: src/lib/components/trackers/TrackerCompletionDialog.svelte
 #: src/lib/components/trackers/TrackerStartDialog.svelte
 #: src/routes/notifications/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
@@ -2008,35 +2010,26 @@ msgstr ""
 msgid "Failed to load notification data"
 msgstr ""
 
-#: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 msgid "Tracker active"
 msgstr ""
 
 #. placeholder {0}: thresholdHours ?? "?"
-#. placeholder {0}: thresholdHours ?? "?"
-#: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 msgid "Exceeded {0}h - change urgently!"
 msgstr ""
 
 #. placeholder {0}: thresholdHours ?? "?"
-#. placeholder {0}: thresholdHours ?? "?"
-#: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 msgid "Exceeded {0}h - change soon"
 msgstr ""
 
 #. placeholder {0}: thresholdHours ?? def.lifespanHours ?? "?"
-#. placeholder {0}: thresholdHours ?? def.lifespanHours ?? "?"
-#: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 msgid "Approaching {0}h limit"
 msgstr ""
 
 #. placeholder {0}: Math.floor(instance.ageHours ?? 0)
-#. placeholder {0}: Math.floor(instance.ageHours ?? 0)
-#: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 msgid "Active for {0}h"
 msgstr ""
@@ -2069,7 +2062,6 @@ msgstr ""
 msgid "Administrative tasks requiring your attention"
 msgstr ""
 
-#: src/lib/components/layout/SidebarNotifications.svelte
 #: src/routes/notifications/+page.svelte
 msgid "Password Reset Request"
 msgstr ""
@@ -2561,7 +2553,7 @@ msgid "Try again"
 msgstr ""
 
 #. placeholder {0}: dailyStats.readings
-#. placeholder {0}: tirData.total
+#. placeholder {0}: totalReadings.toLocaleString()
 #. placeholder {0}: entries.length.toLocaleString()
 #. placeholder {0}: readings.length
 #: src/lib/components/dashboard/widgets/DailySummaryWidget.svelte
@@ -2936,7 +2928,6 @@ msgid "Default"
 msgstr ""
 
 #: src/routes/profile/+page.svelte
-#: src/routes/settings/profile/+page.svelte
 msgid "<0/> Edit"
 msgstr ""
 
@@ -3407,12 +3398,14 @@ msgid "Error loading recent treatments."
 msgstr ""
 
 #. placeholder {0}: treatment.carbs
+#. placeholder {0}: foodEntry.carbs
 #. placeholder {0}: food.carbs
 #. placeholder {0}: food.carbs
 #. placeholder {0}: food.carbs
 #. placeholder {0}: foodCarbs
-#. placeholder {0}: insulinStats.totalCarbs.toFixed(0)
+#. placeholder {0}: (insulinStats.totalCarbs ?? 0).toFixed(0)
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
 #: src/lib/components/treatments/TreatmentFoodSelectorDialog.svelte
@@ -3433,6 +3426,7 @@ msgstr ""
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
 #: src/lib/components/icons/TreatmentTypeIcon.svelte
 #: src/lib/components/reports/InsulinDeliveryChart.svelte
 #: src/lib/components/reports/InsulinDonutChart.svelte
@@ -3536,6 +3530,7 @@ msgstr ""
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
 #: src/lib/components/icons/TreatmentTypeIcon.svelte
 #: src/lib/components/profile/ProfileEditDialog.svelte
 #: src/lib/components/reports/InsulinDeliveryChart.svelte
@@ -3702,12 +3697,16 @@ msgid "No unit found."
 msgstr ""
 
 #. placeholder {0}: thresholds.high
+#. placeholder {0}: bgLabel()
 #: src/lib/components/glucose-chart/GlucoseChart.svelte
+#: src/routes/settings/profile/+page.svelte
 msgid "High ({0})"
 msgstr ""
 
 #. placeholder {0}: thresholds.low
+#. placeholder {0}: bgLabel()
 #: src/lib/components/glucose-chart/GlucoseChart.svelte
+#: src/routes/settings/profile/+page.svelte
 msgid "Low ({0})"
 msgstr ""
 
@@ -3755,6 +3754,7 @@ msgstr ""
 msgid "Day in Review"
 msgstr ""
 
+#: src/lib/components/dashboard/widgets/ClockWidget.svelte
 #: src/lib/components/layout/AppSidebar.svelte
 msgid "Clock"
 msgstr ""
@@ -3892,40 +3892,30 @@ msgstr ""
 msgid "No active notifications"
 msgstr ""
 
-#: src/lib/components/layout/SidebarNotifications.svelte
-msgid "Set up trackers →"
-msgstr ""
+#~ msgid "Set up trackers →"
+#~ msgstr ""
 
-#. placeholder {0}: pendingResets.length
-#: src/lib/components/layout/SidebarNotifications.svelte
-msgid "<0/> Admin Actions Required ({0})"
-msgstr ""
+#~ msgid "<0/> Admin Actions Required ({0})"
+#~ msgstr ""
 
-#: src/lib/components/layout/SidebarNotifications.svelte
-msgid "<0/> Handle"
-msgstr ""
+#~ msgid "<0/> Handle"
+#~ msgstr ""
 
-#. placeholder {0}: trackerNotifications.length
-#: src/lib/components/layout/SidebarNotifications.svelte
-msgid "<0/> Tracker Alerts ({0})"
-msgstr ""
+#~ msgid "<0/> Tracker Alerts ({0})"
+#~ msgstr ""
 
-#: src/lib/components/layout/SidebarNotifications.svelte
 #: src/lib/components/settings/AlarmProfileDialog.svelte
 msgid "<0/> Snooze"
 msgstr ""
 
-#: src/lib/components/layout/SidebarNotifications.svelte
-msgid "<0/> Done"
-msgstr ""
+#~ msgid "<0/> Done"
+#~ msgstr ""
 
-#: src/lib/components/layout/SidebarNotifications.svelte
-msgid "Acknowledge for all devices"
-msgstr ""
+#~ msgid "Acknowledge for all devices"
+#~ msgstr ""
 
-#: src/lib/components/layout/SidebarNotifications.svelte
-msgid "Ack All"
-msgstr ""
+#~ msgid "Ack All"
+#~ msgstr ""
 
 #: src/lib/components/layout/SidebarNotifications.svelte
 msgid "View all notifications"
@@ -5123,7 +5113,6 @@ msgstr ""
 #: src/lib/components/status-pills/CAGEPill.svelte
 #: src/lib/components/status-pills/SAGEPill.svelte
 #: src/lib/components/status-pills/TrackerPill.svelte
-#: src/routes/settings/trackers/+page.svelte
 #: src/routes/settings/trackers/+page.svelte
 msgid "Overdue"
 msgstr ""
@@ -8733,7 +8722,7 @@ msgstr ""
 msgid "Basal Analysis <0/>"
 msgstr ""
 
-#. placeholder {0}: insulinStats.bolusCount + insulinStats.basalCount
+#. placeholder {0}: (insulinStats.bolusCount ?? 0) + (insulinStats.basalCount ?? 0)
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "{0} insulin events"
 msgstr ""
@@ -8765,8 +8754,8 @@ msgstr ""
 msgid "units/day"
 msgstr ""
 
-#. placeholder {0}: insulinStats.totalBasal.toFixed(1)
-#. placeholder {0}: insulinStats.totalBolus.toFixed(1)
+#. placeholder {0}: (insulinStats.totalBasal ?? 0).toFixed(1)
+#. placeholder {0}: (insulinStats.totalBolus ?? 0).toFixed(1)
 #: src/routes/reports/insulin-delivery/+page.svelte
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "{0}U total"
@@ -8776,7 +8765,7 @@ msgstr ""
 msgid "Boluses/Day"
 msgstr ""
 
-#. placeholder {0}: insulinStats.avgBolus.toFixed(1)
+#. placeholder {0}: (insulinStats.avgBolus ?? 0).toFixed(1)
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "avg {0}U each"
 msgstr ""
@@ -8785,8 +8774,8 @@ msgstr ""
 msgid "Avg I:C"
 msgstr ""
 
-#. placeholder {0}: insulinStats.basalPercent.toFixed(0)
-#. placeholder {1}: insulinStats.bolusPercent.toFixed( 0 )
+#. placeholder {0}: (insulinStats.basalPercent ?? 0).toFixed(0)
+#. placeholder {1}: (insulinStats.bolusPercent ?? 0).toFixed( 0 )
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Basal/Bolus Ratio: {0}% / {1}%"
 msgstr ""
@@ -8828,8 +8817,8 @@ msgstr ""
 msgid "Meal Boluses"
 msgstr ""
 
-#. placeholder {0}: insulinStats.bolusCount > 0 ? ( (insulinStats.mealBoluses / insulinStats.bolusCount) * 100 ).toFixed(0) : 0
-#. placeholder {0}: insulinStats.bolusCount > 0 ? ( (insulinStats.correctionBoluses / insulinStats.bolusCount) * 100 ).toFixed(0) : 0
+#. placeholder {0}: (insulinStats.bolusCount ?? 0) > 0 ? ( ((insulinStats.mealBoluses ?? 0) / (insulinStats.bolusCount ?? 1)) * 100 ).toFixed(0) : 0
+#. placeholder {0}: (insulinStats.bolusCount ?? 0) > 0 ? ( ((insulinStats.correctionBoluses ?? 0) / (insulinStats.bolusCount ?? 1)) * 100 ).toFixed(0) : 0
 #: src/routes/reports/insulin-delivery/+page.svelte
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "{0}% of boluses"
@@ -8876,7 +8865,7 @@ msgstr ""
 msgid "moderate bolus sizes."
 msgstr ""
 
-#. placeholder {0}: insulinStats.avgBolus.toFixed(1)
+#. placeholder {0}: (insulinStats.avgBolus ?? 0).toFixed(1)
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "Average bolus size of {0}U — <0/>"
 msgstr ""
@@ -8895,12 +8884,12 @@ msgstr ""
 msgid "<0>Basal Rate Estimation:</0> If your TDD is accurate, your hourly basal rate should be approximately <1>{0} U/hr</1> (using 50% basal assumption)."
 msgstr ""
 
-#. placeholder {0}: insulinStats.icRatio.toFixed( 0 )
+#. placeholder {0}: (insulinStats.icRatio ?? 0).toFixed( 0 )
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "means you use about 1 unit of insulin for every {0} grams of carbs."
 msgstr ""
 
-#. placeholder {0}: insulinStats.icRatio.toFixed( 0 )
+#. placeholder {0}: (insulinStats.icRatio ?? 0).toFixed( 0 )
 #: src/routes/reports/insulin-delivery/+page.svelte
 msgid "<0>I:C Ratio Check:</0> Your average insulin-to-carb ratio of 1:{0} <1/>"
 msgstr ""
@@ -11384,6 +11373,7 @@ msgid "<0/> {0} ({1}% CV)"
 msgstr ""
 
 #: src/lib/components/dashboard/widgets/DailySummaryWidget.svelte
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
 msgid "No data today"
 msgstr ""
 
@@ -11703,30 +11693,20 @@ msgstr ""
 msgid "Last 24h"
 msgstr ""
 
-#. placeholder {0}: tirData.severeLow.toFixed(1)
-#: src/lib/components/dashboard/widgets/TirChartWidget.svelte
-msgid "Severe Low: {0}%"
-msgstr ""
+#~ msgid "Severe Low: {0}%"
+#~ msgstr ""
 
-#. placeholder {0}: tirData.low.toFixed(1)
-#: src/lib/components/dashboard/widgets/TirChartWidget.svelte
-msgid "Low: {0}%"
-msgstr ""
+#~ msgid "Low: {0}%"
+#~ msgstr ""
 
-#. placeholder {0}: tirData.inRange.toFixed(1)
-#: src/lib/components/dashboard/widgets/TirChartWidget.svelte
-msgid "In Range: {0}%"
-msgstr ""
+#~ msgid "In Range: {0}%"
+#~ msgstr ""
 
-#. placeholder {0}: tirData.high.toFixed(1)
-#: src/lib/components/dashboard/widgets/TirChartWidget.svelte
-msgid "High: {0}%"
-msgstr ""
+#~ msgid "High: {0}%"
+#~ msgstr ""
 
-#. placeholder {0}: tirData.severeHigh.toFixed(1)
-#: src/lib/components/dashboard/widgets/TirChartWidget.svelte
-msgid "Severe High: {0}%"
-msgstr ""
+#~ msgid "Severe High: {0}%"
+#~ msgstr ""
 
 #. placeholder {0}: profile.name
 #: src/lib/components/settings/alarm-preview/AlarmActiveView.svelte
@@ -12898,6 +12878,7 @@ msgid "Failed to generate configuration"
 msgstr ""
 
 #: src/routes/download/+page.svelte
+#: src/routes/settings/connectors/[connector]/+page.svelte
 msgid "<0/> Back to connectors"
 msgstr ""
 
@@ -13584,9 +13565,8 @@ msgstr ""
 msgid "<0/> Update Credentials"
 msgstr ""
 
-#: src/routes/settings/connectors/[connector]/+page.svelte
-msgid "<0/> Back to Services"
-msgstr ""
+#~ msgid "<0/> Back to Services"
+#~ msgstr ""
 
 #: src/routes/settings/connectors/[connector]/+page.svelte
 msgid "No Runtime Configuration Available"
@@ -13671,4 +13651,266 @@ msgid ""
 "This will permanently delete all configuration and credentials for this\n"
 "connector. The connector will stop syncing data. This action cannot be\n"
 "undone."
+msgstr ""
+
+#~ msgid "<0/> Setup Required ({0})"
+#~ msgstr ""
+
+#~ msgid "Configure notification thresholds for alerts"
+#~ msgstr ""
+
+#: src/lib/components/layout/SidebarNotifications.svelte
+msgid "Set up trackers"
+msgstr ""
+
+#: src/lib/components/layout/NotificationItem.svelte
+msgid "Notification"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Missing required data"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/routes/meals/+page.svelte
+msgid "Meal match accepted"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Failed to accept meal match"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Missing food entry ID"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Meal match dismissed"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Failed to dismiss meal match"
+msgstr ""
+
+#~ msgid "Review Meal Match"
+#~ msgstr ""
+
+#~ msgid "Confirm when you ate this food and adjust the carbs if needed."
+#~ msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/routes/meals/+page.svelte
+msgid "Food entry"
+msgstr ""
+
+#~ msgid "{0} x {1}"
+#~ msgstr ""
+
+#~ msgid "· {0}g protein"
+#~ msgstr ""
+
+#~ msgid "· {0}g fat"
+#~ msgstr ""
+
+#~ msgid "{0}g carbs <0/> <1/>"
+#~ msgstr ""
+
+#. placeholder {0}: treatmentCarbs
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Treatment has {0}g total carbs"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "When did you eat?"
+msgstr ""
+
+#~ msgid "At bolus time ({0})"
+#~ msgstr ""
+
+#~ msgid "At MFP logged time ({0}) <0>({0}{1} min)</0>"
+#~ msgstr ""
+
+#~ msgid "Custom offset"
+#~ msgstr ""
+
+#~ msgid "Minutes after bolus"
+#~ msgstr ""
+
+#~ msgid "Positive = ate after bolusing, Negative = ate before bolusing"
+#~ msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/routes/meals/+page.svelte
+msgid "Dismiss"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+#: src/routes/meals/+page.svelte
+msgid "Accept"
+msgstr ""
+
+#: src/routes/meals/+page.svelte
+msgid "Failed to accept match"
+msgstr ""
+
+#: src/routes/meals/+page.svelte
+msgid "Match dismissed"
+msgstr ""
+
+#: src/routes/meals/+page.svelte
+msgid "Failed to dismiss match"
+msgstr ""
+
+#~ msgid "<0/> Suggested Matches <1/>"
+#~ msgstr ""
+
+#~ msgid "MyFitnessPal entries that may match your treatments"
+#~ msgstr ""
+
+#~ msgid "{0}g carbs at {1}"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Matches treatment at {0} ({1}g)\n"
+#~ "· {2}% match"
+#~ msgstr ""
+
+#: src/routes/meals/+page.svelte
+msgid "Review"
+msgstr ""
+
+#. placeholder {0}: treatmentCarbs
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Scale to {0}g"
+msgstr ""
+
+#~ msgid "At logged time ({0}) <0>({0}{1} min)</0>"
+#~ msgstr ""
+
+#. placeholder {0}: foodEntry.servingDescription
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "<0/> x {0}"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "<0>{0}g</0> <1>{0}g</1> carbs"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "· <0/> protein"
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "· <0/> fat"
+msgstr ""
+
+#~ msgid "Custom time"
+#~ msgstr ""
+
+#~ msgid "Time you ate"
+#~ msgstr ""
+
+#. placeholder {0}: timeOffsetMinutes() > 0 ? "+" : ""
+#. placeholder {1}: timeOffsetMinutes()
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "({0}{1} min)"
+msgstr ""
+
+#~ msgid "Bolus time"
+#~ msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Logged time"
+msgstr ""
+
+#. placeholder {0}: match.carbs
+#. placeholder {1}: Math.round((match.matchScore ?? 0) * 100)
+#: src/routes/meals/+page.svelte
+msgid ""
+"{0}g carbs\n"
+"· {1}% match"
+msgstr ""
+
+#. placeholder {0}: bolusDateDisplay
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Bolus time ({0})"
+msgstr ""
+
+#. placeholder {0}: foodName
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "Confirm \"{0}\""
+msgstr ""
+
+#: src/lib/components/meal-matching/MealMatchReviewDialog.svelte
+msgid "When did you eat this, and how much?"
+msgstr ""
+
+#: src/lib/components/dashboard/widgets/TirChartWidget.svelte
+msgid "<0/> vs 90d"
+msgstr ""
+
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
+msgid "Total Daily Dose"
+msgstr ""
+
+#~ msgid "<0/> Bolus"
+#~ msgstr ""
+
+#~ msgid "{0}U <0/>"
+#~ msgstr ""
+
+#~ msgid "<0/> Basal"
+#~ msgstr ""
+
+#~ msgid "No insulin data today"
+#~ msgstr ""
+
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
+#: src/lib/components/dashboard/widgets/TirChartWidget.svelte
+msgid "Failed to load data"
+msgstr ""
+
+#~ msgid "Bolus: {0}U ({1}%)"
+#~ msgstr ""
+
+#~ msgid "Basal: {0}U ({1}%)"
+#~ msgstr ""
+
+#. placeholder {0}: bolus.toFixed(1)
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
+msgid "<0/> Bolus {0}U"
+msgstr ""
+
+#. placeholder {0}: basal.toFixed(1)
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
+msgid "<0/> Basal {0}U"
+msgstr ""
+
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
+msgid "No insulin"
+msgstr ""
+
+#. placeholder {0}: carbs.toFixed(0)
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
+msgid "<0/> Carbs {0}g"
+msgstr ""
+
+#: src/lib/components/dashboard/widgets/TddWidget.svelte
+msgid "No data for 90-day average"
+msgstr ""
+
+#: src/lib/components/dashboard/widgets/TirChartWidget.svelte
+msgid "No 90-day data available"
+msgstr ""
+
+#: src/lib/components/reports/BasalBolusRatioChart.svelte
+msgid "Click on a bar to view the day in detail"
+msgstr ""
+
+#: src/lib/components/reports/BasalBolusRatioChart.svelte
+msgid "Loading data..."
+msgstr ""
+
+#: src/lib/components/reports/BasalRatePercentileChart.svelte
+msgid "Loading basal data..."
 msgstr ""

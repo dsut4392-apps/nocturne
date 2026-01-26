@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import {
     getServicesOverview,
     getUploaderSetup,
@@ -22,6 +22,11 @@
     AvailableConnector,
     DeduplicationJobStatus,
   } from "$lib/api/generated/nocturne-api-client";
+
+  // Extended type that includes description for UI display
+  interface ConnectorStatusWithDescription extends ConnectorStatusDto {
+    description?: string;
+  }
   import {
     Card,
     CardContent,
@@ -131,7 +136,7 @@
   // Connector heartbeat metrics state
   let connectorStatuses = $state<ConnectorStatusDto[]>([]);
   let isLoadingConnectorStatuses = $state(false);
-  let selectedConnector = $state<ConnectorStatusDto | null>(null);
+  let selectedConnector = $state<ConnectorStatusWithDescription | null>(null);
   let showConnectorDialog = $state(false);
 
   // Connector deletion state
@@ -153,6 +158,11 @@
 
   onMount(async () => {
     await Promise.all([loadServices(), loadConnectorStatuses()]);
+  });
+
+  onDestroy(() => {
+    // Clean up deduplication polling interval to prevent memory leaks
+    stopDeduplicationPolling();
   });
 
   async function refreshAll() {
@@ -204,7 +214,8 @@
         error: result.error ?? undefined,
       };
       if (result.success) {
-        await loadConnectorStatuses();
+        // Refresh both connector statuses and services overview
+        await Promise.all([loadConnectorStatuses(), loadServices()]);
       }
     } catch (e) {
       connectorDeleteResult = {

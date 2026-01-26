@@ -1531,6 +1531,107 @@ namespace Nocturne.Infrastructure.Data.Migrations
                     b.ToTable("foods");
                 });
 
+            modelBuilder.Entity("Nocturne.Infrastructure.Data.Entities.InAppNotificationEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActionsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("actions_json");
+
+                    b.Property<string>("ArchiveReason")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("archive_reason");
+
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsArchived")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_archived");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("metadata_json");
+
+                    b.Property<string>("ResolutionConditionsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("resolution_conditions_json");
+
+                    b.Property<string>("SourceId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("Subtitle")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("subtitle");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.Property<string>("Urgency")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("urgency");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .IsDescending()
+                        .HasDatabaseName("ix_in_app_notifications_created_at");
+
+                    b.HasIndex("IsArchived")
+                        .HasDatabaseName("ix_in_app_notifications_is_archived");
+
+                    b.HasIndex("SourceId")
+                        .HasDatabaseName("ix_in_app_notifications_source_id")
+                        .HasFilter("source_id IS NOT NULL");
+
+                    b.HasIndex("Type")
+                        .HasDatabaseName("ix_in_app_notifications_type");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_in_app_notifications_user_id");
+
+                    b.HasIndex("UserId", "IsArchived")
+                        .HasDatabaseName("ix_in_app_notifications_user_archived");
+
+                    b.HasIndex("UserId", "Type", "IsArchived")
+                        .HasDatabaseName("ix_in_app_notifications_user_type_archived");
+
+                    b.ToTable("in_app_notifications");
+                });
+
             modelBuilder.Entity("Nocturne.Infrastructure.Data.Entities.LinkedRecordEntity", b =>
                 {
                     b.Property<Guid>("Id")

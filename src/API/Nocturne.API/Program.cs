@@ -7,18 +7,12 @@ using Microsoft.Extensions.ServiceDiscovery;
 using Microsoft.IdentityModel.Tokens;
 using Nocturne.API.Configuration;
 using Nocturne.API.Extensions;
-using Nocturne.Core.Models.Configuration;
-using JwtOptions = Nocturne.Core.Models.Configuration.JwtOptions;
-using OidcOptions = Nocturne.Core.Models.Configuration.OidcOptions;
-using LocalIdentityOptions = Nocturne.Core.Models.Configuration.LocalIdentityOptions;
-using EmailOptions = Nocturne.Core.Models.Configuration.EmailOptions;
 using Nocturne.API.Hubs;
 using Nocturne.API.Middleware;
 using Nocturne.API.Middleware.Handlers;
 using Nocturne.API.Services;
 using Nocturne.API.Services.Auth;
 using Nocturne.API.Services.BackgroundServices;
-
 using Nocturne.Connectors.Configurations;
 using Nocturne.Connectors.Core.Interfaces;
 using Nocturne.Connectors.Core.Services;
@@ -31,15 +25,21 @@ using Nocturne.Connectors.Nightscout.Services;
 using Nocturne.Core.Constants;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
+using Nocturne.Core.Models.Configuration;
 using Nocturne.Infrastructure.Cache.Extensions;
 using Nocturne.Infrastructure.Data.Abstractions;
 using Nocturne.Infrastructure.Data.Extensions;
+using Nocturne.Infrastructure.Data.Repositories;
 using Nocturne.Infrastructure.Data.Services;
 using Nocturne.Infrastructure.Shared.Services;
 using NSwag;
 using OpenTelemetry.Logs;
 using Polly;
 using Scalar.AspNetCore;
+using EmailOptions = Nocturne.Core.Models.Configuration.EmailOptions;
+using JwtOptions = Nocturne.Core.Models.Configuration.JwtOptions;
+using LocalIdentityOptions = Nocturne.Core.Models.Configuration.LocalIdentityOptions;
+using OidcOptions = Nocturne.Core.Models.Configuration.OidcOptions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -364,11 +364,19 @@ builder.Services.AddSignalR();
 // Register SignalR broadcast service
 builder.Services.AddScoped<ISignalRBroadcastService, SignalRBroadcastService>();
 
-// Register tracker seed service for creating default definitions
-builder.Services.AddScoped<ITrackerSeedService, TrackerSeedService>();
+// Register tracker trigger service for auto-starting trackers from treatments
+builder.Services.AddScoped<ITrackerTriggerService, TrackerTriggerService>();
 
 // Register tracker alert service for evaluating tracker thresholds and generating alerts
 builder.Services.AddScoped<ITrackerAlertService, TrackerAlertService>();
+
+// Register in-app notification repository and service
+builder.Services.AddScoped<InAppNotificationRepository>();
+builder.Services.AddScoped<IInAppNotificationService, InAppNotificationService>();
+
+// Register meal matching repository and service
+builder.Services.AddScoped<IConnectorFoodEntryRepository, ConnectorFoodEntryRepository>();
+builder.Services.AddScoped<IMealMatchingService, MealMatchingService>();
 
 // Register legacy device age service (bridges Tracker system to legacy deviceage endpoints)
 builder.Services.AddScoped<ILegacyDeviceAgeService, LegacyDeviceAgeService>();
@@ -413,7 +421,6 @@ builder.Services.Configure<DeviceHealthOptions>(
 // Register device health services
 builder.Services.AddScoped<IDeviceRegistryService, DeviceRegistryService>();
 
-
 // Configure alert monitoring settings
 builder.Services.Configure<AlertMonitoringOptions>(
     builder.Configuration.GetSection(AlertMonitoringOptions.SectionName)
@@ -439,10 +446,16 @@ builder.Services.AddHttpClient(ConnectorHealthService.HttpClientName).AddService
 builder.Services.AddScoped<IConnectorHealthService, ConnectorHealthService>();
 
 // Register migration job service for data migration from Nightscout
-builder.Services.AddSingleton<Nocturne.API.Services.Migration.IMigrationJobService, Nocturne.API.Services.Migration.MigrationJobService>();
+builder.Services.AddSingleton<
+    Nocturne.API.Services.Migration.IMigrationJobService,
+    Nocturne.API.Services.Migration.MigrationJobService
+>();
 
 // Register migration startup service to check for pending migrations and create admin notifications
 builder.Services.AddHostedService<Nocturne.API.Services.Migration.MigrationStartupService>();
+
+// Register notification resolution background service for auto-resolving notifications
+builder.Services.AddHostedService<NotificationResolutionService>();
 
 var app = builder.Build();
 

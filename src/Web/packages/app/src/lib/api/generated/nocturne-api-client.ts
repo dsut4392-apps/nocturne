@@ -1097,6 +1097,477 @@ export class ConnectorStatusClient {
     }
 }
 
+export class InjectableDosesClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get injectable doses with optional filtering.
+     * @param fromMills (optional) Optional start timestamp in Unix milliseconds.
+     * @param toMills (optional) Optional end timestamp in Unix milliseconds.
+     * @param medicationId (optional) Optional medication ID to filter by.
+     * @return Collection of injectable doses matching the filters.
+     */
+    getAll(fromMills?: number | null | undefined, toMills?: number | null | undefined, medicationId?: string | null | undefined, signal?: AbortSignal): Promise<InjectableDose[]> {
+        let url_ = this.baseUrl + "/api/v4/injectable-doses?";
+        if (fromMills !== undefined && fromMills !== null)
+            url_ += "fromMills=" + encodeURIComponent("" + fromMills) + "&";
+        if (toMills !== undefined && toMills !== null)
+            url_ += "toMills=" + encodeURIComponent("" + toMills) + "&";
+        if (medicationId !== undefined && medicationId !== null)
+            url_ += "medicationId=" + encodeURIComponent("" + medicationId) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAll(_response);
+        });
+    }
+
+    protected processGetAll(response: Response): Promise<InjectableDose[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as InjectableDose[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjectableDose[]>(null as any);
+    }
+
+    /**
+     * Create a new injectable dose record.
+     * @param dose The dose to create.
+     * @return The created dose with assigned ID.
+     */
+    create(dose: InjectableDose, signal?: AbortSignal): Promise<InjectableDose> {
+        let url_ = this.baseUrl + "/api/v4/injectable-doses";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(dose);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreate(_response);
+        });
+    }
+
+    protected processCreate(response: Response): Promise<InjectableDose> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as InjectableDose;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjectableDose>(null as any);
+    }
+
+    /**
+     * Get a specific injectable dose by ID.
+     * @param id The dose ID.
+     * @return The requested dose if found.
+     */
+    getById(id: string, signal?: AbortSignal): Promise<InjectableDose> {
+        let url_ = this.baseUrl + "/api/v4/injectable-doses/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetById(_response);
+        });
+    }
+
+    protected processGetById(response: Response): Promise<InjectableDose> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as InjectableDose;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjectableDose>(null as any);
+    }
+
+    /**
+     * Update an existing injectable dose record.
+     * @param id The dose ID to update.
+     * @param dose The updated dose data.
+     * @return The updated dose.
+     */
+    update(id: string, dose: InjectableDose, signal?: AbortSignal): Promise<InjectableDose> {
+        let url_ = this.baseUrl + "/api/v4/injectable-doses/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(dose);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdate(_response);
+        });
+    }
+
+    protected processUpdate(response: Response): Promise<InjectableDose> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as InjectableDose;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjectableDose>(null as any);
+    }
+
+    /**
+     * Delete an injectable dose record.
+     * @param id The dose ID to delete.
+     * @return No content on success.
+     */
+    delete(id: string, signal?: AbortSignal): Promise<FileResponse> {
+        let url_ = this.baseUrl + "/api/v4/injectable-doses/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/octet-stream"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDelete(_response);
+        });
+    }
+
+    protected processDelete(response: Response): Promise<FileResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return response.blob().then(blob => { return { fileName: fileName, data: blob, status: status, headers: _headers }; });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<FileResponse>(null as any);
+    }
+}
+
+export class InjectableMedicationsClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get all injectable medications in the catalog.
+     * @param includeArchived (optional) Whether to include archived medications. Defaults to false.
+     * @return Collection of injectable medications.
+     */
+    getAll(includeArchived?: boolean | undefined, signal?: AbortSignal): Promise<InjectableMedication[]> {
+        let url_ = this.baseUrl + "/api/v4/injectable-medications?";
+        if (includeArchived === null)
+            throw new globalThis.Error("The parameter 'includeArchived' cannot be null.");
+        else if (includeArchived !== undefined)
+            url_ += "includeArchived=" + encodeURIComponent("" + includeArchived) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAll(_response);
+        });
+    }
+
+    protected processGetAll(response: Response): Promise<InjectableMedication[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as InjectableMedication[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjectableMedication[]>(null as any);
+    }
+
+    /**
+     * Create a new injectable medication in the catalog.
+     * @param medication The medication to create.
+     * @return The created medication with assigned ID.
+     */
+    create(medication: InjectableMedication, signal?: AbortSignal): Promise<InjectableMedication> {
+        let url_ = this.baseUrl + "/api/v4/injectable-medications";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(medication);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreate(_response);
+        });
+    }
+
+    protected processCreate(response: Response): Promise<InjectableMedication> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as InjectableMedication;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjectableMedication>(null as any);
+    }
+
+    /**
+     * Get a specific injectable medication by ID.
+     * @param id The medication ID.
+     * @return The requested medication if found.
+     */
+    getById(id: string, signal?: AbortSignal): Promise<InjectableMedication> {
+        let url_ = this.baseUrl + "/api/v4/injectable-medications/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetById(_response);
+        });
+    }
+
+    protected processGetById(response: Response): Promise<InjectableMedication> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as InjectableMedication;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjectableMedication>(null as any);
+    }
+
+    /**
+     * Update an existing injectable medication.
+     * @param id The medication ID to update.
+     * @param medication The updated medication data.
+     * @return The updated medication.
+     */
+    update(id: string, medication: InjectableMedication, signal?: AbortSignal): Promise<InjectableMedication> {
+        let url_ = this.baseUrl + "/api/v4/injectable-medications/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(medication);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdate(_response);
+        });
+    }
+
+    protected processUpdate(response: Response): Promise<InjectableMedication> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as InjectableMedication;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjectableMedication>(null as any);
+    }
+
+    /**
+     * Archive an injectable medication (soft delete).
+    Archived medications are hidden from normal queries but can be restored.
+     * @param id The medication ID to archive.
+     * @return No content on success.
+     */
+    archive(id: string, signal?: AbortSignal): Promise<FileResponse> {
+        let url_ = this.baseUrl + "/api/v4/injectable-medications/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/octet-stream"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processArchive(_response);
+        });
+    }
+
+    protected processArchive(response: Response): Promise<FileResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return response.blob().then(blob => { return { fileName: fileName, data: blob, status: status, headers: _headers }; });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<FileResponse>(null as any);
+    }
+}
+
 export class LocalAuthClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2222,6 +2693,243 @@ export class PebbleClient {
             });
         }
         return Promise.resolve<PebbleResponse>(null as any);
+    }
+}
+
+export class PenVialsClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get all pens/vials with optional filtering.
+     * @param medicationId (optional) Optional medication ID to filter by.
+     * @param includeArchived (optional) Whether to include archived pens/vials. Defaults to false.
+     * @return Collection of pens/vials matching the filters.
+     */
+    getAll(medicationId?: string | null | undefined, includeArchived?: boolean | undefined, signal?: AbortSignal): Promise<PenVial[]> {
+        let url_ = this.baseUrl + "/api/v4/pen-vials?";
+        if (medicationId !== undefined && medicationId !== null)
+            url_ += "medicationId=" + encodeURIComponent("" + medicationId) + "&";
+        if (includeArchived === null)
+            throw new globalThis.Error("The parameter 'includeArchived' cannot be null.");
+        else if (includeArchived !== undefined)
+            url_ += "includeArchived=" + encodeURIComponent("" + includeArchived) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAll(_response);
+        });
+    }
+
+    protected processGetAll(response: Response): Promise<PenVial[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PenVial[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PenVial[]>(null as any);
+    }
+
+    /**
+     * Create a new pen/vial record.
+     * @param penVial The pen/vial to create.
+     * @return The created pen/vial with assigned ID.
+     */
+    create(penVial: PenVial, signal?: AbortSignal): Promise<PenVial> {
+        let url_ = this.baseUrl + "/api/v4/pen-vials";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(penVial);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreate(_response);
+        });
+    }
+
+    protected processCreate(response: Response): Promise<PenVial> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PenVial;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PenVial>(null as any);
+    }
+
+    /**
+     * Get a specific pen/vial by ID.
+     * @param id The pen/vial ID.
+     * @return The requested pen/vial if found.
+     */
+    getById(id: string, signal?: AbortSignal): Promise<PenVial> {
+        let url_ = this.baseUrl + "/api/v4/pen-vials/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetById(_response);
+        });
+    }
+
+    protected processGetById(response: Response): Promise<PenVial> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PenVial;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PenVial>(null as any);
+    }
+
+    /**
+     * Update an existing pen/vial record.
+     * @param id The pen/vial ID to update.
+     * @param penVial The updated pen/vial data.
+     * @return The updated pen/vial.
+     */
+    update(id: string, penVial: PenVial, signal?: AbortSignal): Promise<PenVial> {
+        let url_ = this.baseUrl + "/api/v4/pen-vials/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(penVial);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdate(_response);
+        });
+    }
+
+    protected processUpdate(response: Response): Promise<PenVial> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as PenVial;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PenVial>(null as any);
+    }
+
+    /**
+     * Archive a pen/vial (soft delete).
+    Archived pens/vials are hidden from normal queries but can be restored.
+     * @param id The pen/vial ID to archive.
+     * @return No content on success.
+     */
+    archive(id: string, signal?: AbortSignal): Promise<FileResponse> {
+        let url_ = this.baseUrl + "/api/v4/pen-vials/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/octet-stream"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processArchive(_response);
+        });
+    }
+
+    protected processArchive(response: Response): Promise<FileResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return response.blob().then(blob => { return { fileName: fileName, data: blob, status: status, headers: _headers }; });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<FileResponse>(null as any);
     }
 }
 
@@ -17174,6 +17882,64 @@ Keys are data type names (e.g., "Glucose", "Treatments", "Food") */
     itemsLast24HoursBreakdown?: { [key: string]: number; } | undefined;
 }
 
+export interface InjectableDose {
+    id?: string;
+    injectableMedicationId?: string;
+    units?: number;
+    timestamp?: number;
+    injectionSite?: InjectionSite | undefined;
+    penVialId?: string | undefined;
+    lotNumber?: string | undefined;
+    notes?: string | undefined;
+    enteredBy?: string | undefined;
+    source?: string | undefined;
+    originalId?: string | undefined;
+}
+
+export enum InjectionSite {
+    Abdomen = "Abdomen",
+    AbdomenLeft = "AbdomenLeft",
+    AbdomenRight = "AbdomenRight",
+    ThighLeft = "ThighLeft",
+    ThighRight = "ThighRight",
+    ArmLeft = "ArmLeft",
+    ArmRight = "ArmRight",
+    Buttock = "Buttock",
+    Other = "Other",
+}
+
+export interface InjectableMedication {
+    id?: string;
+    name?: string;
+    category?: InjectableCategory;
+    concentration?: number;
+    unitType?: UnitType;
+    dia?: number | undefined;
+    onset?: number | undefined;
+    peak?: number | undefined;
+    duration?: number | undefined;
+    defaultDose?: number | undefined;
+    sortOrder?: number;
+    isArchived?: boolean;
+}
+
+export enum InjectableCategory {
+    RapidActing = "RapidActing",
+    UltraRapid = "UltraRapid",
+    ShortActing = "ShortActing",
+    Intermediate = "Intermediate",
+    LongActing = "LongActing",
+    UltraLong = "UltraLong",
+    GLP1Daily = "GLP1Daily",
+    GLP1Weekly = "GLP1Weekly",
+    Other = "Other",
+}
+
+export enum UnitType {
+    Units = "Units",
+    Milligrams = "Milligrams",
+}
+
 /** Local auth configuration response */
 export interface LocalAuthConfigResponse {
     enabled?: boolean;
@@ -17696,6 +18462,26 @@ export interface PebbleCal {
     intercept?: number | undefined;
     /** Calibration scale */
     scale?: number | undefined;
+}
+
+export interface PenVial {
+    id?: string;
+    injectableMedicationId?: string;
+    openedAt?: number | undefined;
+    expiresAt?: number | undefined;
+    initialUnits?: number | undefined;
+    remainingUnits?: number | undefined;
+    lotNumber?: string | undefined;
+    status?: PenVialStatus;
+    notes?: string | undefined;
+    isArchived?: boolean;
+}
+
+export enum PenVialStatus {
+    Unopened = "Unopened",
+    Active = "Active",
+    Empty = "Empty",
+    Expired = "Expired",
 }
 
 export interface BasicGlucoseStats {

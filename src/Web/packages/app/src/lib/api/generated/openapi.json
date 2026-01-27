@@ -821,6 +821,389 @@
         }
       }
     },
+    "/api/v4/injectable-doses": {
+      "get": {
+        "tags": [
+          "InjectableDoses"
+        ],
+        "summary": "Get injectable doses with optional filtering.",
+        "operationId": "InjectableDoses_GetAll",
+        "parameters": [
+          {
+            "name": "fromMills",
+            "in": "query",
+            "description": "Optional start timestamp in Unix milliseconds.",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "toMills",
+            "in": "query",
+            "description": "Optional end timestamp in Unix milliseconds.",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "medicationId",
+            "in": "query",
+            "description": "Optional medication ID to filter by.",
+            "schema": {
+              "type": "string",
+              "format": "guid",
+              "nullable": true
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection of injectable doses matching the filters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InjectableDose"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "InjectableDoses"
+        ],
+        "summary": "Create a new injectable dose record.",
+        "operationId": "InjectableDoses_Create",
+        "requestBody": {
+          "x-name": "dose",
+          "description": "The dose to create.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InjectableDose"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "The created dose with assigned ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InjectableDose"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/injectable-doses/{id}": {
+      "get": {
+        "tags": [
+          "InjectableDoses"
+        ],
+        "summary": "Get a specific injectable dose by ID.",
+        "operationId": "InjectableDoses_GetById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The dose ID.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested dose if found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InjectableDose"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "InjectableDoses"
+        ],
+        "summary": "Update an existing injectable dose record.",
+        "operationId": "InjectableDoses_Update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The dose ID to update.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "dose",
+          "description": "The updated dose data.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InjectableDose"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "The updated dose.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InjectableDose"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "InjectableDoses"
+        ],
+        "summary": "Delete an injectable dose record.",
+        "operationId": "InjectableDoses_Delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The dose ID to delete.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No content on success.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/injectable-medications": {
+      "get": {
+        "tags": [
+          "InjectableMedications"
+        ],
+        "summary": "Get all injectable medications in the catalog.",
+        "operationId": "InjectableMedications_GetAll",
+        "parameters": [
+          {
+            "name": "includeArchived",
+            "in": "query",
+            "description": "Whether to include archived medications. Defaults to false.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection of injectable medications.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InjectableMedication"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "InjectableMedications"
+        ],
+        "summary": "Create a new injectable medication in the catalog.",
+        "operationId": "InjectableMedications_Create",
+        "requestBody": {
+          "x-name": "medication",
+          "description": "The medication to create.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InjectableMedication"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "The created medication with assigned ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InjectableMedication"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/injectable-medications/{id}": {
+      "get": {
+        "tags": [
+          "InjectableMedications"
+        ],
+        "summary": "Get a specific injectable medication by ID.",
+        "operationId": "InjectableMedications_GetById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The medication ID.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested medication if found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InjectableMedication"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "InjectableMedications"
+        ],
+        "summary": "Update an existing injectable medication.",
+        "operationId": "InjectableMedications_Update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The medication ID to update.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "medication",
+          "description": "The updated medication data.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InjectableMedication"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "The updated medication.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InjectableMedication"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "InjectableMedications"
+        ],
+        "summary": "Archive an injectable medication (soft delete).\nArchived medications are hidden from normal queries but can be restored.",
+        "operationId": "InjectableMedications_Archive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The medication ID to archive.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No content on success.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/local/config": {
       "get": {
         "tags": [
@@ -1668,6 +2051,197 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PebbleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/pen-vials": {
+      "get": {
+        "tags": [
+          "PenVials"
+        ],
+        "summary": "Get all pens/vials with optional filtering.",
+        "operationId": "PenVials_GetAll",
+        "parameters": [
+          {
+            "name": "medicationId",
+            "in": "query",
+            "description": "Optional medication ID to filter by.",
+            "schema": {
+              "type": "string",
+              "format": "guid",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "includeArchived",
+            "in": "query",
+            "description": "Whether to include archived pens/vials. Defaults to false.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection of pens/vials matching the filters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PenVial"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "PenVials"
+        ],
+        "summary": "Create a new pen/vial record.",
+        "operationId": "PenVials_Create",
+        "requestBody": {
+          "x-name": "penVial",
+          "description": "The pen/vial to create.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PenVial"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "The created pen/vial with assigned ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PenVial"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/pen-vials/{id}": {
+      "get": {
+        "tags": [
+          "PenVials"
+        ],
+        "summary": "Get a specific pen/vial by ID.",
+        "operationId": "PenVials_GetById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The pen/vial ID.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested pen/vial if found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PenVial"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "PenVials"
+        ],
+        "summary": "Update an existing pen/vial record.",
+        "operationId": "PenVials_Update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The pen/vial ID to update.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "penVial",
+          "description": "The updated pen/vial data.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PenVial"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "The updated pen/vial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PenVial"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "PenVials"
+        ],
+        "summary": "Archive a pen/vial (soft delete).\nArchived pens/vials are hidden from normal queries but can be restored.",
+        "operationId": "PenVials_Archive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The pen/vial ID to archive.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No content on success.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
@@ -14903,6 +15477,180 @@
           }
         }
       },
+      "InjectableDose": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "injectableMedicationId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "units": {
+            "type": "number",
+            "format": "double"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "injectionSite": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/InjectionSite"
+              }
+            ]
+          },
+          "penVialId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "lotNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "enteredBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "nullable": true
+          },
+          "originalId": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "InjectionSite": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Abdomen",
+          "AbdomenLeft",
+          "AbdomenRight",
+          "ThighLeft",
+          "ThighRight",
+          "ArmLeft",
+          "ArmRight",
+          "Buttock",
+          "Other"
+        ],
+        "enum": [
+          "Abdomen",
+          "AbdomenLeft",
+          "AbdomenRight",
+          "ThighLeft",
+          "ThighRight",
+          "ArmLeft",
+          "ArmRight",
+          "Buttock",
+          "Other"
+        ]
+      },
+      "InjectableMedication": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/InjectableCategory"
+          },
+          "concentration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitType": {
+            "$ref": "#/components/schemas/UnitType"
+          },
+          "dia": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "onset": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "peak": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "duration": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultDose": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isArchived": {
+            "type": "boolean"
+          }
+        }
+      },
+      "InjectableCategory": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "RapidActing",
+          "UltraRapid",
+          "ShortActing",
+          "Intermediate",
+          "LongActing",
+          "UltraLong",
+          "GLP1Daily",
+          "GLP1Weekly",
+          "Other"
+        ],
+        "enum": [
+          "RapidActing",
+          "UltraRapid",
+          "ShortActing",
+          "Intermediate",
+          "LongActing",
+          "UltraLong",
+          "GLP1Daily",
+          "GLP1Weekly",
+          "Other"
+        ]
+      },
+      "UnitType": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Units",
+          "Milligrams"
+        ],
+        "enum": [
+          "Units",
+          "Milligrams"
+        ]
+      },
       "LocalAuthConfigResponse": {
         "type": "object",
         "description": "Local auth configuration response",
@@ -16270,6 +17018,70 @@
             "nullable": true
           }
         }
+      },
+      "PenVial": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "injectableMedicationId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "openedAt": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "initialUnits": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "remainingUnits": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "lotNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/PenVialStatus"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "isArchived": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PenVialStatus": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Unopened",
+          "Active",
+          "Empty",
+          "Expired"
+        ],
+        "enum": [
+          "Unopened",
+          "Active",
+          "Empty",
+          "Expired"
+        ]
       },
       "BasicGlucoseStats": {
         "type": "object",

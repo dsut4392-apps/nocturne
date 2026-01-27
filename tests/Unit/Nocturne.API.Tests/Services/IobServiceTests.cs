@@ -1,6 +1,8 @@
+using Moq;
 using Nocturne.API.Services;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
+using Nocturne.Core.Models.Injectables;
 using Xunit;
 
 namespace Nocturne.API.Tests.Services;
@@ -18,7 +20,13 @@ public class IobServiceTests
 
     public IobServiceTests()
     {
-        _iobService = new IobService();
+        var mockDoseService = new Mock<IInjectableDoseService>();
+        mockDoseService
+            .Setup(s => s.GetRecentRapidActingDosesAsync(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Enumerable.Empty<InjectableDose>());
+        var mockMedicationService = new Mock<IInjectableMedicationService>();
+
+        _iobService = new IobService(mockDoseService.Object, mockMedicationService.Object);
         _testProfile = new TestProfile();
     }
 

@@ -1,11 +1,13 @@
 using System.Reflection;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
+using Nocturne.Core.Models.Injectables;
 
 namespace Nocturne.API.Services;
 
 /// <summary>
-/// Implementation of IOB calculations with exact 1:1 legacy JavaScript compatibility
+/// Implementation of IOB calculations with exact 1:1 legacy JavaScript compatibility.
+/// Extended to include IOB from injectable medication doses with per-medication DIA.
 /// </summary>
 public class IobService : IIobService
 {
@@ -16,9 +18,22 @@ public class IobService : IIobService
     private const double PEAK_MINUTES = 75.0; // Peak insulin action at 75 minutes
     private const double MAX_IOB_MINUTES = 180.0; // IOB calculation cutoff at 180 minutes
 
+    private readonly IInjectableDoseService _injectableDoseService;
+    private readonly IInjectableMedicationService _injectableMedicationService;
+
+    public IobService(
+        IInjectableDoseService injectableDoseService,
+        IInjectableMedicationService injectableMedicationService
+    )
+    {
+        _injectableDoseService = injectableDoseService;
+        _injectableMedicationService = injectableMedicationService;
+    }
+
     /// <summary>
-    /// Main IOB calculation function that combines device status and treatment data
-    /// Exact implementation of legacy calcTotal function
+    /// Main IOB calculation function that combines device status, treatment data,
+    /// and injectable medication doses. Exact implementation of legacy calcTotal function
+    /// extended with per-medication DIA for injectable doses.
     /// </summary>
     public IobResult CalculateTotal(
         List<Treatment> treatments,
@@ -59,6 +74,13 @@ public class IobService : IIobService
             }
         }
 
+        // Calculate IOB from injectable medication doses (rapid-acting only)
+        var injectableIob = CalculateInjectableDoseIob(currentTime, profile, specProfile);
+        if (injectableIob > 0)
+        {
+            result.Iob += injectableIob;
+        }
+
         // Apply final rounding to IOB
         if (result.Iob > 0)
         {
@@ -66,6 +88,137 @@ public class IobService : IIobService
         }
 
         return AddDisplay(result);
+    }
+
+    /// <summary>
+    /// Calculate IOB contribution from injectable medication doses.
+    /// Only rapid-acting categories (RapidActing, UltraRapid, ShortActing) contribute to IOB.
+    /// Uses the medication-specific DIA instead of profile DIA.
+    /// </summary>
+    private double CalculateInjectableDoseIob(
+        long currentTime,
+        IProfileService? profile,
+        string? specProfile
+    )
+    {
+        try
+        {
+            // Get recent rapid-acting doses (up to 8 hours back to cover longest DIA)
+            var recentDoses = _injectableDoseService
+                .GetRecentRapidActingDosesAsync(currentTime, hoursBack: 8)
+                .GetAwaiter()
+                .GetResult();
+
+            if (!recentDoses.Any())
+            {
+                return 0.0;
+            }
+
+            var totalIob = 0.0;
+
+            // Cache medication lookups to avoid repeated DB queries
+            var medicationCache = new Dictionary<Guid, InjectableMedication?>();
+
+            foreach (var dose in recentDoses)
+            {
+                if (dose.Timestamp > currentTime || dose.Units <= 0)
+                {
+                    continue;
+                }
+
+                // Look up medication to get DIA
+                if (!medicationCache.TryGetValue(dose.InjectableMedicationId, out var medication))
+                {
+                    medication = _injectableMedicationService
+                        .GetByIdAsync(dose.InjectableMedicationId)
+                        .GetAwaiter()
+                        .GetResult();
+                    medicationCache[dose.InjectableMedicationId] = medication;
+                }
+
+                if (medication == null)
+                {
+                    continue;
+                }
+
+                // Only rapid-acting categories contribute to IOB
+                if (
+                    medication.Category != InjectableCategory.RapidActing
+                    && medication.Category != InjectableCategory.UltraRapid
+                    && medication.Category != InjectableCategory.ShortActing
+                )
+                {
+                    continue;
+                }
+
+                // Use medication-specific DIA, fall back to profile DIA, then default
+                var dia = medication.Dia
+                    ?? profile?.GetDIA(currentTime, specProfile)
+                    ?? DEFAULT_DIA;
+                var sens = profile?.GetSensitivity(currentTime, specProfile) ?? 50.0;
+
+                var contribution = CalcInjectableDoseContribution(
+                    dose.Units,
+                    dose.Timestamp,
+                    currentTime,
+                    dia,
+                    sens,
+                    medication.Peak
+                );
+
+                totalIob += contribution;
+            }
+
+            return totalIob;
+        }
+        catch (Exception)
+        {
+            // If injectable dose lookup fails, don't break legacy IOB calculation
+            return 0.0;
+        }
+    }
+
+    /// <summary>
+    /// Calculate IOB contribution from a single injectable dose using the medication-specific DIA.
+    /// Uses the same curve shape as the legacy algorithm but with per-medication parameters.
+    /// </summary>
+    private static double CalcInjectableDoseContribution(
+        double units,
+        long doseTimestamp,
+        long currentTime,
+        double dia,
+        double sens,
+        double? medicationPeak
+    )
+    {
+        if (units <= 0)
+        {
+            return 0.0;
+        }
+
+        var scaleFactor = SCALE_FACTOR_BASE / dia;
+        var peak = medicationPeak ?? PEAK_MINUTES;
+
+        var minAgo = (scaleFactor * (currentTime - doseTimestamp)) / 1000.0 / 60.0;
+
+        // Before peak: curved rise
+        if (minAgo < peak)
+        {
+            var x1 = minAgo / 5.0 + 1.0;
+            var iobContrib = units * (1.0 - 0.001852 * x1 * x1 + 0.001852 * x1);
+            return Math.Max(0.0, iobContrib);
+        }
+
+        // After peak to MAX_IOB_MINUTES: curved decline
+        if (minAgo < MAX_IOB_MINUTES)
+        {
+            var x2 = (minAgo - 75.0) / 5.0;
+            var iobContrib = units * (0.001323 * x2 * x2 - 0.054233 * x2 + 0.55556);
+            return Math.Max(0.0, iobContrib);
+        }
+
+        // After MAX_IOB_MINUTES: no IOB remaining
+        return 0.0;
     }
 
     /// <summary>
@@ -271,6 +424,7 @@ public class IobService : IIobService
     /// <summary>
     /// Calculate IOB contribution from a single treatment - exact legacy algorithm
     /// Implements exact curve from ClientApp/lib/plugins/iob.js calcTreatment
+    /// Legacy treatments without InjectableDoseId continue using profile DIA (backward compatible)
     /// </summary>
     public IobContribution CalcTreatment(
         Treatment treatment,

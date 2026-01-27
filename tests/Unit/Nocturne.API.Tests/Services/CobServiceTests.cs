@@ -3,6 +3,7 @@ using Moq;
 using Nocturne.API.Services;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
+using Nocturne.Core.Models.Injectables;
 using Nocturne.Core.Oref;
 using OrefModels = Nocturne.Core.Oref.Models;
 using Xunit;
@@ -23,7 +24,12 @@ public class CobServiceTests
     public CobServiceTests()
     {
         var logger = new Mock<ILogger<Nocturne.API.Services.CobService>>();
-        IIobService iobService = OrefService.IsAvailable() ? new OrefIobAdapter() : new IobService();
+        var mockDoseService = new Mock<IInjectableDoseService>();
+        mockDoseService
+            .Setup(s => s.GetRecentRapidActingDosesAsync(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Enumerable.Empty<InjectableDose>());
+        var mockMedicationService = new Mock<IInjectableMedicationService>();
+        IIobService iobService = OrefService.IsAvailable() ? new OrefIobAdapter() : new IobService(mockDoseService.Object, mockMedicationService.Object);
         _cobService = new Nocturne.API.Services.CobService(logger.Object, iobService);
         _testProfile = new TestCobProfile();
     }

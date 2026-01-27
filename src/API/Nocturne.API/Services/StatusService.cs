@@ -121,7 +121,7 @@ public class StatusService : IStatusService
             Settings = settings,
             ExtendedSettings = GetExtendedSettings(),
             Authorized = null, // Nightscout returns null for unauthenticated requests
-            RuntimeState = _demoModeService.IsEnabled ? "demo" : "booted",
+            RuntimeState = _demoModeService.IsEnabled ? "demo" : "loaded",
         };
 
         _logger.LogDebug(

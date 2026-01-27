@@ -204,16 +204,20 @@ public class NightscoutContainer : IAsyncDisposable
         }
 
         // Use V3 API for cleanup - it supports deletion by identifier
-        var v3Collections = new[] { "entries", "treatments", "devicestatus", "food" };
+        // Include all collections that can have test data
+        var v3Collections = new[] { "entries", "treatments", "devicestatus", "food", "profile", "settings" };
         foreach (var collection in v3Collections)
         {
             try
             {
                 // Keep fetching and deleting until no more documents
                 int deleted;
+                int maxIterations = 10; // Prevent infinite loops
+                int iteration = 0;
                 do
                 {
                     deleted = 0;
+                    iteration++;
                     var getResponse = await v3Client.GetAsync(
                         $"/api/v3/{collection}?limit=100",
                         cancellationToken);
@@ -248,13 +252,16 @@ public class NightscoutContainer : IAsyncDisposable
                             }
                         }
                     }
-                } while (deleted > 0);
+                } while (deleted > 0 && iteration < maxIterations);
             }
             catch
             {
                 // Ignore cleanup errors
             }
         }
+
+        // Small delay to ensure deletions are fully processed
+        await Task.Delay(50, cancellationToken);
     }
 
     public async ValueTask DisposeAsync()

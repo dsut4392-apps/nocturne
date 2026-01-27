@@ -12901,19 +12901,14 @@
         "tags": [
           "Profile"
         ],
-        "summary": "Create or update profiles",
+        "summary": "Create or update a profile.\nNightscout accepts either a single profile object or an array of profiles.",
         "operationId": "Profile_CreateProfiles",
         "requestBody": {
-          "x-name": "profiles",
-          "description": "Profiles to create or update",
+          "x-name": "body",
+          "description": "Profile(s) to create or update (single object or array)",
           "content": {
             "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Profile"
-                }
-              }
+              "schema": {}
             }
           },
           "required": true,
@@ -12921,7 +12916,7 @@
         },
         "responses": {
           "200": {
-            "description": "Created profiles with assigned IDs",
+            "description": "Created profiles with assigned IDs as an array",
             "content": {
               "application/json": {
                 "schema": {
@@ -12955,7 +12950,7 @@
         "operationId": "Profile_GetCurrentProfile",
         "responses": {
           "200": {
-            "description": "The current active profile, or empty array if no profiles exist",
+            "description": "The current active profile as a single object (Nightscout format), or empty array if no profiles exist",
             "content": {
               "application/json": {
                 "schema": {
@@ -13072,66 +13067,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/times": {
-      "get": {
-        "tags": [
-          "TimeQuery"
-        ],
-        "summary": "Complex time pattern matching with bash-style brace expansion",
-        "operationId": "TimeQuery_GetTimeBasedEntries",
-        "parameters": [
-          {
-            "name": "count",
-            "in": "query",
-            "description": "Maximum number of entries to return (default: 10)",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "default": 10
-            },
-            "x-position": 1
-          },
-          {
-            "name": "format",
-            "in": "query",
-            "description": "Output format (json, csv, tsv, txt)",
-            "schema": {
-              "type": "string",
-              "nullable": true
-            },
-            "x-position": 2
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Entries matching the time patterns",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Entry"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": ""
           }
         }
       }
@@ -16500,6 +16435,20 @@
                 "type": "string",
                 "nullable": true
               },
+              "identifier": {
+                "type": "string",
+                "nullable": true
+              },
+              "srvModified": {
+                "type": "integer",
+                "format": "int64",
+                "nullable": true
+              },
+              "srvCreated": {
+                "type": "integer",
+                "format": "int64",
+                "nullable": true
+              },
               "mills": {
                 "type": "integer",
                 "format": "int64"
@@ -17100,6 +17049,20 @@
             "properties": {
               "_id": {
                 "type": "string",
+                "nullable": true
+              },
+              "identifier": {
+                "type": "string",
+                "nullable": true
+              },
+              "srvModified": {
+                "type": "integer",
+                "format": "int64",
+                "nullable": true
+              },
+              "srvCreated": {
+                "type": "integer",
+                "format": "int64",
                 "nullable": true
               },
               "eventType": {

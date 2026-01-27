@@ -41,6 +41,15 @@ public class ResponseComparer
                 ((int)actual.StatusCode).ToString());
         }
 
+        // For error responses (4xx/5xx), if StatusCodeOnlyForErrors is enabled,
+        // we only care that both returned the same error status code.
+        // The body format differs between Nightscout (HTML) and ASP.NET (JSON ProblemDetails).
+        var isErrorResponse = (int)expected.StatusCode >= 400;
+        if (_options.StatusCodeOnlyForErrors && isErrorResponse && expected.StatusCode == actual.StatusCode)
+        {
+            return result; // Status codes match, skip body/header comparison for errors
+        }
+
         // Compare configured headers
         foreach (var header in _options.HeadersToCompare)
         {
@@ -401,6 +410,14 @@ public class ComparisonOptions
     /// Default is true since Nocturne returning more data is acceptable.
     /// </summary>
     public bool AllowExtraActualFields { get; init; } = true;
+
+    /// <summary>
+    /// When true, only compares status codes for error responses (4xx/5xx).
+    /// This is useful because Nightscout returns HTML error pages while ASP.NET returns JSON ProblemDetails.
+    /// The important thing for API consumers is the status code, not the error body format.
+    /// Default is true to focus on semantically meaningful parity.
+    /// </summary>
+    public bool StatusCodeOnlyForErrors { get; init; } = true;
 
     /// <summary>
     /// Default options suitable for most parity tests

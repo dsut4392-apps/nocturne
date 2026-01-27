@@ -50,9 +50,16 @@ public class DeviceStatusController : BaseV3Controller<DeviceStatus>
         {
             var parameters = ParseV3QueryParameters();
 
-            // Convert V3 parameters to backend query for compatibility
-            var findQuery = ConvertV3FilterToV1Find(parameters.Filter);
-            var reverseResults = ExtractSortDirection(parameters.Sort);
+            // Convert V3 filter criteria (field$op=value) to MongoDB-style JSON query
+            var findQuery = ConvertFilterCriteriaToFindQuery(parameters.FilterCriteria)
+                ?? ConvertV3FilterToV1Find(parameters.Filter);
+
+            // Determine sort direction from sort$desc query parameter
+            // Nightscout V3: sort$desc=field means descending (newest first)
+            // reverseResults=false means descending, reverseResults=true means ascending
+            var query = HttpContext.Request.Query;
+            var hasSortDesc = query.ContainsKey("sort$desc");
+            var reverseResults = !hasSortDesc && ExtractSortDirection(parameters.Sort);
 
             // Get device status using existing backend with V3 parameters
             var deviceStatusListRaw =
@@ -486,6 +493,55 @@ public class DeviceStatusController : BaseV3Controller<DeviceStatus>
 
 
     /// <summary>
+    /// Convert V3 filter criteria (field$op=value format) to MongoDB-style JSON query
+    /// </summary>
+    /// <param name="filterCriteria">List of parsed filter criteria</param>
+    /// <returns>MongoDB-style JSON query string, or null if no criteria</returns>
+    private string? ConvertFilterCriteriaToFindQuery(List<V3FilterCriteria>? filterCriteria)
+    {
+        if (filterCriteria == null || filterCriteria.Count == 0)
+            return null;
+
+        var conditions = new Dictionary<string, object>();
+
+        foreach (var criteria in filterCriteria)
+        {
+            var mongoOp = criteria.Operator switch
+            {
+                "eq" => null, // Direct equality doesn't need operator
+                "ne" => "$ne",
+                "gt" => "$gt",
+                "gte" => "$gte",
+                "lt" => "$lt",
+                "lte" => "$lte",
+                "in" => "$in",
+                "nin" => "$nin",
+                "re" => "$regex",
+                _ => null
+            };
+
+            if (mongoOp == null && criteria.Operator == "eq")
+            {
+                // Direct equality: { "field": "value" }
+                conditions[criteria.Field] = criteria.Value ?? "";
+            }
+            else if (mongoOp != null)
+            {
+                // Operator form: { "field": { "$op": "value" } }
+                conditions[criteria.Field] = new Dictionary<string, object?>
+                {
+                    [mongoOp] = criteria.Value
+                };
+            }
+        }
+
+        if (conditions.Count == 0)
+            return null;
+
+        return JsonSerializer.Serialize(conditions);
+    }
+
+    /// <summary>
     /// Get total count for pagination support
     /// </summary>
     private async Task<long> GetTotalCountAsync(
@@ -511,20 +567,28 @@ public class DeviceStatusController : BaseV3Controller<DeviceStatus>
     }
     private object MapToV3Dto(DeviceStatus status)
     {
-        return new Dictionary<string, object?>
+        // Build dictionary with only non-null optional fields to match Nightscout behavior
+        var dto = new Dictionary<string, object?>
         {
-            ["_id"] = status.Id,
-            ["identifier"] = status.Id,
             ["device"] = status.Device,
             ["created_at"] = status.CreatedAt,
-            ["openaps"] = status.OpenAps,
-            ["pump"] = status.Pump,
-            ["uploader"] = status.Uploader,
-            ["loop"] = status.Loop,
-            ["srvModified"] = status.Mills,
-            ["srvCreated"] = status.Mills,
             ["uploaderBattery"] = status.Uploader?.Battery,
-            ["utcOffset"] = status.UtcOffset
+            ["utcOffset"] = status.UtcOffset,
+            ["identifier"] = status.Id,
+            ["srvModified"] = status.Mills,
+            ["srvCreated"] = status.Mills
         };
+
+        // Only include optional complex fields if they have values (Nightscout omits nulls)
+        if (status.OpenAps != null)
+            dto["openaps"] = status.OpenAps;
+        if (status.Pump != null)
+            dto["pump"] = status.Pump;
+        if (status.Uploader != null)
+            dto["uploader"] = status.Uploader;
+        if (status.Loop != null)
+            dto["loop"] = status.Loop;
+
+        return dto;
     }
 }

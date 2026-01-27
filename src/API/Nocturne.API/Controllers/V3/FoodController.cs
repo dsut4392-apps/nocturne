@@ -50,7 +50,11 @@ public class FoodController : BaseV3Controller<Food>
             );
             var type = typeFilter?.Value?.ToString();
 
-            var reverseResults = ExtractSortDirection(parameters.Sort);
+            // Determine sort direction from sort$desc query parameter
+            // Nightscout V3: sort$desc=field means descending (newest first)
+            // reverseResults=false means descending, reverseResults=true means ascending
+            var hasSortDesc = HttpContext?.Request.Query.ContainsKey("sort$desc") ?? false;
+            var reverseResults = !hasSortDesc && ExtractSortDirection(parameters.Sort);
 
             // Get all food records - we'll apply V3 filtering in memory
             var foodRecords = await _postgreSqlService.GetFoodWithAdvancedFilterAsync(

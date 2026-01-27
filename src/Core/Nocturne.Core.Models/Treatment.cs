@@ -17,6 +17,27 @@ public class Treatment : ProcessableDocumentBase
     public override string? Id { get; set; }
 
     /// <summary>
+    /// Gets the V3 API identifier - alias for Id for Nightscout V3 compatibility.
+    /// Nightscout V3 API returns both _id and identifier fields with the same value.
+    /// </summary>
+    [JsonPropertyName("identifier")]
+    public string? Identifier => Id;
+
+    /// <summary>
+    /// Gets the server-modified timestamp for V3 compatibility.
+    /// Returns Mills as Nightscout V3 uses this to track server-side modifications.
+    /// </summary>
+    [JsonPropertyName("srvModified")]
+    public long? SrvModified => Mills > 0 ? Mills : null;
+
+    /// <summary>
+    /// Gets the server-created timestamp for V3 compatibility.
+    /// Returns Mills as Nightscout V3 uses this to track server-side creation time.
+    /// </summary>
+    [JsonPropertyName("srvCreated")]
+    public long? SrvCreated => Mills > 0 ? Mills : null;
+
+    /// <summary>
     /// Gets or sets the event type (e.g., "Meal Bolus", "Correction Bolus", "BG Check")
     /// </summary>
     [JsonPropertyName("eventType")]

@@ -46,8 +46,16 @@ public class EntriesController : BaseV3Controller<Entry>
 
             // Convert V3 parameters to V1 query for backend compatibility
             var type = ExtractTypeFromFilter(parameters.Filter);
-            var findQuery = ConvertV3FilterToV1Find(parameters.Filter);
-            var reverseResults = ExtractSortDirection(parameters.Sort) == "asc";
+
+            // Convert V3 filter criteria (field$op=value) to MongoDB-style JSON query
+            var findQuery = ConvertFilterCriteriaToFindQuery(parameters.FilterCriteria)
+                ?? ConvertV3FilterToV1Find(parameters.Filter);
+
+            // Determine sort direction from sort$desc query parameter
+            // Nightscout V3: sort$desc=field means descending (newest first)
+            // reverseResults=false means descending, reverseResults=true means ascending
+            var hasSortDesc = HttpContext?.Request.Query.ContainsKey("sort$desc") ?? false;
+            var reverseResults = !hasSortDesc && ExtractSortDirection(parameters.Sort);
 
             // Get entries using existing V1 backend with V3 parameters
             var entries = await _postgreSqlService.GetEntriesWithAdvancedFilterAsync(
@@ -450,13 +458,53 @@ public class EntriesController : BaseV3Controller<Entry>
         }
     }
 
-    private new string ExtractSortDirection(string? sort)
+    /// <summary>
+    /// Convert V3 filter criteria (field$op=value format) to MongoDB-style JSON query
+    /// </summary>
+    /// <param name="filterCriteria">List of parsed filter criteria</param>
+    /// <returns>MongoDB-style JSON query string, or null if no criteria</returns>
+    private string? ConvertFilterCriteriaToFindQuery(List<V3FilterCriteria>? filterCriteria)
     {
-        if (string.IsNullOrEmpty(sort))
-            return "desc"; // Default to descending (newest first)
+        if (filterCriteria == null || filterCriteria.Count == 0)
+            return null;
 
-        // V3 sort format: "field" or "-field" (minus means descending)
-        return sort.StartsWith("-") ? "desc" : "asc";
+        var conditions = new Dictionary<string, object>();
+
+        foreach (var criteria in filterCriteria)
+        {
+            var mongoOp = criteria.Operator switch
+            {
+                "eq" => null, // Direct equality doesn't need operator
+                "ne" => "$ne",
+                "gt" => "$gt",
+                "gte" => "$gte",
+                "lt" => "$lt",
+                "lte" => "$lte",
+                "in" => "$in",
+                "nin" => "$nin",
+                "re" => "$regex",
+                _ => null
+            };
+
+            if (mongoOp == null && criteria.Operator == "eq")
+            {
+                // Direct equality: { "field": "value" }
+                conditions[criteria.Field] = criteria.Value ?? "";
+            }
+            else if (mongoOp != null)
+            {
+                // Operator form: { "field": { "$op": "value" } }
+                conditions[criteria.Field] = new Dictionary<string, object?>
+                {
+                    [mongoOp] = criteria.Value
+                };
+            }
+        }
+
+        if (conditions.Count == 0)
+            return null;
+
+        return JsonSerializer.Serialize(conditions);
     }
 
     private async Task<long> GetTotalCountAsync(

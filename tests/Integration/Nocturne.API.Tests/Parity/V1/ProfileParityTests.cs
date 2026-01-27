@@ -15,6 +15,16 @@ public class ProfileParityTests : ParityTestBase
     public ProfileParityTests(ParityTestFixture fixture, ITestOutputHelper output)
         : base(fixture, output) { }
 
+    /// <summary>
+    /// Override comparison options to ignore timeAsSeconds field.
+    /// Nocturne calculates this value while Nightscout returns null.
+    /// The value is correctly computed so this is acceptable for parity.
+    /// </summary>
+    protected override ComparisonOptions GetComparisonOptions()
+    {
+        return ComparisonOptions.Default.WithIgnoredFields("timeAsSeconds");
+    }
+
     #region Data Seeding
 
     private async Task SeedProfileAsync(Profile profile)

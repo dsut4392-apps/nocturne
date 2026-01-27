@@ -14341,15 +14341,16 @@ export class ProfileClient {
     }
 
     /**
-     * Create or update profiles
-     * @param profiles Profiles to create or update
-     * @return Created profiles with assigned IDs
+     * Create or update a profile.
+    Nightscout accepts either a single profile object or an array of profiles.
+     * @param body Profile(s) to create or update (single object or array)
+     * @return Created profiles with assigned IDs as an array
      */
-    createProfiles(profiles: Profile[], signal?: AbortSignal): Promise<Profile[]> {
+    createProfiles(body: any, signal?: AbortSignal): Promise<Profile[]> {
         let url_ = this.baseUrl + "/api/v1/Profile";
         url_ = url_.replace(/[?&]$/, "");
 
-        const content_ = JSON.stringify(profiles);
+        const content_ = JSON.stringify(body);
 
         let options_: RequestInit = {
             body: content_,
@@ -14391,7 +14392,7 @@ export class ProfileClient {
 
     /**
      * Get the current active profile
-     * @return The current active profile, or empty array if no profiles exist
+     * @return The current active profile as a single object (Nightscout format), or empty array if no profiles exist
      */
     getCurrentProfile(signal?: AbortSignal): Promise<Profile[]> {
         let url_ = this.baseUrl + "/api/v1/Profile/current";
@@ -16049,62 +16050,6 @@ export class TimeQueryClient {
     constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
         this.http = http ? http : window as any;
         this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * Complex time pattern matching with bash-style brace expansion
-     * @param count (optional) Maximum number of entries to return (default: 10)
-     * @param format (optional) Output format (json, csv, tsv, txt)
-     * @return Entries matching the time patterns
-     */
-    getTimeBasedEntries(count?: number | undefined, format?: string | null | undefined, signal?: AbortSignal): Promise<Entry[]> {
-        let url_ = this.baseUrl + "/api/v1/times?";
-        if (count === null)
-            throw new globalThis.Error("The parameter 'count' cannot be null.");
-        else if (count !== undefined)
-            url_ += "count=" + encodeURIComponent("" + count) + "&";
-        if (format !== undefined && format !== null)
-            url_ += "format=" + encodeURIComponent("" + format) + "&";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetTimeBasedEntries(_response);
-        });
-    }
-
-    protected processGetTimeBasedEntries(response: Response): Promise<Entry[]> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Entry[];
-            return result200;
-            });
-        } else if (status === 400) {
-            return response.text().then((_responseText) => {
-            let result400: any = null;
-            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
-            });
-        } else if (status === 500) {
-            return response.text().then((_responseText) => {
-            return throwException("A server side error occurred.", status, _responseText, _headers);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<Entry[]>(null as any);
     }
 
     /**
@@ -17807,6 +17752,9 @@ export interface ProcessableDocumentBase {
 
 export interface Entry extends ProcessableDocumentBase {
     _id?: string | undefined;
+    identifier?: string | undefined;
+    srvModified?: number | undefined;
+    srvCreated?: number | undefined;
     mills?: number;
     date?: number;
     dateString?: string | undefined;
@@ -17984,6 +17932,9 @@ export interface InsulinTotals {
 
 export interface Treatment extends ProcessableDocumentBase {
     _id?: string | undefined;
+    identifier?: string | undefined;
+    srvModified?: number | undefined;
+    srvCreated?: number | undefined;
     eventType?: string | undefined;
     reason?: string | undefined;
     glucose?: number | undefined;

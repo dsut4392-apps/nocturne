@@ -86,25 +86,32 @@ public class ParityTestFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Cleans up test data from both Nightscout and Nocturne
+    /// Cleans up test data from both Nightscout and Nocturne.
+    /// IMPORTANT: This must complete fully before the next test starts.
     /// </summary>
     public async Task CleanupDataAsync(CancellationToken cancellationToken = default)
     {
         if (_sharedState == null) return;
 
-        // Clean Nightscout
-        await _sharedState.NightscoutContainer.CleanupDataAsync(cancellationToken);
-
-        // Clean Nocturne (PostgreSQL)
+        // Clean Nocturne (PostgreSQL) first using ExecuteDeleteAsync for bulk deletion
+        // This is more reliable than RemoveRange as it bypasses the change tracker
         var db = _sharedState.DbContext;
-        db.Entries.RemoveRange(db.Entries);
-        db.Treatments.RemoveRange(db.Treatments);
-        db.DeviceStatuses.RemoveRange(db.DeviceStatuses);
-        db.Foods.RemoveRange(db.Foods);
-        db.Profiles.RemoveRange(db.Profiles);
-        db.Settings.RemoveRange(db.Settings);
-        db.StateSpans.RemoveRange(db.StateSpans); // Temp basals are stored as StateSpans
-        await db.SaveChangesAsync(cancellationToken);
+
+        // Clear change tracker to ensure no stale entities
+        db.ChangeTracker.Clear();
+
+        // Use ExecuteDeleteAsync for efficient bulk deletion that bypasses EF tracking
+        await db.Entries.ExecuteDeleteAsync(cancellationToken);
+        await db.Treatments.ExecuteDeleteAsync(cancellationToken);
+        await db.DeviceStatuses.ExecuteDeleteAsync(cancellationToken);
+        await db.Foods.ExecuteDeleteAsync(cancellationToken);
+        await db.Profiles.ExecuteDeleteAsync(cancellationToken);
+        await db.Settings.ExecuteDeleteAsync(cancellationToken);
+        await db.StateSpans.ExecuteDeleteAsync(cancellationToken);
+        await db.Activities.ExecuteDeleteAsync(cancellationToken);
+
+        // Clean Nightscout (network calls - may have latency)
+        await _sharedState.NightscoutContainer.CleanupDataAsync(cancellationToken);
     }
 
     /// <summary>

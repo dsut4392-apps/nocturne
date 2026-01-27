@@ -405,6 +405,11 @@ builder.Services.AddScoped<
     MyFitnessPalMatchingSettingsService
 >();
 
+// Register injectable medication services
+builder.Services.AddScoped<IInjectableMedicationService, InjectableMedicationService>();
+builder.Services.AddScoped<IInjectableDoseService, InjectableDoseService>();
+builder.Services.AddScoped<IPenVialService, PenVialService>();
+
 // Note: Processing status service is registered by AddNocturneMemoryCache
 
 // Register demo service health monitor

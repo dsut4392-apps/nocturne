@@ -88,6 +88,13 @@ public static class ServiceCollectionExtensions
             }
         );
 
+        // Register deduplication service (required by repositories)
+        services.AddScoped<IDeduplicationService, DeduplicationService>();
+
+        // Register core repositories required by PostgreSqlService
+        services.AddScoped<EntryRepository>();
+        services.AddScoped<TreatmentRepository>();
+
         // Register PostgreSQL service
         services.AddScoped<IPostgreSqlService, PostgreSqlService>();
 
@@ -186,6 +193,13 @@ public static class ServiceCollectionExtensions
                 options.EnableServiceProviderCaching();
             }
         );
+
+        // Register deduplication service (required by repositories)
+        services.AddScoped<IDeduplicationService, DeduplicationService>();
+
+        // Register core repositories required by PostgreSqlService
+        services.AddScoped<EntryRepository>();
+        services.AddScoped<TreatmentRepository>();
 
         // Register PostgreSQL service
         services.AddScoped<IPostgreSqlService, PostgreSqlService>();

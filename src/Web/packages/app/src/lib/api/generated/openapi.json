@@ -3867,6 +3867,304 @@
         }
       }
     },
+    "/api/v4/deviceage/cannula": {
+      "get": {
+        "tags": [
+          "V4 Device Age"
+        ],
+        "summary": "Get cannula/site age (CAGE)",
+        "operationId": "DeviceAge_GetCannulaAge",
+        "parameters": [
+          {
+            "name": "info",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "warn",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "urgent",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "display",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "enableAlerts",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 5
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAgeInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/deviceage/sensor": {
+      "get": {
+        "tags": [
+          "V4 Device Age"
+        ],
+        "summary": "Get sensor age (SAGE)\nReturns both Sensor Start and Sensor Change events",
+        "operationId": "DeviceAge_GetSensorAge",
+        "parameters": [
+          {
+            "name": "info",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "warn",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "urgent",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "display",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "enableAlerts",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 5
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SensorAgeInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/deviceage/insulin": {
+      "get": {
+        "tags": [
+          "V4 Device Age"
+        ],
+        "summary": "Get insulin reservoir age (IAGE)",
+        "operationId": "DeviceAge_GetInsulinAge",
+        "parameters": [
+          {
+            "name": "info",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "warn",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "urgent",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "display",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "enableAlerts",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 5
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAgeInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/deviceage/battery": {
+      "get": {
+        "tags": [
+          "V4 Device Age"
+        ],
+        "summary": "Get pump battery age (BAGE)",
+        "operationId": "DeviceAge_GetBatteryAge",
+        "parameters": [
+          {
+            "name": "info",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "warn",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "urgent",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "display",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "enableAlerts",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 5
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAgeInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/deviceage/all": {
+      "get": {
+        "tags": [
+          "V4 Device Age"
+        ],
+        "summary": "Get all device ages in a single call",
+        "operationId": "DeviceAge_GetAllDeviceAges",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v4/devices/alerts": {
       "get": {
         "tags": [
@@ -8564,13 +8862,11 @@
           }
         ],
         "requestBody": {
-          "x-name": "deviceStatus",
+          "x-name": "request",
           "description": "Updated device status data",
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeviceStatus"
-              }
+              "schema": {}
             }
           },
           "required": true,
@@ -8582,17 +8878,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeviceStatus"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/V3ErrorResponse"
+                  "type": "object",
+                  "additionalProperties": {}
                 }
               }
             }
@@ -8607,8 +8894,15 @@
               }
             }
           },
-          "500": {
-            "description": ""
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V3ErrorResponse"
+                }
+              }
+            }
           }
         }
       },
@@ -8975,7 +9269,7 @@
         "tags": [
           "Food"
         ],
-        "summary": "Create new food records with V3 format and deduplication support",
+        "summary": "Create new food records with V3 format and deduplication support\nNightscout V3 API requires date field validation before processing",
         "operationId": "Food_CreateFood",
         "requestBody": {
           "x-name": "foodData",
@@ -9067,7 +9361,7 @@
         "tags": [
           "Food"
         ],
-        "summary": "Update a food record by ID with V3 format",
+        "summary": "Update a food record by ID with V3 format\nNightscout V3 API requires date field validation before checking document existence",
         "operationId": "Food_UpdateFood",
         "parameters": [
           {
@@ -9082,13 +9376,11 @@
           }
         ],
         "requestBody": {
-          "x-name": "food",
-          "description": "Updated food data",
+          "x-name": "foodData",
+          "description": "Updated food data as JSON",
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Food"
-              }
+              "schema": {}
             }
           },
           "required": true,
@@ -10560,8 +10852,8 @@
           "x-position": 1
         },
         "responses": {
-          "201": {
-            "description": "Activities created successfully",
+          "200": {
+            "description": "Activities created successfully (Nightscout compatibility)",
             "content": {
               "application/json": {
                 "schema": {
@@ -11125,23 +11417,18 @@
         "summary": "Create new device status entries",
         "operationId": "DeviceStatus_CreateDeviceStatus2",
         "requestBody": {
-          "x-name": "deviceStatusEntries",
-          "description": "Device status entries to create",
+          "x-name": "body",
+          "description": "Device status entry or array of entries to create (accepts both single object and array)",
           "content": {
             "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/DeviceStatus"
-                }
-              }
+              "schema": {}
             }
           },
           "required": true,
           "x-position": 1
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Created device status entries with assigned IDs",
             "content": {
               "application/json": {
@@ -11504,7 +11791,7 @@
           "x-position": 1
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Created entries with assigned IDs",
             "content": {
               "application/json": {
@@ -11878,6 +12165,26 @@
             "description": ""
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Food"
+        ],
+        "summary": "Bulk delete food records by filter query\nCompatible with Nightscout's DELETE /api/v1/food?find[field]=value\nNote: Nightscout V1 API doesn't officially support bulk delete, but returns 200 {} for such requests",
+        "operationId": "Food_DeleteFoodByFilter",
+        "responses": {
+          "200": {
+            "description": "Empty object for parity with Nightscout",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "500": {
+            "description": ""
+          }
+        }
       }
     },
     "/api/v1/food.json": {
@@ -11939,7 +12246,7 @@
         "tags": [
           "Food"
         ],
-        "summary": "Get quickpick food records only (type=\"quickpick\")",
+        "summary": "Get quickpick food records only (type=\"quickpick\" and hidden=\"false\")\nMatches Nightscout's listquickpicks behavior which filters by hidden='false' and sorts by position",
         "operationId": "Food_GetQuickPickFood",
         "responses": {
           "200": {
@@ -12274,304 +12581,6 @@
         }
       }
     },
-    "/api/v1/deviceage/cannula": {
-      "get": {
-        "tags": [
-          "V1 Device Age (Legacy)"
-        ],
-        "summary": "Get cannula/site age (CAGE) - equivalent to LegacyApp cage plugin",
-        "operationId": "LegacyDeviceAge_GetCannulaAge",
-        "parameters": [
-          {
-            "name": "info",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 1
-          },
-          {
-            "name": "warn",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 2
-          },
-          {
-            "name": "urgent",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 3
-          },
-          {
-            "name": "display",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "nullable": true
-            },
-            "x-position": 4
-          },
-          {
-            "name": "enableAlerts",
-            "in": "query",
-            "schema": {
-              "type": "boolean",
-              "nullable": true
-            },
-            "x-position": 5
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeviceAgeInfo"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/deviceage/sensor": {
-      "get": {
-        "tags": [
-          "V1 Device Age (Legacy)"
-        ],
-        "summary": "Get sensor age (SAGE) - equivalent to LegacyApp sage plugin\nReturns both Sensor Start and Sensor Change events",
-        "operationId": "LegacyDeviceAge_GetSensorAge",
-        "parameters": [
-          {
-            "name": "info",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 1
-          },
-          {
-            "name": "warn",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 2
-          },
-          {
-            "name": "urgent",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 3
-          },
-          {
-            "name": "display",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "nullable": true
-            },
-            "x-position": 4
-          },
-          {
-            "name": "enableAlerts",
-            "in": "query",
-            "schema": {
-              "type": "boolean",
-              "nullable": true
-            },
-            "x-position": 5
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SensorAgeInfo"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/deviceage/insulin": {
-      "get": {
-        "tags": [
-          "V1 Device Age (Legacy)"
-        ],
-        "summary": "Get insulin reservoir age (IAGE) - equivalent to LegacyApp iage plugin",
-        "operationId": "LegacyDeviceAge_GetInsulinAge",
-        "parameters": [
-          {
-            "name": "info",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 1
-          },
-          {
-            "name": "warn",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 2
-          },
-          {
-            "name": "urgent",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 3
-          },
-          {
-            "name": "display",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "nullable": true
-            },
-            "x-position": 4
-          },
-          {
-            "name": "enableAlerts",
-            "in": "query",
-            "schema": {
-              "type": "boolean",
-              "nullable": true
-            },
-            "x-position": 5
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeviceAgeInfo"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/deviceage/battery": {
-      "get": {
-        "tags": [
-          "V1 Device Age (Legacy)"
-        ],
-        "summary": "Get pump battery age (BAGE) - equivalent to LegacyApp bage plugin",
-        "operationId": "LegacyDeviceAge_GetBatteryAge",
-        "parameters": [
-          {
-            "name": "info",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 1
-          },
-          {
-            "name": "warn",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 2
-          },
-          {
-            "name": "urgent",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
-            },
-            "x-position": 3
-          },
-          {
-            "name": "display",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "nullable": true
-            },
-            "x-position": 4
-          },
-          {
-            "name": "enableAlerts",
-            "in": "query",
-            "schema": {
-              "type": "boolean",
-              "nullable": true
-            },
-            "x-position": 5
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeviceAgeInfo"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/deviceage/all": {
-      "get": {
-        "tags": [
-          "V1 Device Age (Legacy)"
-        ],
-        "summary": "Get all device ages in a single call",
-        "operationId": "LegacyDeviceAge_GetAllDeviceAges",
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        }
-      }
-    },
     "/api/v1/notifications/ack": {
       "post": {
         "tags": [
@@ -12892,19 +12901,14 @@
         "tags": [
           "Profile"
         ],
-        "summary": "Create or update profiles",
+        "summary": "Create or update a profile.\nNightscout accepts either a single profile object or an array of profiles.",
         "operationId": "Profile_CreateProfiles",
         "requestBody": {
-          "x-name": "profiles",
-          "description": "Profiles to create or update",
+          "x-name": "body",
+          "description": "Profile(s) to create or update (single object or array)",
           "content": {
             "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Profile"
-                }
-              }
+              "schema": {}
             }
           },
           "required": true,
@@ -12912,7 +12916,7 @@
         },
         "responses": {
           "200": {
-            "description": "Created profiles with assigned IDs",
+            "description": "Created profiles with assigned IDs as an array",
             "content": {
               "application/json": {
                 "schema": {
@@ -12946,7 +12950,7 @@
         "operationId": "Profile_GetCurrentProfile",
         "responses": {
           "200": {
-            "description": "The current active profile, or empty array if no profiles exist",
+            "description": "The current active profile as a single object (Nightscout format), or empty array if no profiles exist",
             "content": {
               "application/json": {
                 "schema": {
@@ -13023,16 +13027,16 @@
         }
       }
     },
-    "/api/v1/Status": {
+    "/api/v1/status.json": {
       "get": {
         "tags": [
           "Status"
         ],
-        "summary": "Get the current system status.\nReturns HTML by default for Nightscout compatibility, or JSON if Accept header requests it.",
-        "operationId": "Status_GetStatus22",
+        "summary": "Get the current system status as JSON.\nThis is the .json suffix variant that always returns JSON (Nightscout compatibility).",
+        "operationId": "Status_GetStatusJson",
         "responses": {
           "200": {
-            "description": "Status response in HTML or JSON format",
+            "description": "Status response in JSON format",
             "content": {
               "application/octet-stream": {
                 "schema": {
@@ -13045,62 +13049,24 @@
         }
       }
     },
-    "/api/v1/times": {
+    "/api/v1/Status": {
       "get": {
         "tags": [
-          "TimeQuery"
+          "Status"
         ],
-        "summary": "Complex time pattern matching with bash-style brace expansion",
-        "operationId": "TimeQuery_GetTimeBasedEntries",
-        "parameters": [
-          {
-            "name": "count",
-            "in": "query",
-            "description": "Maximum number of entries to return (default: 10)",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "default": 10
-            },
-            "x-position": 1
-          },
-          {
-            "name": "format",
-            "in": "query",
-            "description": "Output format (json, csv, tsv, txt)",
-            "schema": {
-              "type": "string",
-              "nullable": true
-            },
-            "x-position": 2
-          }
-        ],
+        "summary": "Get the current system status.\nReturns JSON when Accept header includes application/json (Nightscout client behavior),\notherwise returns HTML for browser access.",
+        "operationId": "Status_GetStatus22",
         "responses": {
           "200": {
-            "description": "Entries matching the time patterns",
+            "description": "Status response in HTML or JSON format",
             "content": {
-              "application/json": {
+              "application/octet-stream": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Entry"
-                  }
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": ""
           }
         }
       }
@@ -13931,7 +13897,7 @@
           "x-position": 1
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Created treatments with assigned IDs",
             "content": {
               "application/json": {
@@ -17067,6 +17033,20 @@
                 "type": "string",
                 "nullable": true
               },
+              "identifier": {
+                "type": "string",
+                "nullable": true
+              },
+              "srvModified": {
+                "type": "integer",
+                "format": "int64",
+                "nullable": true
+              },
+              "srvCreated": {
+                "type": "integer",
+                "format": "int64",
+                "nullable": true
+              },
               "eventType": {
                 "type": "string",
                 "nullable": true
@@ -20002,6 +19982,10 @@
           "position": {
             "type": "integer",
             "format": "int32"
+          },
+          "created_at": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -20581,6 +20565,92 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "DeviceAgeInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "found": {
+            "type": "boolean"
+          },
+          "age": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hours": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "treatmentDate": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "minFractions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "level": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "display": {
+            "type": "string"
+          },
+          "notification": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DeviceAgeNotification"
+              }
+            ]
+          }
+        }
+      },
+      "DeviceAgeNotification": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "pushoverSound": {
+            "type": "string"
+          },
+          "level": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "group": {
+            "type": "string"
+          }
+        }
+      },
+      "SensorAgeInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "Sensor Start": {
+            "$ref": "#/components/schemas/DeviceAgeInfo"
+          },
+          "Sensor Change": {
+            "$ref": "#/components/schemas/DeviceAgeInfo"
+          },
+          "min": {
+            "type": "string"
           }
         }
       },
@@ -22723,6 +22793,17 @@
             "type": "boolean",
             "nullable": true
           },
+          "boluscalcEnabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "authorized": {
+            "nullable": true
+          },
+          "runtimeState": {
+            "type": "string",
+            "nullable": true
+          },
           "head": {
             "type": "string",
             "nullable": true
@@ -24720,6 +24801,11 @@
                 "nullable": true
               },
               "utcOffset": {
+                "type": "integer",
+                "format": "int32",
+                "nullable": true
+              },
+              "uploaderBattery": {
                 "type": "integer",
                 "format": "int32",
                 "nullable": true
@@ -27056,92 +27142,6 @@
           "basalIOB": {
             "type": "number",
             "format": "double"
-          }
-        }
-      },
-      "DeviceAgeInfo": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "found": {
-            "type": "boolean"
-          },
-          "age": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "days": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "hours": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "treatmentDate": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "notes": {
-            "type": "string",
-            "nullable": true
-          },
-          "minFractions": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "level": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "display": {
-            "type": "string"
-          },
-          "notification": {
-            "nullable": true,
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/DeviceAgeNotification"
-              }
-            ]
-          }
-        }
-      },
-      "DeviceAgeNotification": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "title": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "pushoverSound": {
-            "type": "string"
-          },
-          "level": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "group": {
-            "type": "string"
-          }
-        }
-      },
-      "SensorAgeInfo": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "Sensor Start": {
-            "$ref": "#/components/schemas/DeviceAgeInfo"
-          },
-          "Sensor Change": {
-            "$ref": "#/components/schemas/DeviceAgeInfo"
-          },
-          "min": {
-            "type": "string"
           }
         }
       },

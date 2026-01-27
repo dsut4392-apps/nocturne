@@ -4894,6 +4894,260 @@ export class DeduplicationClient {
     }
 }
 
+export class DeviceAgeClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * Get cannula/site age (CAGE)
+     * @param info (optional) 
+     * @param warn (optional) 
+     * @param urgent (optional) 
+     * @param display (optional) 
+     * @param enableAlerts (optional) 
+     */
+    getCannulaAge(info?: number | null | undefined, warn?: number | null | undefined, urgent?: number | null | undefined, display?: string | null | undefined, enableAlerts?: boolean | null | undefined, signal?: AbortSignal): Promise<DeviceAgeInfo> {
+        let url_ = this.baseUrl + "/api/v4/deviceage/cannula?";
+        if (info !== undefined && info !== null)
+            url_ += "info=" + encodeURIComponent("" + info) + "&";
+        if (warn !== undefined && warn !== null)
+            url_ += "warn=" + encodeURIComponent("" + warn) + "&";
+        if (urgent !== undefined && urgent !== null)
+            url_ += "urgent=" + encodeURIComponent("" + urgent) + "&";
+        if (display !== undefined && display !== null)
+            url_ += "display=" + encodeURIComponent("" + display) + "&";
+        if (enableAlerts !== undefined && enableAlerts !== null)
+            url_ += "enableAlerts=" + encodeURIComponent("" + enableAlerts) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetCannulaAge(_response);
+        });
+    }
+
+    protected processGetCannulaAge(response: Response): Promise<DeviceAgeInfo> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DeviceAgeInfo;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DeviceAgeInfo>(null as any);
+    }
+
+    /**
+     * Get sensor age (SAGE)
+    Returns both Sensor Start and Sensor Change events
+     * @param info (optional) 
+     * @param warn (optional) 
+     * @param urgent (optional) 
+     * @param display (optional) 
+     * @param enableAlerts (optional) 
+     */
+    getSensorAge(info?: number | null | undefined, warn?: number | null | undefined, urgent?: number | null | undefined, display?: string | null | undefined, enableAlerts?: boolean | null | undefined, signal?: AbortSignal): Promise<SensorAgeInfo> {
+        let url_ = this.baseUrl + "/api/v4/deviceage/sensor?";
+        if (info !== undefined && info !== null)
+            url_ += "info=" + encodeURIComponent("" + info) + "&";
+        if (warn !== undefined && warn !== null)
+            url_ += "warn=" + encodeURIComponent("" + warn) + "&";
+        if (urgent !== undefined && urgent !== null)
+            url_ += "urgent=" + encodeURIComponent("" + urgent) + "&";
+        if (display !== undefined && display !== null)
+            url_ += "display=" + encodeURIComponent("" + display) + "&";
+        if (enableAlerts !== undefined && enableAlerts !== null)
+            url_ += "enableAlerts=" + encodeURIComponent("" + enableAlerts) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetSensorAge(_response);
+        });
+    }
+
+    protected processGetSensorAge(response: Response): Promise<SensorAgeInfo> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as SensorAgeInfo;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SensorAgeInfo>(null as any);
+    }
+
+    /**
+     * Get insulin reservoir age (IAGE)
+     * @param info (optional) 
+     * @param warn (optional) 
+     * @param urgent (optional) 
+     * @param display (optional) 
+     * @param enableAlerts (optional) 
+     */
+    getInsulinAge(info?: number | null | undefined, warn?: number | null | undefined, urgent?: number | null | undefined, display?: string | null | undefined, enableAlerts?: boolean | null | undefined, signal?: AbortSignal): Promise<DeviceAgeInfo> {
+        let url_ = this.baseUrl + "/api/v4/deviceage/insulin?";
+        if (info !== undefined && info !== null)
+            url_ += "info=" + encodeURIComponent("" + info) + "&";
+        if (warn !== undefined && warn !== null)
+            url_ += "warn=" + encodeURIComponent("" + warn) + "&";
+        if (urgent !== undefined && urgent !== null)
+            url_ += "urgent=" + encodeURIComponent("" + urgent) + "&";
+        if (display !== undefined && display !== null)
+            url_ += "display=" + encodeURIComponent("" + display) + "&";
+        if (enableAlerts !== undefined && enableAlerts !== null)
+            url_ += "enableAlerts=" + encodeURIComponent("" + enableAlerts) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetInsulinAge(_response);
+        });
+    }
+
+    protected processGetInsulinAge(response: Response): Promise<DeviceAgeInfo> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DeviceAgeInfo;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DeviceAgeInfo>(null as any);
+    }
+
+    /**
+     * Get pump battery age (BAGE)
+     * @param info (optional) 
+     * @param warn (optional) 
+     * @param urgent (optional) 
+     * @param display (optional) 
+     * @param enableAlerts (optional) 
+     */
+    getBatteryAge(info?: number | null | undefined, warn?: number | null | undefined, urgent?: number | null | undefined, display?: string | null | undefined, enableAlerts?: boolean | null | undefined, signal?: AbortSignal): Promise<DeviceAgeInfo> {
+        let url_ = this.baseUrl + "/api/v4/deviceage/battery?";
+        if (info !== undefined && info !== null)
+            url_ += "info=" + encodeURIComponent("" + info) + "&";
+        if (warn !== undefined && warn !== null)
+            url_ += "warn=" + encodeURIComponent("" + warn) + "&";
+        if (urgent !== undefined && urgent !== null)
+            url_ += "urgent=" + encodeURIComponent("" + urgent) + "&";
+        if (display !== undefined && display !== null)
+            url_ += "display=" + encodeURIComponent("" + display) + "&";
+        if (enableAlerts !== undefined && enableAlerts !== null)
+            url_ += "enableAlerts=" + encodeURIComponent("" + enableAlerts) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetBatteryAge(_response);
+        });
+    }
+
+    protected processGetBatteryAge(response: Response): Promise<DeviceAgeInfo> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DeviceAgeInfo;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DeviceAgeInfo>(null as any);
+    }
+
+    /**
+     * Get all device ages in a single call
+     */
+    getAllDeviceAges(signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/v4/deviceage/all";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAllDeviceAges(_response);
+        });
+    }
+
+    protected processGetAllDeviceAges(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
 export class DeviceAlertsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -8966,8 +9220,53 @@ export class StatusClient {
     }
 
     /**
+     * Get the current system status as JSON.
+    This is the .json suffix variant that always returns JSON (Nightscout compatibility).
+     * @return Status response in JSON format
+     */
+    getStatusJson(signal?: AbortSignal): Promise<FileResponse> {
+        let url_ = this.baseUrl + "/api/v1/status.json";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/octet-stream"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetStatusJson(_response);
+        });
+    }
+
+    protected processGetStatusJson(response: Response): Promise<FileResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return response.blob().then(blob => { return { fileName: fileName, data: blob, status: status, headers: _headers }; });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<FileResponse>(null as any);
+    }
+
+    /**
      * Get the current system status.
-    Returns HTML by default for Nightscout compatibility, or JSON if Accept header requests it.
+    Returns JSON when Accept header includes application/json (Nightscout client behavior),
+    otherwise returns HTML for browser access.
      * @return Status response in HTML or JSON format
      */
     getStatus22(signal?: AbortSignal): Promise<FileResponse> {
@@ -10785,11 +11084,11 @@ export class TreatmentsClient {
     protected processCreateTreatments22(response: Response): Promise<Treatment[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 201) {
+        if (status === 200) {
             return response.text().then((_responseText) => {
-            let result201: any = null;
-            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Treatment[];
-            return result201;
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Treatment[];
+            return result200;
             });
         } else if (status === 400) {
             return response.text().then((_responseText) => {
@@ -11723,17 +12022,17 @@ export class DeviceStatusClient {
     /**
      * Update a device status record by ID with V3 format
      * @param id Device status ID to update
-     * @param deviceStatus Updated device status data
+     * @param request Updated device status data
      * @return Updated device status record
      */
-    updateDeviceStatus(id: string, deviceStatus: DeviceStatus, signal?: AbortSignal): Promise<DeviceStatus> {
+    updateDeviceStatus(id: string, request: any, signal?: AbortSignal): Promise<{ [key: string]: any; }> {
         let url_ = this.baseUrl + "/api/v3/DeviceStatus/{id}";
         if (id === undefined || id === null)
             throw new globalThis.Error("The parameter 'id' must be defined.");
         url_ = url_.replace("{id}", encodeURIComponent("" + id));
         url_ = url_.replace(/[?&]$/, "");
 
-        const content_ = JSON.stringify(deviceStatus);
+        const content_ = JSON.stringify(request);
 
         let options_: RequestInit = {
             body: content_,
@@ -11750,13 +12049,13 @@ export class DeviceStatusClient {
         });
     }
 
-    protected processUpdateDeviceStatus(response: Response): Promise<DeviceStatus> {
+    protected processUpdateDeviceStatus(response: Response): Promise<{ [key: string]: any; }> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
             return response.text().then((_responseText) => {
             let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DeviceStatus;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as { [key: string]: any; };
             return result200;
             });
         } else if (status === 400) {
@@ -11771,16 +12070,12 @@ export class DeviceStatusClient {
             result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as V3ErrorResponse;
             return throwException("A server side error occurred.", status, _responseText, _headers, result404);
             });
-        } else if (status === 500) {
-            return response.text().then((_responseText) => {
-            return throwException("A server side error occurred.", status, _responseText, _headers);
-            });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<DeviceStatus>(null as any);
+        return Promise.resolve<{ [key: string]: any; }>(null as any);
     }
 
     /**
@@ -11897,14 +12192,14 @@ export class DeviceStatusClient {
 
     /**
      * Create new device status entries
-     * @param deviceStatusEntries Device status entries to create
+     * @param body Device status entry or array of entries to create (accepts both single object and array)
      * @return Created device status entries with assigned IDs
      */
-    createDeviceStatus2(deviceStatusEntries: DeviceStatus[], signal?: AbortSignal): Promise<DeviceStatus[]> {
+    createDeviceStatus2(body: any, signal?: AbortSignal): Promise<DeviceStatus[]> {
         let url_ = this.baseUrl + "/api/v1/DeviceStatus";
         url_ = url_.replace(/[?&]$/, "");
 
-        const content_ = JSON.stringify(deviceStatusEntries);
+        const content_ = JSON.stringify(body);
 
         let options_: RequestInit = {
             body: content_,
@@ -11924,11 +12219,11 @@ export class DeviceStatusClient {
     protected processCreateDeviceStatus2(response: Response): Promise<DeviceStatus[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 201) {
+        if (status === 200) {
             return response.text().then((_responseText) => {
-            let result201: any = null;
-            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DeviceStatus[];
-            return result201;
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DeviceStatus[];
+            return result200;
             });
         } else if (status === 400) {
             return response.text().then((_responseText) => {
@@ -12624,11 +12919,11 @@ export class EntriesClient {
     protected processCreateEntries2All(response: Response): Promise<Entry[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 201) {
+        if (status === 200) {
             return response.text().then((_responseText) => {
-            let result201: any = null;
-            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Entry[];
-            return result201;
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Entry[];
+            return result200;
             });
         } else if (status === 400) {
             return response.text().then((_responseText) => {
@@ -12949,6 +13244,7 @@ export class FoodClient {
 
     /**
      * Create new food records with V3 format and deduplication support
+    Nightscout V3 API requires date field validation before processing
      * @param foodData Food data to create (single object or array)
      * @return Created food records
      */
@@ -13054,18 +13350,19 @@ export class FoodClient {
 
     /**
      * Update a food record by ID with V3 format
+    Nightscout V3 API requires date field validation before checking document existence
      * @param id Food ID to update
-     * @param food Updated food data
+     * @param foodData Updated food data as JSON
      * @return Updated food record
      */
-    updateFood(id: string, food: Food, signal?: AbortSignal): Promise<Food> {
+    updateFood(id: string, foodData: any, signal?: AbortSignal): Promise<Food> {
         let url_ = this.baseUrl + "/api/v3/Food/{id}";
         if (id === undefined || id === null)
             throw new globalThis.Error("The parameter 'id' must be defined.");
         url_ = url_.replace("{id}", encodeURIComponent("" + id));
         url_ = url_.replace(/[?&]$/, "");
 
-        const content_ = JSON.stringify(food);
+        const content_ = JSON.stringify(foodData);
 
         let options_: RequestInit = {
             body: content_,
@@ -13319,6 +13616,50 @@ export class FoodClient {
     }
 
     /**
+     * Bulk delete food records by filter query
+    Compatible with Nightscout's DELETE /api/v1/food?find[field]=value
+    Note: Nightscout V1 API doesn't officially support bulk delete, but returns 200 {} for such requests
+     * @return Empty object for parity with Nightscout
+     */
+    deleteFoodByFilter(signal?: AbortSignal): Promise<any> {
+        let url_ = this.baseUrl + "/api/v1/Food";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDeleteFoodByFilter(_response);
+        });
+    }
+
+    protected processDeleteFoodByFilter(response: Response): Promise<any> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as any;
+            return result200;
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<any>(null as any);
+    }
+
+    /**
      * Alternative endpoint with .json extension for compatibility
      * @return Array of food records
      */
@@ -13403,7 +13744,8 @@ export class FoodClient {
     }
 
     /**
-     * Get quickpick food records only (type="quickpick")
+     * Get quickpick food records only (type="quickpick" and hidden="false")
+    Matches Nightscout's listquickpicks behavior which filters by hidden='false' and sorts by position
      * @return Array of quickpick food records ordered by position
      */
     getQuickPickFood(signal?: AbortSignal): Promise<Food[]> {
@@ -13999,15 +14341,16 @@ export class ProfileClient {
     }
 
     /**
-     * Create or update profiles
-     * @param profiles Profiles to create or update
-     * @return Created profiles with assigned IDs
+     * Create or update a profile.
+    Nightscout accepts either a single profile object or an array of profiles.
+     * @param body Profile(s) to create or update (single object or array)
+     * @return Created profiles with assigned IDs as an array
      */
-    createProfiles(profiles: Profile[], signal?: AbortSignal): Promise<Profile[]> {
+    createProfiles(body: any, signal?: AbortSignal): Promise<Profile[]> {
         let url_ = this.baseUrl + "/api/v1/Profile";
         url_ = url_.replace(/[?&]$/, "");
 
-        const content_ = JSON.stringify(profiles);
+        const content_ = JSON.stringify(body);
 
         let options_: RequestInit = {
             body: content_,
@@ -14049,7 +14392,7 @@ export class ProfileClient {
 
     /**
      * Get the current active profile
-     * @return The current active profile, or empty array if no profiles exist
+     * @return The current active profile as a single object (Nightscout format), or empty array if no profiles exist
      */
     getCurrentProfile(signal?: AbortSignal): Promise<Profile[]> {
         let url_ = this.baseUrl + "/api/v1/Profile/current";
@@ -15015,7 +15358,7 @@ export class ActivityClient {
     /**
      * Create one or more new activities
      * @param activities Activity data (single object or array)
-     * @return Activities created successfully
+     * @return Activities created successfully (Nightscout compatibility)
      */
     createActivities(activities: any, signal?: AbortSignal): Promise<Activity[]> {
         let url_ = this.baseUrl + "/api/v1/Activity";
@@ -15041,11 +15384,11 @@ export class ActivityClient {
     protected processCreateActivities(response: Response): Promise<Activity[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 201) {
+        if (status === 200) {
             return response.text().then((_responseText) => {
-            let result201: any = null;
-            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Activity[];
-            return result201;
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Activity[];
+            return result200;
             });
         } else if (status === 400) {
             return response.text().then((_responseText) => {
@@ -15699,260 +16042,6 @@ export class IobClient {
     }
 }
 
-export class LegacyDeviceAgeClient {
-    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
-    private baseUrl: string;
-    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
-
-    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
-        this.http = http ? http : window as any;
-        this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * Get cannula/site age (CAGE) - equivalent to LegacyApp cage plugin
-     * @param info (optional) 
-     * @param warn (optional) 
-     * @param urgent (optional) 
-     * @param display (optional) 
-     * @param enableAlerts (optional) 
-     */
-    getCannulaAge(info?: number | null | undefined, warn?: number | null | undefined, urgent?: number | null | undefined, display?: string | null | undefined, enableAlerts?: boolean | null | undefined, signal?: AbortSignal): Promise<DeviceAgeInfo> {
-        let url_ = this.baseUrl + "/api/v1/deviceage/cannula?";
-        if (info !== undefined && info !== null)
-            url_ += "info=" + encodeURIComponent("" + info) + "&";
-        if (warn !== undefined && warn !== null)
-            url_ += "warn=" + encodeURIComponent("" + warn) + "&";
-        if (urgent !== undefined && urgent !== null)
-            url_ += "urgent=" + encodeURIComponent("" + urgent) + "&";
-        if (display !== undefined && display !== null)
-            url_ += "display=" + encodeURIComponent("" + display) + "&";
-        if (enableAlerts !== undefined && enableAlerts !== null)
-            url_ += "enableAlerts=" + encodeURIComponent("" + enableAlerts) + "&";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetCannulaAge(_response);
-        });
-    }
-
-    protected processGetCannulaAge(response: Response): Promise<DeviceAgeInfo> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DeviceAgeInfo;
-            return result200;
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<DeviceAgeInfo>(null as any);
-    }
-
-    /**
-     * Get sensor age (SAGE) - equivalent to LegacyApp sage plugin
-    Returns both Sensor Start and Sensor Change events
-     * @param info (optional) 
-     * @param warn (optional) 
-     * @param urgent (optional) 
-     * @param display (optional) 
-     * @param enableAlerts (optional) 
-     */
-    getSensorAge(info?: number | null | undefined, warn?: number | null | undefined, urgent?: number | null | undefined, display?: string | null | undefined, enableAlerts?: boolean | null | undefined, signal?: AbortSignal): Promise<SensorAgeInfo> {
-        let url_ = this.baseUrl + "/api/v1/deviceage/sensor?";
-        if (info !== undefined && info !== null)
-            url_ += "info=" + encodeURIComponent("" + info) + "&";
-        if (warn !== undefined && warn !== null)
-            url_ += "warn=" + encodeURIComponent("" + warn) + "&";
-        if (urgent !== undefined && urgent !== null)
-            url_ += "urgent=" + encodeURIComponent("" + urgent) + "&";
-        if (display !== undefined && display !== null)
-            url_ += "display=" + encodeURIComponent("" + display) + "&";
-        if (enableAlerts !== undefined && enableAlerts !== null)
-            url_ += "enableAlerts=" + encodeURIComponent("" + enableAlerts) + "&";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetSensorAge(_response);
-        });
-    }
-
-    protected processGetSensorAge(response: Response): Promise<SensorAgeInfo> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as SensorAgeInfo;
-            return result200;
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<SensorAgeInfo>(null as any);
-    }
-
-    /**
-     * Get insulin reservoir age (IAGE) - equivalent to LegacyApp iage plugin
-     * @param info (optional) 
-     * @param warn (optional) 
-     * @param urgent (optional) 
-     * @param display (optional) 
-     * @param enableAlerts (optional) 
-     */
-    getInsulinAge(info?: number | null | undefined, warn?: number | null | undefined, urgent?: number | null | undefined, display?: string | null | undefined, enableAlerts?: boolean | null | undefined, signal?: AbortSignal): Promise<DeviceAgeInfo> {
-        let url_ = this.baseUrl + "/api/v1/deviceage/insulin?";
-        if (info !== undefined && info !== null)
-            url_ += "info=" + encodeURIComponent("" + info) + "&";
-        if (warn !== undefined && warn !== null)
-            url_ += "warn=" + encodeURIComponent("" + warn) + "&";
-        if (urgent !== undefined && urgent !== null)
-            url_ += "urgent=" + encodeURIComponent("" + urgent) + "&";
-        if (display !== undefined && display !== null)
-            url_ += "display=" + encodeURIComponent("" + display) + "&";
-        if (enableAlerts !== undefined && enableAlerts !== null)
-            url_ += "enableAlerts=" + encodeURIComponent("" + enableAlerts) + "&";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetInsulinAge(_response);
-        });
-    }
-
-    protected processGetInsulinAge(response: Response): Promise<DeviceAgeInfo> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DeviceAgeInfo;
-            return result200;
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<DeviceAgeInfo>(null as any);
-    }
-
-    /**
-     * Get pump battery age (BAGE) - equivalent to LegacyApp bage plugin
-     * @param info (optional) 
-     * @param warn (optional) 
-     * @param urgent (optional) 
-     * @param display (optional) 
-     * @param enableAlerts (optional) 
-     */
-    getBatteryAge(info?: number | null | undefined, warn?: number | null | undefined, urgent?: number | null | undefined, display?: string | null | undefined, enableAlerts?: boolean | null | undefined, signal?: AbortSignal): Promise<DeviceAgeInfo> {
-        let url_ = this.baseUrl + "/api/v1/deviceage/battery?";
-        if (info !== undefined && info !== null)
-            url_ += "info=" + encodeURIComponent("" + info) + "&";
-        if (warn !== undefined && warn !== null)
-            url_ += "warn=" + encodeURIComponent("" + warn) + "&";
-        if (urgent !== undefined && urgent !== null)
-            url_ += "urgent=" + encodeURIComponent("" + urgent) + "&";
-        if (display !== undefined && display !== null)
-            url_ += "display=" + encodeURIComponent("" + display) + "&";
-        if (enableAlerts !== undefined && enableAlerts !== null)
-            url_ += "enableAlerts=" + encodeURIComponent("" + enableAlerts) + "&";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetBatteryAge(_response);
-        });
-    }
-
-    protected processGetBatteryAge(response: Response): Promise<DeviceAgeInfo> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as DeviceAgeInfo;
-            return result200;
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<DeviceAgeInfo>(null as any);
-    }
-
-    /**
-     * Get all device ages in a single call
-     */
-    getAllDeviceAges(signal?: AbortSignal): Promise<void> {
-        let url_ = this.baseUrl + "/api/v1/deviceage/all";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAllDeviceAges(_response);
-        });
-    }
-
-    protected processGetAllDeviceAges(response: Response): Promise<void> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            return;
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<void>(null as any);
-    }
-}
-
 export class TimeQueryClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -15961,62 +16050,6 @@ export class TimeQueryClient {
     constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
         this.http = http ? http : window as any;
         this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * Complex time pattern matching with bash-style brace expansion
-     * @param count (optional) Maximum number of entries to return (default: 10)
-     * @param format (optional) Output format (json, csv, tsv, txt)
-     * @return Entries matching the time patterns
-     */
-    getTimeBasedEntries(count?: number | undefined, format?: string | null | undefined, signal?: AbortSignal): Promise<Entry[]> {
-        let url_ = this.baseUrl + "/api/v1/times?";
-        if (count === null)
-            throw new globalThis.Error("The parameter 'count' cannot be null.");
-        else if (count !== undefined)
-            url_ += "count=" + encodeURIComponent("" + count) + "&";
-        if (format !== undefined && format !== null)
-            url_ += "format=" + encodeURIComponent("" + format) + "&";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            signal,
-            headers: {
-                "Accept": "application/json"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetTimeBasedEntries(_response);
-        });
-    }
-
-    protected processGetTimeBasedEntries(response: Response): Promise<Entry[]> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Entry[];
-            return result200;
-            });
-        } else if (status === 400) {
-            return response.text().then((_responseText) => {
-            let result400: any = null;
-            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
-            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
-            });
-        } else if (status === 500) {
-            return response.text().then((_responseText) => {
-            return throwException("A server side error occurred.", status, _responseText, _headers);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<Entry[]>(null as any);
     }
 
     /**
@@ -17895,6 +17928,9 @@ export interface InsulinTotals {
 
 export interface Treatment extends ProcessableDocumentBase {
     _id?: string | undefined;
+    identifier?: string | undefined;
+    srvModified?: number | undefined;
+    srvCreated?: number | undefined;
     eventType?: string | undefined;
     reason?: string | undefined;
     glucose?: number | undefined;
@@ -18776,6 +18812,7 @@ export interface Food {
     hideafteruse?: boolean;
     hidden?: boolean;
     position?: number;
+    created_at?: string | undefined;
 }
 
 export interface QuickPickFood {
@@ -18965,6 +19002,33 @@ export interface LinkedRecord {
     dataSource?: string;
     isPrimary?: boolean;
     createdAt?: Date;
+}
+
+export interface DeviceAgeInfo {
+    found?: boolean;
+    age?: number;
+    days?: number;
+    hours?: number;
+    treatmentDate?: number | undefined;
+    notes?: string | undefined;
+    minFractions?: number;
+    level?: number;
+    display?: string;
+    notification?: DeviceAgeNotification | undefined;
+}
+
+export interface DeviceAgeNotification {
+    title?: string;
+    message?: string;
+    pushoverSound?: string;
+    level?: number;
+    group?: string;
+}
+
+export interface SensorAgeInfo {
+    "Sensor Start"?: DeviceAgeInfo;
+    "Sensor Change"?: DeviceAgeInfo;
+    min?: string;
 }
 
 export interface DeviceAlert {
@@ -19671,6 +19735,9 @@ export interface StatusResponse {
     settings?: { [key: string]: any; } | undefined;
     extendedSettings?: { [key: string]: any; } | undefined;
     careportalEnabled?: boolean | undefined;
+    boluscalcEnabled?: boolean | undefined;
+    authorized?: any | undefined;
+    runtimeState?: string | undefined;
     head?: string | undefined;
 }
 
@@ -20318,6 +20385,7 @@ export interface DeviceStatus extends ProcessableDocumentBase {
     mills?: number;
     created_at?: string | undefined;
     utcOffset?: number | undefined;
+    uploaderBattery?: number | undefined;
     device?: string;
     isCharging?: boolean | undefined;
     uploader?: UploaderStatus | undefined;
@@ -20954,33 +21022,6 @@ export interface HourlyIobData {
     totalIOB?: number;
     bolusIOB?: number;
     basalIOB?: number;
-}
-
-export interface DeviceAgeInfo {
-    found?: boolean;
-    age?: number;
-    days?: number;
-    hours?: number;
-    treatmentDate?: number | undefined;
-    notes?: string | undefined;
-    minFractions?: number;
-    level?: number;
-    display?: string;
-    notification?: DeviceAgeNotification | undefined;
-}
-
-export interface DeviceAgeNotification {
-    title?: string;
-    message?: string;
-    pushoverSound?: string;
-    level?: number;
-    group?: string;
-}
-
-export interface SensorAgeInfo {
-    "Sensor Start"?: DeviceAgeInfo;
-    "Sensor Change"?: DeviceAgeInfo;
-    min?: string;
 }
 
 export interface NotificationAckResponse {

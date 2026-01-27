@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace Nocturne.Core.Models.Injectables;
 
 /// <summary>
 /// Anatomical site where an injection was administered.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum InjectionSite
 {
     /// <summary>

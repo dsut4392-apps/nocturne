@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace Nocturne.Core.Models.Injectables;
 
 /// <summary>
 /// Status of an insulin pen or vial in inventory.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum PenVialStatus
 {
     /// <summary>

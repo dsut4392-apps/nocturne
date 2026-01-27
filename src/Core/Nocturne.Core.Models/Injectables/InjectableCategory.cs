@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace Nocturne.Core.Models.Injectables;
 
 /// <summary>
 /// Category of injectable medication based on action profile.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum InjectableCategory
 {
     /// <summary>

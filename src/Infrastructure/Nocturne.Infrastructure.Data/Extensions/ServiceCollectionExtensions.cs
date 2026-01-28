@@ -50,8 +50,7 @@ public static class ServiceCollectionExtensions
         var dataSource = dataSourceBuilder.Build();
         services.AddSingleton(dataSource);
 
-        // Register DbContext with PostgreSQL
-        services.AddDbContext<NocturneDbContext>(
+        services.AddDbContextPool<NocturneDbContext>(
             (serviceProvider, options) =>
             {
                 var config = serviceProvider
@@ -85,7 +84,8 @@ public static class ServiceCollectionExtensions
                 }
 
                 options.EnableServiceProviderCaching();
-            }
+            },
+            poolSize: 128
         );
 
         // Register deduplication service (required by repositories)
@@ -156,8 +156,7 @@ public static class ServiceCollectionExtensions
         var dataSource = dataSourceBuilder.Build();
         services.AddSingleton(dataSource);
 
-        // Register DbContext with PostgreSQL
-        services.AddDbContext<NocturneDbContext>(
+        services.AddDbContextPool<NocturneDbContext>(
             (serviceProvider, options) =>
             {
                 var config = serviceProvider
@@ -191,7 +190,8 @@ public static class ServiceCollectionExtensions
                 }
 
                 options.EnableServiceProviderCaching();
-            }
+            },
+            poolSize: 128
         );
 
         // Register deduplication service (required by repositories)

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Nocturne.API.Controllers.V4;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
+using Nocturne.Infrastructure.Data.Entities;
 using Nocturne.Infrastructure.Data.Repositories;
 
 namespace Nocturne.API.Services;
@@ -12,7 +13,6 @@ namespace Nocturne.API.Services;
 public class TrackerSuggestionService : ITrackerSuggestionService
 {
     private readonly TrackerRepository _trackerRepository;
-    private readonly IInAppNotificationService _notificationService;
     private readonly InAppNotificationRepository _notificationRepository;
     private readonly ISignalRBroadcastService _broadcastService;
     private readonly ILogger<TrackerSuggestionService> _logger;
@@ -34,14 +34,12 @@ public class TrackerSuggestionService : ITrackerSuggestionService
 
     public TrackerSuggestionService(
         TrackerRepository trackerRepository,
-        IInAppNotificationService notificationService,
         InAppNotificationRepository notificationRepository,
         ISignalRBroadcastService broadcastService,
         ILogger<TrackerSuggestionService> logger
     )
     {
         _trackerRepository = trackerRepository;
-        _notificationService = notificationService;
         _notificationRepository = notificationRepository;
         _broadcastService = broadcastService;
         _logger = logger;
@@ -257,8 +255,8 @@ public class TrackerSuggestionService : ITrackerSuggestionService
         {
             _logger.LogWarning("Tracker definition {DefinitionId} not found", definitionId);
             // Still archive the notification since the tracker no longer exists
-            await _notificationService.ArchiveNotificationAsync(
-                notificationId,
+            await ArchiveNotificationDirectlyAsync(
+                notification,
                 NotificationArchiveReason.Completed,
                 cancellationToken
             );
@@ -323,8 +321,8 @@ public class TrackerSuggestionService : ITrackerSuggestionService
         );
 
         // Archive the notification
-        await _notificationService.ArchiveNotificationAsync(
-            notificationId,
+        await ArchiveNotificationDirectlyAsync(
+            notification,
             NotificationArchiveReason.Completed,
             cancellationToken
         );
@@ -357,8 +355,8 @@ public class TrackerSuggestionService : ITrackerSuggestionService
             return false;
         }
 
-        return await _notificationService.ArchiveNotificationAsync(
-            notificationId,
+        return await ArchiveNotificationDirectlyAsync(
+            notification,
             NotificationArchiveReason.Dismissed,
             cancellationToken
         );
@@ -515,18 +513,86 @@ public class TrackerSuggestionService : ITrackerSuggestionService
             }
         };
 
-        await _notificationService.CreateNotificationAsync(
-            userId,
-            InAppNotificationType.SuggestedTrackerMatch,
-            NotificationUrgency.Info,
-            title,
-            subtitle,
-            sourceId: definitionId.ToString(), // Use definition ID as source for deduplication
-            actions,
-            resolutionConditions: null,
-            metadata,
-            cancellationToken
+        var entity = new InAppNotificationEntity
+        {
+            UserId = userId,
+            Type = InAppNotificationType.SuggestedTrackerMatch,
+            Urgency = NotificationUrgency.Info,
+            Title = title,
+            Subtitle = subtitle,
+            SourceId = definitionId.ToString(), // Use definition ID as source for deduplication
+            ActionsJson = InAppNotificationRepository.SerializeActions(actions),
+            ResolutionConditionsJson = null,
+            MetadataJson = InAppNotificationRepository.SerializeMetadata(metadata)
+        };
+
+        var created = await _notificationRepository.CreateAsync(entity, cancellationToken);
+        var dto = InAppNotificationRepository.ToDto(created);
+
+        _logger.LogInformation(
+            "Created tracker suggestion notification {NotificationId} for user {UserId}",
+            dto.Id,
+            userId
         );
+
+        // Broadcast the notification created event
+        try
+        {
+            await _broadcastService.BroadcastNotificationCreatedAsync(userId, dto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to broadcast notification created event for {NotificationId}",
+                dto.Id
+            );
+        }
+    }
+
+    /// <summary>
+    /// Archives a notification directly using the repository and broadcasts the event.
+    /// This avoids circular dependency with IInAppNotificationService.
+    /// </summary>
+    private async Task<bool> ArchiveNotificationDirectlyAsync(
+        InAppNotificationEntity notification,
+        NotificationArchiveReason reason,
+        CancellationToken cancellationToken
+    )
+    {
+        var archived = await _notificationRepository.ArchiveAsync(notification.Id, reason, cancellationToken);
+
+        if (archived == null)
+        {
+            _logger.LogWarning(
+                "Failed to archive notification {NotificationId}",
+                notification.Id
+            );
+            return false;
+        }
+
+        _logger.LogInformation(
+            "Archived notification {NotificationId} with reason {Reason}",
+            notification.Id,
+            reason
+        );
+
+        // Broadcast the notification archived event
+        var dto = InAppNotificationRepository.ToDto(archived);
+        try
+        {
+            await _broadcastService.BroadcastNotificationArchivedAsync(archived.UserId, dto, reason);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to broadcast notification archived event for {NotificationId}",
+                notification.Id
+            );
+        }
+
+        return true;
     }
 
     private static Dictionary<string, object>? ParseMetadata(string? json)

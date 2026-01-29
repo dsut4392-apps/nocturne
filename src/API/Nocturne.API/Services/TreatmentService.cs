@@ -245,7 +245,8 @@ public class TreatmentService : ITreatmentService
     }
 
     /// <summary>
-    /// Merges regular treatments with temp basals from StateSpans
+    /// Merges regular treatments with temp basals and basal deliveries from StateSpans
+    /// for V1-V3 API backwards compatibility
     /// </summary>
     private async Task<IEnumerable<Treatment>> MergeWithTempBasalsAsync(
         IEnumerable<Treatment> treatments,
@@ -255,6 +256,8 @@ public class TreatmentService : ITreatmentService
         CancellationToken cancellationToken)
     {
         var (fromMills, toMills) = ParseTimeRangeFromFind(findQuery);
+
+        // Get TempBasal StateSpans as Treatments
         var tempBasalTreatments = await _stateSpanService.GetTempBasalsAsTreatmentsAsync(
             from: fromMills,
             to: toMills,
@@ -262,9 +265,18 @@ public class TreatmentService : ITreatmentService
             skip: 0, // We'll handle skip in the merge
             cancellationToken: cancellationToken);
 
-        // Merge and sort
+        // Get BasalDelivery StateSpans as Treatments (for V1-V3 compatibility)
+        var basalDeliveryTreatments = await _stateSpanService.GetBasalDeliveriesAsTreatmentsAsync(
+            from: fromMills,
+            to: toMills,
+            count: count,
+            skip: 0, // We'll handle skip in the merge
+            cancellationToken: cancellationToken);
+
+        // Merge all sources and sort
         var allTreatments = treatments
             .Concat(tempBasalTreatments)
+            .Concat(basalDeliveryTreatments)
             .OrderByDescending(t => t.Mills)
             .Skip(skip)
             .Take(count)

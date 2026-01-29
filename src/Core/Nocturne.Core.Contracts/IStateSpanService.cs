@@ -88,6 +88,23 @@ public interface IStateSpanService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get basal deliveries as Treatments for v1-v3 API compatibility.
+    /// Converts BasalDelivery StateSpans to Treatment objects with "Temp Basal" event type.
+    /// </summary>
+    /// <param name="from">Optional start time in milliseconds since Unix epoch</param>
+    /// <param name="to">Optional end time in milliseconds since Unix epoch</param>
+    /// <param name="count">Maximum number of treatments to return</param>
+    /// <param name="skip">Number of treatments to skip for pagination</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Collection of treatments representing basal deliveries</returns>
+    Task<IEnumerable<Treatment>> GetBasalDeliveriesAsTreatmentsAsync(
+        long? from = null,
+        long? to = null,
+        int count = 100,
+        int skip = 0,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Update an existing state span
     /// </summary>
     /// <param name="id">State span ID to update</param>

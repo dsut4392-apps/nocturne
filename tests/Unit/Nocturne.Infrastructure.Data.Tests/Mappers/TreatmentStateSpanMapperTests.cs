@@ -297,7 +297,7 @@ public class TreatmentStateSpanMapperTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void ToTreatment_StateSpanWithNoEndMills_HasNullDuration()
+    public void ToTreatment_StateSpanWithNoEndMills_HasZeroDuration()
     {
         // Arrange
         var stateSpan = new StateSpan
@@ -315,7 +315,8 @@ public class TreatmentStateSpanMapperTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.Duration.Should().BeNull();
+        // Duration defaults to 0 when EndMills is null (Nightscout behavior)
+        result!.Duration.Should().Be(0);
         result.EndMills.Should().BeNull();
     }
 

@@ -152,6 +152,35 @@ public class StateSpanService : IStateSpanService
         return result;
     }
 
+    /// <inheritdoc />
+    public async Task<IEnumerable<Treatment>> GetBasalDeliveriesAsTreatmentsAsync(
+        long? from = null,
+        long? to = null,
+        int count = 100,
+        int skip = 0,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug(
+            "Getting basal deliveries as treatments with from: {From}, to: {To}, count: {Count}, skip: {Skip}",
+            from, to, count, skip);
+
+        // Get BasalDelivery StateSpans from repository
+        var stateSpans = await _repository.GetStateSpansAsync(
+            category: StateSpanCategory.BasalDelivery,
+            from: from,
+            to: to,
+            count: count,
+            skip: skip,
+            cancellationToken: cancellationToken);
+
+        // Convert each StateSpan to a Treatment using the mapper
+        var treatments = BasalDeliveryStateSpanToTreatmentMapper.ToTreatments(stateSpans).ToList();
+
+        _logger.LogDebug("Converted {Count} basal delivery state spans to treatments", treatments.Count);
+
+        return treatments;
+    }
+
     #region Activity Compatibility Methods
 
     /// <inheritdoc />

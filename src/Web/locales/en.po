@@ -603,7 +603,6 @@ msgstr "Calendar"
 msgid "Today"
 msgstr "Today"
 
-#: src/lib/components/calendar/DayStackedBar.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/TIRStackedChart.svelte
 #: src/routes/calendar/+page.svelte
@@ -618,7 +617,6 @@ msgid "In Range"
 msgstr "In Range"
 
 #: src/lib/components/ambulatory-glucose-profile/AmbulatoryGlucoseProfile.svelte
-#: src/lib/components/calendar/DayStackedBar.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/TIRStackedChart.svelte
 #: src/lib/components/settings/AlarmProfileDialog.svelte
@@ -637,7 +635,6 @@ msgid "Low"
 msgstr "Low"
 
 #: src/lib/components/ambulatory-glucose-profile/AmbulatoryGlucoseProfile.svelte
-#: src/lib/components/calendar/DayStackedBar.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/TIRStackedChart.svelte
 #: src/lib/components/settings/AlarmProfileDialog.svelte
@@ -656,17 +653,14 @@ msgstr "Low"
 msgid "High"
 msgstr "High"
 
-#: src/routes/calendar/+page.svelte
-msgid "Width = Carbs"
-msgstr "Width = Carbs"
+#~ msgid "Width = Carbs"
+#~ msgstr "Width = Carbs"
 
-#: src/routes/calendar/+page.svelte
-msgid "Height = Insulin"
-msgstr "Height = Insulin"
+#~ msgid "Height = Insulin"
+#~ msgstr "Height = Insulin"
 
-#: src/routes/calendar/+page.svelte
-msgid "<0/> Optimal ratio"
-msgstr "<0/> Optimal ratio"
+#~ msgid "<0/> Optimal ratio"
+#~ msgstr "<0/> Optimal ratio"
 
 #: src/routes/calendar/+page.svelte
 msgid "Click any day to view detailed report"
@@ -2638,9 +2632,8 @@ msgstr "No pattern data"
 msgid "Need more readings to show your typical day"
 msgstr "Need more readings to show your typical day"
 
-#: src/lib/components/calendar/DayStackedBar.svelte
-msgid "Near optimal carb/insulin ratio"
-msgstr "Near optimal carb/insulin ratio"
+#~ msgid "Near optimal carb/insulin ratio"
+#~ msgstr "Near optimal carb/insulin ratio"
 
 #: src/lib/components/charts/BasalRateTrack.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
@@ -11875,9 +11868,8 @@ msgstr "Reset"
 msgid "Daily glucose profile"
 msgstr "Daily glucose profile"
 
-#: src/routes/calendar/+page.svelte
-msgid "Gray band = target range"
-msgstr "Gray band = target range"
+#~ msgid "Gray band = target range"
+#~ msgstr "Gray band = target range"
 
 #: src/routes/calendar/+page.svelte
 msgid "Avg TIR"
@@ -11894,3 +11886,7 @@ msgstr "Avg Daily Carbs"
 #: src/routes/calendar/+page.svelte
 msgid "Avg Daily Insulin"
 msgstr "Avg Daily Insulin"
+
+#: src/routes/calendar/+page.svelte
+msgid "Green band = target range"
+msgstr "Green band = target range"

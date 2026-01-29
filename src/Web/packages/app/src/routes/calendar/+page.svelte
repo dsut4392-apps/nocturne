@@ -540,29 +540,13 @@
           </div>
 
           <!-- Mode-specific explanation -->
-          {#if viewMode === "tir"}
-            <div
-              class="flex items-center gap-3 text-xs text-muted-foreground border-l pl-4"
-            >
-              <span>Width = Carbs</span>
-              <span>·</span>
-              <span>Height = Insulin</span>
-              <span>·</span>
-              <span class="flex items-center gap-1">
-                <span
-                  class="w-2 h-2 rounded-full"
-                  style="background: oklch(0.75 0.15 85);"
-                ></span>
-                Optimal ratio
-              </span>
-            </div>
-          {:else}
+          {#if viewMode === "profile"}
             <div
               class="flex items-center gap-3 text-xs text-muted-foreground border-l pl-4"
             >
               <span>Daily glucose profile</span>
               <span>·</span>
-              <span>Gray band = target range</span>
+              <span>Green band = target range</span>
             </div>
           {/if}
         </div>
@@ -756,15 +740,11 @@
                           <Tooltip.Trigger>
                             {#snippet child({ props })}
                               {#if viewMode === "tir"}
-                                <div {...props}>
+                                <div {...props} class="absolute inset-0 p-2 pt-6">
                                   <DayStackedBar
                                     lowPercent={day.lowPercent}
                                     inRangePercent={day.inRangePercent}
                                     highPercent={day.highPercent}
-                                    totalCarbs={day.totalCarbs}
-                                    totalInsulin={day.totalInsulin}
-                                    maxCarbs={daysData.maxCarbs}
-                                    maxInsulin={daysData.maxInsulin}
                                     onclick={() => handleDayClick(day)}
                                   />
                                 </div>

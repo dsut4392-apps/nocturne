@@ -802,7 +802,6 @@ msgstr ""
 msgid "Today"
 msgstr ""
 
-#: src/lib/components/calendar/DayStackedBar.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/TIRStackedChart.svelte
 #: src/routes/calendar/+page.svelte
@@ -817,7 +816,6 @@ msgid "In Range"
 msgstr ""
 
 #: src/lib/components/ambulatory-glucose-profile/AmbulatoryGlucoseProfile.svelte
-#: src/lib/components/calendar/DayStackedBar.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/TIRStackedChart.svelte
 #: src/lib/components/settings/AlarmProfileDialog.svelte
@@ -837,7 +835,6 @@ msgid "Low"
 msgstr ""
 
 #: src/lib/components/ambulatory-glucose-profile/AmbulatoryGlucoseProfile.svelte
-#: src/lib/components/calendar/DayStackedBar.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/reports/TIRStackedChart.svelte
 #: src/lib/components/settings/AlarmProfileDialog.svelte
@@ -857,17 +854,14 @@ msgstr ""
 msgid "High"
 msgstr ""
 
-#: src/routes/calendar/+page.svelte
-msgid "Width = Carbs"
-msgstr ""
+#~ msgid "Width = Carbs"
+#~ msgstr ""
 
-#: src/routes/calendar/+page.svelte
-msgid "Height = Insulin"
-msgstr ""
+#~ msgid "Height = Insulin"
+#~ msgstr ""
 
-#: src/routes/calendar/+page.svelte
-msgid "<0/> Optimal ratio"
-msgstr ""
+#~ msgid "<0/> Optimal ratio"
+#~ msgstr ""
 
 #: src/routes/calendar/+page.svelte
 msgid "Click any day to view detailed report"
@@ -3004,9 +2998,8 @@ msgstr ""
 msgid "Need more readings to show your typical day"
 msgstr ""
 
-#: src/lib/components/calendar/DayStackedBar.svelte
-msgid "Near optimal carb/insulin ratio"
-msgstr ""
+#~ msgid "Near optimal carb/insulin ratio"
+#~ msgstr ""
 
 #: src/lib/components/dashboard/BGStatisticsCards.svelte
 #: src/lib/components/dashboard/widgets/BgDeltaWidget.svelte
@@ -13958,9 +13951,8 @@ msgstr ""
 msgid "Daily glucose profile"
 msgstr ""
 
-#: src/routes/calendar/+page.svelte
-msgid "Gray band = target range"
-msgstr ""
+#~ msgid "Gray band = target range"
+#~ msgstr ""
 
 #: src/routes/calendar/+page.svelte
 msgid "Avg TIR"
@@ -13976,4 +13968,8 @@ msgstr ""
 
 #: src/routes/calendar/+page.svelte
 msgid "Avg Daily Insulin"
+msgstr ""
+
+#: src/routes/calendar/+page.svelte
+msgid "Green band = target range"
 msgstr ""

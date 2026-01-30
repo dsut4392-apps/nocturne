@@ -76,6 +76,28 @@ public class MetadataController : ControllerBase
     }
 
     /// <summary>
+    /// Get state span types metadata
+    /// This endpoint exposes all available state span categories and their states for type-safe usage in frontend clients
+    /// </summary>
+    /// <returns>State span types metadata</returns>
+    [HttpGet("state-span-types")]
+    [ProducesResponseType(typeof(StateSpanTypesMetadata), 200)]
+    public ActionResult<StateSpanTypesMetadata> GetStateSpanTypes()
+    {
+        return Ok(
+            new StateSpanTypesMetadata
+            {
+                AvailableCategories = Enum.GetValues<StateSpanCategory>(),
+                BasalDeliveryStates = Enum.GetValues<BasalDeliveryState>(),
+                BasalDeliveryOrigins = Enum.GetValues<BasalDeliveryOrigin>(),
+                PumpModeStates = Enum.GetValues<PumpModeState>(),
+                PumpConnectivityStates = Enum.GetValues<PumpConnectivityState>(),
+                Description = "Available state span categories and their associated states",
+            }
+        );
+    }
+
+    /// <summary>
     /// Get statistics metadata for type generation
     /// This endpoint exists primarily to ensure NSwag generates TypeScript types for statistics models
     /// </summary>
@@ -344,6 +366,42 @@ public class WidgetDefinitionsMetadata
 
     /// <summary>
     /// Description of the widget definitions
+    /// </summary>
+    public string Description { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Metadata about state span types for NSwag generation
+/// </summary>
+public class StateSpanTypesMetadata
+{
+    /// <summary>
+    /// Array of all available state span categories
+    /// </summary>
+    public StateSpanCategory[] AvailableCategories { get; set; } = [];
+
+    /// <summary>
+    /// Array of all basal delivery states
+    /// </summary>
+    public BasalDeliveryState[] BasalDeliveryStates { get; set; } = [];
+
+    /// <summary>
+    /// Array of all basal delivery origin values
+    /// </summary>
+    public BasalDeliveryOrigin[] BasalDeliveryOrigins { get; set; } = [];
+
+    /// <summary>
+    /// Array of all pump mode states
+    /// </summary>
+    public PumpModeState[] PumpModeStates { get; set; } = [];
+
+    /// <summary>
+    /// Array of all pump connectivity states
+    /// </summary>
+    public PumpConnectivityState[] PumpConnectivityStates { get; set; } = [];
+
+    /// <summary>
+    /// Description of the state span types
     /// </summary>
     public string Description { get; set; } = string.Empty;
 }

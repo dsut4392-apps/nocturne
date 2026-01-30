@@ -141,11 +141,15 @@ export function useDateParams(defaultDays = 7) {
     const currentFrom = params.from;
     const currentTo = params.to;
 
+    // Read memoizedInput without tracking to avoid read-write cycle
+    // that causes effect_update_depth_exceeded
+    const prev = untrack(() => memoizedInput);
+
     // Only update if values actually changed (compare primitives, not objects)
     if (
-      memoizedInput.days !== currentDays ||
-      memoizedInput.from !== currentFrom ||
-      memoizedInput.to !== currentTo
+      prev.days !== currentDays ||
+      prev.from !== currentFrom ||
+      prev.to !== currentTo
     ) {
       memoizedInput = {
         days: currentDays ?? undefined,
@@ -331,12 +335,16 @@ export function requireDateParamsContext(reportDefaultDays?: number): ReportsPar
   }
 
   // Auto-adjust if this report has a different default and we're in default mode
-  if (reportDefaultDays !== undefined && params.isDefault && params.days !== reportDefaultDays) {
-    // The user hasn't made a custom selection (isDefault=true), so we can adjust
-    // to this report's preferred default range using direct property assignment
-    // (which triggers runed's reactive proxy correctly)
-    params._setDefaultDayRange(reportDefaultDays);
-  }
+  // Use untrack to read values without creating reactive dependencies that could
+  // cause effect_update_depth_exceeded when this is called during component init
+  untrack(() => {
+    if (reportDefaultDays !== undefined && params.isDefault && params.days !== reportDefaultDays) {
+      // The user hasn't made a custom selection (isDefault=true), so we can adjust
+      // to this report's preferred default range using direct property assignment
+      // (which triggers runed's reactive proxy correctly)
+      params._setDefaultDayRange(reportDefaultDays);
+    }
+  });
 
   return params;
 }

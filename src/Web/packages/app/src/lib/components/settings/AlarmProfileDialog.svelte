@@ -97,6 +97,7 @@
   }
 
   // Create a working copy of the profile
+  // svelte-ignore state_referenced_locally
   let editedProfile = $state<AlarmProfileConfiguration>(
     initializeProfile(profile)
   );

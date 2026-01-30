@@ -251,14 +251,15 @@ export class SettingsStore {
   // ==========================================
 
   addEmergencyContact(): void {
-    if (this.notifications) {
-      this.notifications.emergencyContacts = [
-        ...(this.notifications.emergencyContacts ?? []),
+    if (this.notifications?.alarmConfiguration) {
+      this.notifications.alarmConfiguration.emergencyContacts = [
+        ...(this.notifications.alarmConfiguration.emergencyContacts ?? []),
         {
           id: `contact-${Date.now()}`,
           name: "",
           phone: "",
-          notifyOnUrgent: true
+          criticalOnly: false,
+          enabled: true
         }
       ];
       this.markChanged();
@@ -266,9 +267,9 @@ export class SettingsStore {
   }
 
   removeEmergencyContact(id: string): void {
-    if (this.notifications?.emergencyContacts) {
-      this.notifications.emergencyContacts = this.notifications.emergencyContacts.filter(
-        c => c.id !== id
+    if (this.notifications?.alarmConfiguration?.emergencyContacts) {
+      this.notifications.alarmConfiguration.emergencyContacts = this.notifications.alarmConfiguration.emergencyContacts.filter(
+        (c: { id?: string }) => c.id !== id
       );
       this.markChanged();
     }

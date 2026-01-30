@@ -209,7 +209,7 @@
     }
 
     if (item.children) {
-      return item.children.some(child => isActive(child, item?.strict));
+      return item.children.some(child => isActive(child));
     }
 
     return false;

@@ -17,7 +17,6 @@
   import {
     formatGlucoseValue,
     formatGlucoseDelta,
-    getUnitLabel,
   } from "$lib/utils/formatting";
   import { Clock } from "lucide-svelte";
   import TreatmentEditDialog from "$lib/components/treatments/TreatmentEditDialog.svelte";
@@ -58,6 +57,7 @@
   // Use realtime store values as fallback when props not provided
   const rawCurrentBG = $derived(currentBG ?? realtimeStore.currentBG);
   // Direction is derived but reserved for future use
+  // svelte-ignore state_referenced_locally
   void (direction ?? realtimeStore.direction);
   const rawBgDelta = $derived(bgDelta ?? realtimeStore.bgDelta);
   const lastUpdated = $derived(realtimeStore.lastUpdated);
@@ -72,7 +72,6 @@
   const units = $derived(glucoseUnits.current);
   const displayCurrentBG = $derived(formatGlucoseValue(rawCurrentBG, units));
   const displayBgDelta = $derived(formatGlucoseDelta(rawBgDelta, units));
-  const unitLabel = $derived(getUnitLabel(units));
   const displayDemoMode = $derived(demoMode ?? realtimeStore.demoMode);
 
   // Current time state (updated every second) from shared store
@@ -142,13 +141,6 @@
   let showTreatmentDialog = $state(false);
   let treatmentEventType = $state("");
   let isSavingTreatment = $state(false);
-
-  function handleAddTreatment(
-    type: "Site Change" | "Sensor Change" | "Sensor Start"
-  ) {
-    treatmentEventType = type;
-    showTreatmentDialog = true;
-  }
 
   async function handleSaveTreatment(treatment: Treatment) {
     isSavingTreatment = true;

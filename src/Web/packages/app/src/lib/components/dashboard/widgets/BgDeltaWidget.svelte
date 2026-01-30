@@ -4,7 +4,6 @@
   import { glucoseUnits } from "$lib/stores/appearance-store.svelte";
   import { formatGlucoseDelta, getUnitLabel } from "$lib/utils/formatting";
   import { timeAgo, formatTime } from "$lib/utils";
-  import { Badge } from "$lib/components/ui/badge";
   import {
     BatteryCharging,
     BatteryFull,
@@ -51,15 +50,6 @@
     if (level >= 50) return BatteryMedium;
     if (level >= 25) return BatteryLow;
     return BatteryWarning;
-  }
-
-  // Extract device name from URI
-  function extractDeviceName(device: string | undefined): string {
-    if (!device) return "Unknown";
-    if (device.includes("://")) {
-      return device.split("://")[1] || device;
-    }
-    return device;
   }
 
   // Connection status indicator color

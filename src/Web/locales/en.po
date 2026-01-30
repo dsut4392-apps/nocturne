@@ -388,6 +388,7 @@ msgid "Duration"
 msgstr "Duration"
 
 #: src/lib/components/TreatmentsTable.svelte
+#: src/lib/components/dashboard/glucose-chart/ChartTooltip.svelte
 msgid "Percent"
 msgstr "Percent"
 
@@ -1040,7 +1041,6 @@ msgstr "Comparison Error"
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/RecentTreatmentsCard.svelte
 #: src/lib/components/dashboard/glucose-chart/dialogs/TreatmentDisambiguationDialog.svelte
-#: src/lib/components/dashboard/widgets/BgDeltaWidget.svelte
 #: src/lib/components/dashboard/widgets/LastUpdatedWidget.svelte
 #: src/lib/components/profile/ProfileEditDialog.svelte
 #: src/lib/components/status-pills/TrackerPill.svelte
@@ -2675,7 +2675,6 @@ msgstr "Last pump sync"
 #: src/lib/components/charts/BasalRateTrack.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/glucose-chart/tracks/BasalTrack.svelte
-#: src/lib/components/dashboard/state-spans-timeline/state-spans-timeline.svelte
 #: src/lib/components/reports/BasalRateChart.svelte
 msgid "BASAL"
 msgstr "BASAL"
@@ -2878,6 +2877,7 @@ msgstr "No recent treatments"
 
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
 #: src/lib/components/dashboard/GlucoseChartCard.svelte
+#: src/lib/components/dashboard/glucose-chart/ChartTooltip.svelte
 #: src/lib/components/dashboard/glucose-chart/ChartTooltip.svelte
 #: src/lib/components/dashboard/glucose-chart/GlucoseChartCard.svelte
 #: src/lib/components/reports/InsulinDeliveryChart.svelte
@@ -11853,9 +11853,8 @@ msgstr "No data for 90-day average"
 msgid "No 90-day data available"
 msgstr "No 90-day data available"
 
-#: src/lib/components/reports/BasalBolusRatioChart.svelte
-msgid "Click on a bar to view the day in detail"
-msgstr "Click on a bar to view the day in detail"
+#~ msgid "Click on a bar to view the day in detail"
+#~ msgstr "Click on a bar to view the day in detail"
 
 #: src/lib/components/reports/BasalBolusRatioChart.svelte
 #: src/routes/calendar/+page.svelte
@@ -12188,29 +12187,20 @@ msgstr "No tracks selected. Enable at least one category above."
 msgid "Duration: {0}"
 msgstr "Duration: {0}"
 
-#. placeholder {0}: hoveredSpan.rate.toFixed(2)
-#: src/lib/components/dashboard/state-spans-timeline/state-spans-timeline.svelte
-msgid "Rate: {0} U/hr"
-msgstr "Rate: {0} U/hr"
+#~ msgid "Rate: {0} U/hr"
+#~ msgstr "Rate: {0} U/hr"
 
-#. placeholder {0}: hoveredSpan.percent
-#: src/lib/components/dashboard/state-spans-timeline/state-spans-timeline.svelte
-msgid "Percent: {0}%"
-msgstr "Percent: {0}%"
+#~ msgid "Percent: {0}%"
+#~ msgstr "Percent: {0}%"
 
-#. placeholder {0}: hoveredSpan.profileName
-#: src/lib/components/dashboard/state-spans-timeline/state-spans-timeline.svelte
-msgid "Profile: {0}"
-msgstr "Profile: {0}"
+#~ msgid "Profile: {0}"
+#~ msgstr "Profile: {0}"
 
-#. placeholder {0}: maxBasalRate.toFixed(1)
-#: src/lib/components/dashboard/state-spans-timeline/state-spans-timeline.svelte
-msgid "{0} U/h"
-msgstr "{0} U/h"
+#~ msgid "{0} U/h"
+#~ msgstr "{0} U/h"
 
-#: src/lib/components/dashboard/state-spans-timeline/state-spans-timeline.svelte
-msgid "No basal data"
-msgstr "No basal data"
+#~ msgid "No basal data"
+#~ msgstr "No basal data"
 
 #: src/routes/time-spans/+page.svelte
 msgid "Toggle basal delivery"

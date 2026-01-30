@@ -52,6 +52,14 @@
     color: string;
   }
 
+  interface TempBasalSpan {
+    startTime: Date;
+    endTime?: Date | null;
+    rate: number | null;
+    percent: number | null;
+    color: string;
+  }
+
   interface SystemEvent {
     time: Date;
     eventType: string;
@@ -74,6 +82,7 @@
     findActiveOverride: (time: Date) => OverrideSpan | undefined;
     findActiveProfile: (time: Date) => ProfileSpan | undefined;
     findActiveActivities: (time: Date) => ActivitySpan[];
+    findActiveTempBasal: (time: Date) => TempBasalSpan | undefined;
     findNearbySystemEvent: (time: Date) => SystemEvent | undefined;
     // Visibility toggles
     showBolus: boolean;
@@ -103,6 +112,7 @@
     findActiveOverride,
     findActiveProfile,
     findActiveActivities,
+    findActiveTempBasal,
     findNearbySystemEvent,
     showBolus,
     showCarbs,
@@ -131,6 +141,7 @@
     {@const activeOverride = findActiveOverride(data.time)}
     {@const activeProfile = findActiveProfile(data.time)}
     {@const activeActivities = findActiveActivities(data.time)}
+    {@const activeTempBasal = findActiveTempBasal(data.time)}
     {@const nearbyBolus = findNearbyBolus(data.time)}
     {@const nearbyCarbs = findNearbyCarbs(data.time)}
     {@const nearbyDeviceEvent = findNearbyDeviceEvent(data.time)}
@@ -190,39 +201,55 @@
           color="var(--carbs)"
         />
       {/if}
-      {#if showBasal && activeBasal}
-        {@const isAdjusted =
-          (activeBasal.origin === BasalDeliveryOrigin.Algorithm ||
-            activeBasal.origin === BasalDeliveryOrigin.Manual) &&
-          activeBasal.rate !== activeBasal.scheduledRate}
-        {@const basalLabel =
-          activeBasal.origin === BasalDeliveryOrigin.Suspended
-            ? "Suspended"
-            : isAdjusted
-              ? activeBasal.origin === BasalDeliveryOrigin.Algorithm
-                ? "Auto Basal"
-                : "Temp Basal"
-              : "Basal"}
-        <Tooltip.Item
-          label={basalLabel}
-          value={activeBasal.rate}
-          format={"decimal"}
-          color={isAdjusted || activeBasal.origin === BasalDeliveryOrigin.Suspended
-            ? "var(--insulin-temp-basal)"
-            : "var(--insulin-basal)"}
-          class={cn(
-            staleBasalData && data.time >= staleBasalData.start
-              ? "text-yellow-500 font-bold"
-              : ""
-          )}
-        />
-        {#if isAdjusted && activeBasal.scheduledRate !== undefined}
+      {#if showBasal && (activeBasal || activeTempBasal)}
+        {#if activeBasal}
+          {@const isAdjusted =
+            (activeBasal.origin === BasalDeliveryOrigin.Algorithm ||
+              activeBasal.origin === BasalDeliveryOrigin.Manual) &&
+            activeBasal.rate !== activeBasal.scheduledRate}
+          {@const basalLabel =
+            activeBasal.origin === BasalDeliveryOrigin.Suspended
+              ? "Suspended"
+              : isAdjusted
+                ? activeBasal.origin === BasalDeliveryOrigin.Algorithm
+                  ? "Auto Basal"
+                  : "Temp Basal"
+                : "Basal"}
           <Tooltip.Item
-            label="Scheduled"
-            value={activeBasal.scheduledRate}
+            label={basalLabel}
+            value={activeBasal.rate}
             format={"decimal"}
-            color="var(--muted-foreground)"
+            color={isAdjusted || activeBasal.origin === BasalDeliveryOrigin.Suspended
+              ? "var(--insulin-temp-basal)"
+              : "var(--insulin-basal)"}
+            class={cn(
+              staleBasalData && data.time >= staleBasalData.start
+                ? "text-yellow-500 font-bold"
+                : ""
+            )}
           />
+          {#if isAdjusted && activeBasal.scheduledRate !== undefined}
+            <Tooltip.Item
+              label="Scheduled"
+              value={activeBasal.scheduledRate}
+              format={"decimal"}
+              color="var(--muted-foreground)"
+            />
+          {/if}
+        {:else if activeTempBasal && activeTempBasal.rate != null}
+          <Tooltip.Item
+            label="Temp Basal"
+            value={activeTempBasal.rate}
+            format={"decimal"}
+            color="var(--insulin-temp-basal)"
+          />
+          {#if activeTempBasal.percent != null}
+            <Tooltip.Item
+              label="Percent"
+              value={`${activeTempBasal.percent}%`}
+              color="var(--muted-foreground)"
+            />
+          {/if}
         {/if}
       {/if}
       {#if showPumpModes && activePumpMode}

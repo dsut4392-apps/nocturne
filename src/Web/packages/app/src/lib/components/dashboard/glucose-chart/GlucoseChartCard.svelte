@@ -122,16 +122,27 @@
   let stateData = $state<ChartStateData | null>(null);
 
   // Legend toggle state
+  // svelte-ignore state_referenced_locally
   let showIob = $state(initialShowIob);
+  // svelte-ignore state_referenced_locally
   let showCob = $state(initialShowCob);
+  // svelte-ignore state_referenced_locally
   let showBasal = $state(initialShowBasal);
+  // svelte-ignore state_referenced_locally
   let showBolus = $state(initialShowBolus);
+  // svelte-ignore state_referenced_locally
   let showCarbs = $state(initialShowCarbs);
+  // svelte-ignore state_referenced_locally
   let showDeviceEvents = $state(initialShowDeviceEvents);
+  // svelte-ignore state_referenced_locally
   let showAlarms = $state(initialShowAlarms);
+  // svelte-ignore state_referenced_locally
   let showScheduledTrackers = $state(initialShowScheduledTrackers);
+  // svelte-ignore state_referenced_locally
   let showOverrideSpans = $state(initialShowOverrideSpans);
+  // svelte-ignore state_referenced_locally
   let showProfileSpans = $state(initialShowProfileSpans);
+  // svelte-ignore state_referenced_locally
   let showActivitySpans = $state(initialShowActivitySpans);
   let showPumpModes = $state(true);
   let expandedPumpModes = $state(false);
@@ -568,6 +579,7 @@
   }
 
   // Batched state span processing - single computation for all span types
+  // Uses fullDataRange (48h) to ensure data is available when zooming/brushing
   const processedStateSpans = $derived.by(() => {
     // Early exit if no state data available
     if (!stateData) {
@@ -581,8 +593,8 @@
       };
     }
 
-    const rangeStart = displayDateRange.from.getTime();
-    const rangeEnd = displayDateRange.to.getTime();
+    const rangeStart = fullDataRange.from.getTime();
+    const rangeEnd = fullDataRange.to.getTime();
 
     // Process all spans with the shared range values
     const pumpMode = processSpans(stateData.pumpModeSpans, rangeStart, rangeEnd);
@@ -1077,6 +1089,8 @@
     findActiveSpan(profileSpans, time, false);
   const findActiveActivities = (time: Date) =>
     findActiveSpan(activitySpans, time, true);
+  const findActiveTempBasal = (time: Date) =>
+    findActiveSpan(tempBasalSpans, time, false);
 
   function findNearbySystemEvent(time: Date) {
     return systemEvents.find(
@@ -1328,6 +1342,7 @@
             {findActiveOverride}
             {findActiveProfile}
             {findActiveActivities}
+            {findActiveTempBasal}
             {findNearbySystemEvent}
             {showBolus}
             {showCarbs}

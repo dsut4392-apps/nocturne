@@ -100,13 +100,13 @@ export const getTreatments = query(
 		});
 		const pageSize = 1000;
 
-		// Fetch all treatments by paginating through results
-		let allTreatments: Awaited<ReturnType<typeof apiClient.treatments.getTreatments2>> = [];
+		// Fetch all treatments by paginating through results using v4 endpoint
+		let allTreatments: Awaited<ReturnType<typeof apiClient.treatments.getTreatments>> = [];
 		let offset = 0;
 		let hasMore = true;
 
 		while (hasMore) {
-			const batch = await apiClient.treatments.getTreatments2(treatmentsQuery, pageSize, offset);
+			const batch = await apiClient.treatments.getTreatments(undefined, pageSize, offset, treatmentsQuery);
 			allTreatments = allTreatments.concat(batch);
 
 			if (batch.length < pageSize) {
@@ -189,14 +189,14 @@ export const getReportsData = query(
 		// Fetch entries first
 		const entries = await apiClient.entries.getEntries2(entriesQuery);
 
-		// Paginate treatments
+		// Paginate treatments using v4 endpoint
 		const pageSize = 1000;
-		let allTreatments: Awaited<ReturnType<typeof apiClient.treatments.getTreatments2>> = [];
+		let allTreatments: Awaited<ReturnType<typeof apiClient.treatments.getTreatments>> = [];
 		let offset = 0;
 		let hasMore = true;
 
 		while (hasMore) {
-			const batch = await apiClient.treatments.getTreatments2(treatmentsQuery, pageSize, offset);
+			const batch = await apiClient.treatments.getTreatments(undefined, pageSize, offset, treatmentsQuery);
 			allTreatments = allTreatments.concat(batch);
 
 			if (batch.length < pageSize) {
@@ -282,14 +282,14 @@ export const getSiteChangeImpact = query(
 		// Fetch entries
 		const entries = await apiClient.entries.getEntries2(entriesQuery);
 
-		// Paginate treatments to get all site changes
+		// Paginate treatments to get all site changes using v4 endpoint
 		const pageSize = 1000;
-		let allTreatments: Awaited<ReturnType<typeof apiClient.treatments.getTreatments2>> = [];
+		let allTreatments: Awaited<ReturnType<typeof apiClient.treatments.getTreatments>> = [];
 		let offset = 0;
 		let hasMore = true;
 
 		while (hasMore) {
-			const batch = await apiClient.treatments.getTreatments2(treatmentsQuery, pageSize, offset);
+			const batch = await apiClient.treatments.getTreatments(undefined, pageSize, offset, treatmentsQuery);
 			allTreatments = allTreatments.concat(batch);
 
 			if (batch.length < pageSize) {

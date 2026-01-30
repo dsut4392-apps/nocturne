@@ -59,34 +59,65 @@
     showBasal,
   }: Props = $props();
 
-  // Check if a basal point is "temporary" (algorithm or manual adjusted)
-  const isAdjustedBasal = (origin: BasalDeliveryOrigin): boolean => {
-    return (
-      origin === BasalDeliveryOrigin.Algorithm ||
-      origin === BasalDeliveryOrigin.Manual
-    );
-  };
-
-  // Group consecutive adjusted basal points into segments
-  const adjustedBasalSegments = $derived.by(() => {
-    const segments: BasalPoint[][] = [];
-    let currentSegment: BasalPoint[] = [];
+  // Group consecutive basal points by origin for proper layered rendering
+  // This ensures each origin type (Scheduled, Algorithm, Manual, Suspended) is rendered as a distinct segment
+  const basalSegmentsByOrigin = $derived.by(() => {
+    type Segment = { origin: BasalDeliveryOrigin; points: BasalPoint[] };
+    const segments: Segment[] = [];
+    let currentSegment: Segment | null = null;
 
     for (const point of basalData) {
-      if (point?.origin && isAdjustedBasal(point?.origin)) {
-        currentSegment.push(point);
-      } else {
-        if (currentSegment.length > 0) {
+      const origin = point?.origin ?? BasalDeliveryOrigin.Scheduled;
+
+      if (!currentSegment || currentSegment.origin !== origin) {
+        // Start a new segment
+        if (currentSegment && currentSegment.points.length > 0) {
           segments.push(currentSegment);
-          currentSegment = [];
         }
+        currentSegment = { origin, points: [point] };
+      } else {
+        // Continue current segment
+        currentSegment.points.push(point);
       }
     }
-    if (currentSegment.length > 0) {
+
+    // Don't forget the last segment
+    if (currentSegment && currentSegment.points.length > 0) {
       segments.push(currentSegment);
     }
+
     return segments;
   });
+
+  // Get the fill color based on basal delivery origin
+  function getBasalFillColor(origin: BasalDeliveryOrigin): string {
+    switch (origin) {
+      case BasalDeliveryOrigin.Algorithm:
+        return "var(--insulin-basal)";
+      case BasalDeliveryOrigin.Manual:
+        return "var(--insulin-temp-basal)";
+      case BasalDeliveryOrigin.Suspended:
+        return "var(--pump-mode-suspended)";
+      case BasalDeliveryOrigin.Scheduled:
+      default:
+        return "var(--insulin-basal)";
+    }
+  }
+
+  // Get the stroke color based on basal delivery origin
+  function getBasalStrokeColor(origin: BasalDeliveryOrigin): string {
+    switch (origin) {
+      case BasalDeliveryOrigin.Algorithm:
+        return "var(--insulin-bolus)";
+      case BasalDeliveryOrigin.Manual:
+        return "var(--insulin-bolus)";
+      case BasalDeliveryOrigin.Suspended:
+        return "var(--pump-mode-suspended)";
+      case BasalDeliveryOrigin.Scheduled:
+      default:
+        return "var(--insulin-basal)";
+    }
+  }
 </script>
 
 {#if showBasal}
@@ -183,28 +214,18 @@
     BASAL
   </Text>
 
-  <!-- Basal area - split into scheduled and algorithm/manual adjusted layers -->
+  <!-- Basal area - render each segment by origin with actual delivered rate -->
   {#if basalData.length > 0}
-    <!-- Scheduled basal rate (background layer) -->
-    <Area
-      data={basalData}
-      x={(d) => d.time}
-      y0={() => basalZero}
-      y1={(d) => basalScale(d.scheduledRate ?? d.rate)}
-      curve={curveStepAfter}
-      fill="var(--insulin-basal)"
-      class="stroke-insulin stroke-1"
-    />
-    <!-- Adjusted basal overlay (algorithm or manual adjusted rates) -->
-    {#each adjustedBasalSegments as segment, i (i)}
+    {#each basalSegmentsByOrigin as segment, i (i)}
       <Area
-        data={segment}
+        data={segment.points}
         x={(d) => d.time}
         y0={() => basalZero}
         y1={(d) => basalScale(d.rate)}
         curve={curveStepAfter}
-        fill="var(--insulin-temp-basal)"
-        class="stroke-insulin-bolus stroke-1"
+        fill={getBasalFillColor(segment.origin)}
+        stroke={getBasalStrokeColor(segment.origin)}
+        class="stroke-1"
       />
     {/each}
   {/if}

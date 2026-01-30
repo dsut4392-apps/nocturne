@@ -179,7 +179,6 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 		const [
 			pumpModeSpans,
 			connectivitySpans,
-			tempBasalSpans,
 			overrideSpans,
 			profileSpans,
 			activitySpans,
@@ -188,7 +187,6 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 		] = await Promise.all([
 			apiClient.stateSpans.getPumpModes(startTime, endTime),
 			apiClient.stateSpans.getConnectivity(startTime, endTime),
-			apiClient.stateSpans.getTempBasals(startTime, endTime),
 			apiClient.stateSpans.getOverrides(startTime, endTime),
 			apiClient.stateSpans.getProfiles(startTime, endTime),
 			apiClient.stateSpans.getActivities(startTime, endTime),
@@ -228,16 +226,18 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 			metadata: span.metadata,
 		}));
 
-		// Transform temp basal spans
-		const processedTempBasals: StateSpanChartData[] = (tempBasalSpans ?? []).map((span) => ({
-			id: span.id ?? '',
-			category: span.category ?? StateSpanCategory.BasalDelivery,
-			state: span.state ?? 'Unknown',
-			startTime: new Date(span.startMills ?? 0),
-			endTime: span.endMills ? new Date(span.endMills) : null,
-			color: getTempBasalColor(span.state ?? ''),
-			metadata: span.metadata,
-		}));
+		// Derive temp basal spans from basal delivery spans with Manual origin
+		const processedTempBasals: StateSpanChartData[] = (basalDeliverySpans ?? [])
+			.filter((span) => (span.metadata?.origin as BasalDeliveryOrigin) === BasalDeliveryOrigin.Manual)
+			.map((span) => ({
+				id: span.id ?? '',
+				category: StateSpanCategory.BasalDelivery,
+				state: 'TempBasal',
+				startTime: new Date(span.startMills ?? 0),
+				endTime: span.endMills ? new Date(span.endMills) : null,
+				color: getTempBasalColor('TempBasal'),
+				metadata: span.metadata,
+			}));
 
 		// Transform override spans
 		const processedOverrides: StateSpanChartData[] = (overrideSpans ?? []).map((span) => ({

@@ -46,7 +46,7 @@ export const getPunchCardData = query(punchCardSchema, async ({
 
   const [allEntries, allTreatments] = await Promise.all([
     apiClient.entries.getEntries2(entriesQuery, 100000),
-    apiClient.treatments.getTreatments2(treatmentsQuery, 10000),
+    apiClient.treatments.getTreatments(undefined, 10000, undefined, treatmentsQuery),
   ]);
 
   // Group by month

@@ -35,7 +35,7 @@
   import { toast } from "svelte-sonner";
   import { getReportsData } from "$lib/data/reports.remote";
   import { requireDateParamsContext } from "$lib/hooks/date-params.svelte";
-  import { resource } from "runed";
+  import { contextResource } from "$lib/hooks/resource-context.svelte";
 
   // Import remote function forms and commands
   import {
@@ -48,16 +48,13 @@
   // Default: 7 days for treatment log view
   const reportsParams = requireDateParamsContext(7);
 
-  // Use resource for controlled reactivity - prevents excessive re-fetches
-  const reportsResource = resource(
-    () => reportsParams.dateRangeInput,
-    async (dateRangeInput) => {
-      return await getReportsData(dateRangeInput);
-    },
-    { debounce: 100 }
+  // Create resource with automatic layout registration
+  const reportsResource = contextResource(
+    () => getReportsData(reportsParams.dateRangeInput),
+    { errorTitle: "Error Loading Treatments" }
   );
 
-  const treatments = $derived(reportsResource.current?.treatments ?? []);
+  const treatments = $derived<Treatment[]>(reportsResource.current?.treatments ?? []);
   const dateRange = $derived(
     reportsResource.current?.dateRange ?? {
       from: new Date().toISOString(),
@@ -249,6 +246,7 @@
       activeCategory !== "all" ||
       filterNoSource
   );
+
 </script>
 
 <svelte:head>
@@ -259,6 +257,7 @@
   />
 </svelte:head>
 
+{#if reportsResource.current}
 <div class="container mx-auto space-y-6 px-4 py-6">
   <!-- Header -->
   <div class="space-y-2">
@@ -664,4 +663,5 @@
       </Card.Footer>
     </Card.Root>
   </div>
+{/if}
 {/if}

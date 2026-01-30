@@ -5,8 +5,8 @@
   import { ChevronLeft, ChevronRight, Calendar } from "lucide-svelte";
   import { getReportsData } from "$lib/data/reports.remote";
   import { requireDateParamsContext } from "$lib/hooks/date-params.svelte";
+  import { contextResource } from "$lib/hooks/resource-context.svelte";
   import { bg } from "$lib/utils/formatting";
-  import { resource } from "runed";
 
   // Day of week series config
   const DAY_SERIES = [
@@ -23,13 +23,10 @@
   // Default: 14 days is ideal for week-to-week comparison (2 full weeks)
   const reportsParams = requireDateParamsContext(14);
 
-  // Use resource for controlled reactivity - prevents excessive re-fetches
-  const reportsResource = resource(
-    () => reportsParams.dateRangeInput,
-    async (dateRangeInput) => {
-      return await getReportsData(dateRangeInput);
-    },
-    { debounce: 100 }
+  // Create resource with automatic layout registration
+  const reportsResource = contextResource(
+    () => getReportsData(reportsParams.dateRangeInput),
+    { errorTitle: "Error Loading Week Comparison" }
   );
 
   // Calculate start and end dates from the date params
@@ -113,6 +110,7 @@
   }
 </script>
 
+{#if reportsResource.current}
 <div class="space-y-6 p-4">
   <!-- Controls -->
   <Card.Root>
@@ -159,3 +157,4 @@
     {/if}
   </div>
 </div>
+{/if}

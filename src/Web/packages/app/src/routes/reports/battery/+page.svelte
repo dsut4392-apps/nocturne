@@ -22,9 +22,10 @@
     AlertTriangle,
     RefreshCw,
   } from "lucide-svelte";
+  import type { BatteryStatistics, ChargeCycle, DeviceStatus } from "$lib/api";
   import { getBatteryReportData } from "$lib/data/battery.remote";
   import { requireDateParamsContext } from "$lib/hooks/date-params.svelte";
-  import { resource } from "runed";
+  import { contextResource } from "$lib/hooks/resource-context.svelte";
 
   // Get shared date params from context (set by reports layout)
   // Default: 7 days is good for battery analysis (typical charge cycle period)
@@ -39,32 +40,21 @@
     to: new Date(reportsParams.dateRangeInput.to ?? new Date().toISOString()).getTime(),
   });
 
-  // Use resource for controlled reactivity
-  const batteryResource = resource(
-    () => ({
+  // Create resource with automatic layout registration
+  const batteryResource = contextResource(
+    () => getBatteryReportData({
       device: selectedDevice,
       from: dateRangeMillis.from,
       to: dateRangeMillis.to,
       cycleLimit: 50,
     }),
-    async (params) => {
-      return await getBatteryReportData(params);
-    },
-    { debounce: 100 }
+    { errorTitle: "Error Loading Battery Report" }
   );
 
-  // Derived state from resource
-  const statistics = $derived(batteryResource.current?.statistics ?? []);
-  const cycles = $derived(batteryResource.current?.cycles ?? []);
-  const readings = $derived(batteryResource.current?.readings ?? []);
-  const loading = $derived(batteryResource.loading);
-  const error = $derived(
-    batteryResource.error
-      ? batteryResource.error instanceof Error
-        ? batteryResource.error.message
-        : "Failed to load battery report data"
-      : null
-  );
+  // Derived state from resource with explicit types
+  const statistics = $derived<BatteryStatistics[]>(batteryResource.current?.statistics ?? []);
+  const cycles = $derived<ChargeCycle[]>(batteryResource.current?.cycles ?? []);
+  const readings = $derived<DeviceStatus[]>(batteryResource.current?.readings ?? []);
 
   // Helper for date range display
   const dateRange = $derived({
@@ -146,6 +136,7 @@
   />
 </svelte:head>
 
+{#if batteryResource.current}
 <div class="container mx-auto space-y-6 px-4 py-6">
   <!-- Header -->
   <div class="flex items-center justify-between">
@@ -155,8 +146,8 @@
         Device battery statistics and charge cycle history
       </p>
     </div>
-    <Button variant="outline" size="sm" onclick={fetchData} disabled={loading}>
-      <RefreshCw class="h-4 w-4 mr-2 {loading ? 'animate-spin' : ''}" />
+    <Button variant="outline" size="sm" onclick={fetchData}>
+      <RefreshCw class="h-4 w-4 mr-2" />
       Refresh
     </Button>
   </div>
@@ -173,25 +164,7 @@
     <span>{readings.length} readings</span>
   </div>
 
-  {#if loading}
-    <div class="flex items-center justify-center h-64">
-      <div class="text-center space-y-4">
-        <div
-          class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"
-        ></div>
-        <p class="text-muted-foreground">Loading battery data...</p>
-      </div>
-    </div>
-  {:else if error}
-    <Card class="border-destructive/50">
-      <CardContent class="pt-6">
-        <div class="flex items-center gap-2 text-destructive">
-          <AlertTriangle class="h-5 w-5" />
-          <span>{error}</span>
-        </div>
-      </CardContent>
-    </Card>
-  {:else if statistics.length === 0}
+  {#if statistics.length === 0}
     <Card>
       <CardContent class="pt-6">
         <div class="text-center py-8">
@@ -490,3 +463,4 @@
     </div>
   {/if}
 </div>
+{/if}

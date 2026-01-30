@@ -2541,11 +2541,10 @@ msgstr "Unable to load reports"
 msgid "Something went wrong"
 msgstr "Something went wrong"
 
+#: src/lib/components/reports/ResourceGuard.svelte
 #: src/routes/auth/reset-password/+page.svelte
 #: src/routes/auth/verify-email/+page.svelte
 #: src/routes/reports/+page.svelte
-#: src/routes/reports/executive-summary/+page.svelte
-#: src/routes/reports/glucose-distribution/+page.svelte
 #: src/routes/settings/profile/+page.svelte
 msgid "Try again"
 msgstr "Try again"
@@ -7771,9 +7770,8 @@ msgstr ""
 "Data from {0} – {1}.\n"
 "Last updated {2}."
 
-#: src/routes/reports/battery/+page.svelte
-msgid "Failed to load battery report data"
-msgstr "Failed to load battery report data"
+#~ msgid "Failed to load battery report data"
+#~ msgstr "Failed to load battery report data"
 
 #: src/routes/reports/battery/+page.svelte
 msgid "Battery Report - Nocturne"
@@ -7788,9 +7786,8 @@ msgstr "Device battery statistics and charge cycle history"
 msgid "Battery Report"
 msgstr "Battery Report"
 
-#: src/routes/reports/battery/+page.svelte
-msgid "Loading battery data..."
-msgstr "Loading battery data..."
+#~ msgid "Loading battery data..."
+#~ msgstr "Loading battery data..."
 
 #: src/routes/reports/battery/+page.svelte
 msgid "No Battery Data Available"
@@ -7938,9 +7935,8 @@ msgstr "Executive Summary - Nocturne Reports"
 msgid "High-level overview of your diabetes management metrics"
 msgstr "High-level overview of your diabetes management metrics"
 
-#: src/routes/reports/executive-summary/+page.svelte
-msgid "<0/> Error Loading Executive Summary"
-msgstr "<0/> Error Loading Executive Summary"
+#~ msgid "<0/> Error Loading Executive Summary"
+#~ msgstr "<0/> Error Loading Executive Summary"
 
 #: src/routes/reports/executive-summary/+page.svelte
 msgid "Diabetes Management Report"
@@ -8206,9 +8202,8 @@ msgstr ""
 msgid "Tight Range"
 msgstr "Tight Range"
 
-#: src/routes/reports/glucose-distribution/+page.svelte
-msgid "<0/> Error Loading Data"
-msgstr "<0/> Error Loading Data"
+#~ msgid "<0/> Error Loading Data"
+#~ msgstr "<0/> Error Loading Data"
 
 #. placeholder {0}: dateRangeDisplay
 #. placeholder {1}: overallStats.totalReadings
@@ -12205,3 +12200,63 @@ msgstr "Duration: {0}"
 #: src/routes/time-spans/+page.svelte
 msgid "Toggle basal delivery"
 msgstr "Toggle basal delivery"
+
+#: src/lib/components/reports/ResourceGuard.svelte
+#: src/lib/hooks/resource-context.svelte.ts
+#: src/lib/hooks/resource-context.svelte.ts
+msgid "Error Loading Data"
+msgstr "Error Loading Data"
+
+#: src/lib/components/reports/ResourceGuard.svelte
+msgid "<0/> Try again"
+msgstr "<0/> Try again"
+
+#~ msgid "Failed to load basal/bolus ratio data"
+#~ msgstr "Failed to load basal/bolus ratio data"
+
+#~ msgid "Error Loading Ratio Data"
+#~ msgstr "Error Loading Ratio Data"
+
+#: src/routes/reports/executive-summary/+page.svelte
+msgid "Error Loading Executive Summary"
+msgstr "Error Loading Executive Summary"
+
+#: src/routes/reports/agp/+page.svelte
+msgid "Error Loading AGP Report"
+msgstr "Error Loading AGP Report"
+
+#: src/routes/reports/readings/+page.svelte
+msgid "Error Loading Readings"
+msgstr "Error Loading Readings"
+
+#: src/routes/reports/insulin-delivery/+page.svelte
+msgid "Error Loading Insulin Delivery Data"
+msgstr "Error Loading Insulin Delivery Data"
+
+#: src/routes/reports/basal-analysis/+page.svelte
+msgid "Error Loading Basal Analysis"
+msgstr "Error Loading Basal Analysis"
+
+#: src/routes/reports/battery/+page.svelte
+msgid "Error Loading Battery Report"
+msgstr "Error Loading Battery Report"
+
+#: src/routes/reports/day-in-review/+page.svelte
+msgid "Error Loading Day in Review"
+msgstr "Error Loading Day in Review"
+
+#: src/routes/reports/glucose-distribution/+page.svelte
+msgid "Error Loading Glucose Distribution"
+msgstr "Error Loading Glucose Distribution"
+
+#: src/routes/reports/treatments/+page.svelte
+msgid "Error Loading Treatments"
+msgstr "Error Loading Treatments"
+
+#: src/routes/reports/site-change-impact/+page.svelte
+msgid "Error Loading Site Change Data"
+msgstr "Error Loading Site Change Data"
+
+#: src/routes/reports/week-to-week/+page.svelte
+msgid "Error Loading Week Comparison"
+msgstr "Error Loading Week Comparison"

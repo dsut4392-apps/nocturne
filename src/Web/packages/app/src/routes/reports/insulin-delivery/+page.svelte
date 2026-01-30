@@ -11,9 +11,9 @@
   import {
     PieChart,
     Calendar,
-    AlertTriangle,
     Info,
     TrendingUp,
+    AlertTriangle,
     ArrowRight,
     Printer,
     HelpCircle,
@@ -27,19 +27,17 @@
   import { getReportsData } from "$lib/data/reports.remote";
   import { getMultiPeriodStatistics } from "$lib/data/statistics.remote";
   import { requireDateParamsContext } from "$lib/hooks/date-params.svelte";
+  import { contextResource } from "$lib/hooks/resource-context.svelte";
   import { resource } from "runed";
 
   // Get shared date params from context (set by reports layout)
   // Default: 30 days for insulin delivery analysis (TDD and ratios benefit from more data)
   const reportsParams = requireDateParamsContext(30);
 
-  // Use resource for controlled reactivity - prevents excessive re-fetches
-  const reportsResource = resource(
-    () => reportsParams.dateRangeInput,
-    async (dateRangeInput) => {
-      return await getReportsData(dateRangeInput);
-    },
-    { debounce: 100 }
+  // Create primary resource with automatic layout registration
+  const reportsResource = contextResource(
+    () => getReportsData(reportsParams.dateRangeInput),
+    { errorTitle: "Error Loading Insulin Delivery Data" }
   );
 
   const treatments = $derived(
@@ -52,7 +50,7 @@
     }
   );
 
-  // Fetch multi-period statistics from the backend (includes insulin delivery stats)
+  // Secondary resource for multi-period statistics (uses plain resource)
   const multiPeriodStatsResource = resource(
     () => ({}),
     async () => {
@@ -126,6 +124,7 @@
       color: "text-muted-foreground",
     };
   });
+
 </script>
 
 <svelte:head>
@@ -136,6 +135,7 @@
   />
 </svelte:head>
 
+{#if reportsResource.current || multiPeriodStatsResource.current}
 <div class="container mx-auto max-w-7xl space-y-8 px-4 py-6">
   <!-- Header -->
   <div class="space-y-4">
@@ -502,3 +502,4 @@
     </p>
   </div>
 </div>
+{/if}

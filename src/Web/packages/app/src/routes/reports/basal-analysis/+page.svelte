@@ -25,21 +25,19 @@
   import { getReportsData } from "$lib/data/reports.remote";
   import { getBasalAnalysis } from "$lib/data/statistics.remote";
   import { requireDateParamsContext } from "$lib/hooks/date-params.svelte";
-  import { resource } from "runed";
+  import { contextResource } from "$lib/hooks/resource-context.svelte";
 
   // Get shared date params from context (set by reports layout)
   // Default: 14 days for basal pattern analysis
   const reportsParams = requireDateParamsContext(14);
 
-  // Use resource for controlled reactivity - prevents excessive re-fetches
-  const reportsResource = resource(
-    () => reportsParams.dateRangeInput,
-    async (dateRangeInput) => {
-      return await getReportsData(dateRangeInput);
-    },
-    { debounce: 100 }
+  // Use contextResource - it syncs to layout's ResourceGuard automatically
+  const reportsResource = contextResource(
+    () => getReportsData(reportsParams.dateRangeInput),
+    { errorTitle: "Error Loading Basal Analysis" }
   );
 
+  // Derived data from reportsResource
   const treatments = $derived(reportsResource.current?.treatments ?? []);
   const dateRange = $derived(
     reportsResource.current?.dateRange ?? {
@@ -60,40 +58,37 @@
     )
   );
 
-  // Fetch basal analysis from backend
-  const basalAnalysisResource = resource(
-    () => ({ from: dateRange.from, to: dateRange.to }),
-    async ({ from, to }) => {
-      return await getBasalAnalysis({
-        startDate: new Date(from).toISOString(),
-        endDate: new Date(to).toISOString(),
-      });
-    },
-    { debounce: 100 }
+  // Secondary query for basal analysis
+  const basalAnalysisQuery = $derived(
+    getBasalAnalysis({
+      startDate: dateRange.from,
+      endDate: dateRange.to,
+    })
   );
 
   // Get stats and tempBasalInfo from backend response with explicit defaults
   const basalStats = $derived({
-    count: basalAnalysisResource.current?.stats?.count ?? 0,
-    avgRate: basalAnalysisResource.current?.stats?.avgRate ?? 0,
-    minRate: basalAnalysisResource.current?.stats?.minRate ?? 0,
-    maxRate: basalAnalysisResource.current?.stats?.maxRate ?? 0,
-    totalDelivered: basalAnalysisResource.current?.stats?.totalDelivered ?? 0,
+    count: basalAnalysisQuery.current?.stats?.count ?? 0,
+    avgRate: basalAnalysisQuery.current?.stats?.avgRate ?? 0,
+    minRate: basalAnalysisQuery.current?.stats?.minRate ?? 0,
+    maxRate: basalAnalysisQuery.current?.stats?.maxRate ?? 0,
+    totalDelivered: basalAnalysisQuery.current?.stats?.totalDelivered ?? 0,
   });
 
   const tempBasalInfo = $derived({
-    total: basalAnalysisResource.current?.tempBasalInfo?.total ?? 0,
-    perDay: basalAnalysisResource.current?.tempBasalInfo?.perDay ?? 0,
-    highTemps: basalAnalysisResource.current?.tempBasalInfo?.highTemps ?? 0,
-    lowTemps: basalAnalysisResource.current?.tempBasalInfo?.lowTemps ?? 0,
-    zeroTemps: basalAnalysisResource.current?.tempBasalInfo?.zeroTemps ?? 0,
+    total: basalAnalysisQuery.current?.tempBasalInfo?.total ?? 0,
+    perDay: basalAnalysisQuery.current?.tempBasalInfo?.perDay ?? 0,
+    highTemps: basalAnalysisQuery.current?.tempBasalInfo?.highTemps ?? 0,
+    lowTemps: basalAnalysisQuery.current?.tempBasalInfo?.lowTemps ?? 0,
+    zeroTemps: basalAnalysisQuery.current?.tempBasalInfo?.zeroTemps ?? 0,
   });
 
   const hourlyPercentiles = $derived(
-    basalAnalysisResource.current?.hourlyPercentiles ?? []
+    basalAnalysisQuery.current?.hourlyPercentiles ?? []
   );
 
-  const isLoading = $derived(basalAnalysisResource.loading);
+  // Loading state for child components
+  const isLoading = $derived(reportsResource.loading || basalAnalysisQuery.loading);
 </script>
 
 <svelte:head>
@@ -104,6 +99,7 @@
   />
 </svelte:head>
 
+{#if reportsResource.current}
 <div class="container mx-auto max-w-7xl space-y-8 px-4 py-6">
   <!-- Header -->
   <div class="space-y-4">
@@ -401,3 +397,4 @@
     </p>
   </div>
 </div>
+{/if}

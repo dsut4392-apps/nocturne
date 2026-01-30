@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Infrastructure.Data.Entities;
@@ -13,6 +14,7 @@ public class InAppNotificationService : IInAppNotificationService
     private readonly InAppNotificationRepository _repository;
     private readonly ISignalRBroadcastService _broadcastService;
     private readonly IConnectorFoodEntryRepository _foodEntryRepository;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<InAppNotificationService> _logger;
 
     /// <summary>
@@ -21,17 +23,20 @@ public class InAppNotificationService : IInAppNotificationService
     /// <param name="repository">The notification repository</param>
     /// <param name="broadcastService">The SignalR broadcast service</param>
     /// <param name="foodEntryRepository">The food entry repository for meal matching dismiss</param>
+    /// <param name="serviceProvider">Service provider for lazy resolution of domain services (avoids circular dependency)</param>
     /// <param name="logger">The logger</param>
     public InAppNotificationService(
         InAppNotificationRepository repository,
         ISignalRBroadcastService broadcastService,
         IConnectorFoodEntryRepository foodEntryRepository,
+        IServiceProvider serviceProvider,
         ILogger<InAppNotificationService> logger
     )
     {
         _repository = repository;
         _broadcastService = broadcastService;
         _foodEntryRepository = foodEntryRepository;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -228,6 +233,30 @@ public class InAppNotificationService : IInAppNotificationService
                         case "review":
                             // Review opens a dialog client-side, just return true
                             return true;
+                    }
+                }
+
+                // Handle tracker suggestion actions
+                if (notification.Type == InAppNotificationType.SuggestedTrackerMatch)
+                {
+                    // Lazy resolution to avoid circular dependency
+                    var trackerSuggestionService = _serviceProvider.GetRequiredService<ITrackerSuggestionService>();
+
+                    switch (actionId.ToLowerInvariant())
+                    {
+                        case "accept":
+                            // Accept resets the tracker (completes current instance, starts new one)
+                            return await trackerSuggestionService.AcceptSuggestionAsync(
+                                notificationId,
+                                userId,
+                                cancellationToken);
+
+                        case "dismiss":
+                            // Dismiss just archives the notification
+                            return await trackerSuggestionService.DismissSuggestionAsync(
+                                notificationId,
+                                userId,
+                                cancellationToken);
                     }
                 }
 

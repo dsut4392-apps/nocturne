@@ -1742,6 +1742,27 @@
         }
       }
     },
+    "/api/Metadata/state-span-types": {
+      "get": {
+        "tags": [
+          "Metadata"
+        ],
+        "summary": "Get state span types metadata\nThis endpoint exposes all available state span categories and their states for type-safe usage in frontend clients",
+        "operationId": "Metadata_GetStateSpanTypes",
+        "responses": {
+          "200": {
+            "description": "State span types metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateSpanTypesMetadata"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/Metadata/statistics-types": {
       "get": {
         "tags": [
@@ -6772,6 +6793,42 @@
         }
       }
     },
+    "/api/v4/services/connectors/{id}/data-summary": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Get a summary of data counts for a specific connector.\nReturns the number of entries, treatments, and device statuses synced by this connector.",
+        "operationId": "Services_GetConnectorDataSummary",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Connector ID (e.g., \"dexcom\")",
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data summary with counts by type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorDataSummary"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v4/services/connectors/{id}/data": {
       "delete": {
         "tags": [
@@ -7307,13 +7364,13 @@
         }
       }
     },
-    "/api/v4/state-spans/temp-basals": {
+    "/api/v4/state-spans/basal-delivery": {
       "get": {
         "tags": [
           "StateSpans"
         ],
-        "summary": "Get temp basal state spans",
-        "operationId": "StateSpans_GetTempBasals",
+        "summary": "Get basal delivery state spans (pump-confirmed basal rates)",
+        "operationId": "StateSpans_GetBasalDelivery",
         "parameters": [
           {
             "name": "from",
@@ -8804,6 +8861,73 @@
       }
     },
     "/api/v4/treatments": {
+      "get": {
+        "tags": [
+          "V4 Treatments"
+        ],
+        "summary": "Get treatments with optional filtering and pagination.\nUnlike V1-V3 endpoints, this does NOT include StateSpan-derived basal data.\nFor basal delivery, query /api/v4/state-spans?category=BasalDelivery instead.",
+        "operationId": "Treatments_GetTreatments",
+        "parameters": [
+          {
+            "name": "eventType",
+            "in": "query",
+            "description": "Optional filter by event type",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of treatments to return (default: 100)",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 100
+            },
+            "x-position": 2
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "Number of treatments to skip for pagination (default: 0)",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            },
+            "x-position": 3
+          },
+          {
+            "name": "find",
+            "x-originalName": "findQuery",
+            "in": "query",
+            "description": "Optional MongoDB-style query filter for advanced filtering",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 4
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of treatments ordered by most recent first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Treatment"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "V4 Treatments"
@@ -8923,6 +9047,101 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "V4 Treatments"
+        ],
+        "summary": "Update an existing treatment by ID",
+        "operationId": "Treatments_UpdateTreatment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "treatment",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Treatment"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Treatment"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "V4 Treatments"
+        ],
+        "summary": "Delete a treatment by ID",
+        "operationId": "Treatments_DeleteTreatment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
           },
           "404": {
             "description": "",
@@ -10646,7 +10865,7 @@
           "Treatments"
         ],
         "summary": "Get treatments with V3 API features including pagination, field selection, and advanced filtering",
-        "operationId": "Treatments_GetTreatments",
+        "operationId": "Treatments_GetTreatments2",
         "responses": {
           "200": {
             "description": "V3 treatments collection response",
@@ -10772,7 +10991,7 @@
           "Treatments"
         ],
         "summary": "Update a treatment via V3 API",
-        "operationId": "Treatments_UpdateTreatment",
+        "operationId": "Treatments_UpdateTreatment2",
         "parameters": [
           {
             "name": "id",
@@ -10839,7 +11058,7 @@
           "Treatments"
         ],
         "summary": "Delete a treatment via V3 API",
-        "operationId": "Treatments_DeleteTreatment",
+        "operationId": "Treatments_DeleteTreatment2",
         "parameters": [
           {
             "name": "id",
@@ -14427,7 +14646,7 @@
           "Treatments"
         ],
         "summary": "Get treatments with optional filtering and pagination",
-        "operationId": "Treatments_GetTreatments2",
+        "operationId": "Treatments_GetTreatments2All",
         "parameters": [
           {
             "name": "find",
@@ -14638,7 +14857,7 @@
           "Treatments"
         ],
         "summary": "Update an existing treatment by ID",
-        "operationId": "Treatments_UpdateTreatment2",
+        "operationId": "Treatments_UpdateTreatment22",
         "parameters": [
           {
             "name": "id",
@@ -14705,7 +14924,7 @@
           "Treatments"
         ],
         "summary": "Delete a treatment by ID",
-        "operationId": "Treatments_DeleteTreatment2",
+        "operationId": "Treatments_DeleteTreatment22",
         "parameters": [
           {
             "name": "id",
@@ -16347,6 +16566,146 @@
             "type": "boolean"
           }
         }
+      },
+      "StateSpanTypesMetadata": {
+        "type": "object",
+        "description": "Metadata about state span types for NSwag generation",
+        "additionalProperties": false,
+        "properties": {
+          "availableCategories": {
+            "type": "array",
+            "description": "Array of all available state span categories",
+            "items": {
+              "$ref": "#/components/schemas/StateSpanCategory"
+            }
+          },
+          "basalDeliveryStates": {
+            "type": "array",
+            "description": "Array of all basal delivery states",
+            "items": {
+              "$ref": "#/components/schemas/BasalDeliveryState"
+            }
+          },
+          "basalDeliveryOrigins": {
+            "type": "array",
+            "description": "Array of all basal delivery origin values",
+            "items": {
+              "$ref": "#/components/schemas/BasalDeliveryOrigin"
+            }
+          },
+          "pumpModeStates": {
+            "type": "array",
+            "description": "Array of all pump mode states",
+            "items": {
+              "$ref": "#/components/schemas/PumpModeState"
+            }
+          },
+          "pumpConnectivityStates": {
+            "type": "array",
+            "description": "Array of all pump connectivity states",
+            "items": {
+              "$ref": "#/components/schemas/PumpConnectivityState"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the state span types"
+          }
+        }
+      },
+      "StateSpanCategory": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "PumpMode",
+          "PumpConnectivity",
+          "Override",
+          "Profile",
+          "BasalDelivery",
+          "Sleep",
+          "Exercise",
+          "Illness",
+          "Travel"
+        ],
+        "enum": [
+          "PumpMode",
+          "PumpConnectivity",
+          "Override",
+          "Profile",
+          "BasalDelivery",
+          "Sleep",
+          "Exercise",
+          "Illness",
+          "Travel"
+        ]
+      },
+      "BasalDeliveryState": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Active"
+        ],
+        "enum": [
+          "Active"
+        ]
+      },
+      "BasalDeliveryOrigin": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Algorithm",
+          "Scheduled",
+          "Manual",
+          "Suspended"
+        ],
+        "enum": [
+          "Algorithm",
+          "Scheduled",
+          "Manual",
+          "Suspended"
+        ]
+      },
+      "PumpModeState": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Automatic",
+          "Limited",
+          "Manual",
+          "Boost",
+          "EaseOff",
+          "Sleep",
+          "Exercise",
+          "Suspended",
+          "Off"
+        ],
+        "enum": [
+          "Automatic",
+          "Limited",
+          "Manual",
+          "Boost",
+          "EaseOff",
+          "Sleep",
+          "Exercise",
+          "Suspended",
+          "Off"
+        ]
+      },
+      "PumpConnectivityState": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Connected",
+          "Disconnected",
+          "Removed",
+          "BluetoothOff"
+        ],
+        "enum": [
+          "Connected",
+          "Disconnected",
+          "Removed",
+          "BluetoothOff"
+        ]
       },
       "StatisticsTypesMetadata": {
         "type": "object",
@@ -20120,9 +20479,9 @@
               "$ref": "#/components/schemas/StateSpan"
             }
           },
-          "tempBasalSpans": {
+          "basalDeliverySpans": {
             "type": "array",
-            "description": "Temp basal state spans with rate and duration metadata",
+            "description": "Basal delivery state spans (pump-confirmed delivery data)",
             "items": {
               "$ref": "#/components/schemas/StateSpan"
             }
@@ -20165,17 +20524,21 @@
           },
           "rate": {
             "type": "number",
-            "description": "Effective basal rate in U/hr (includes temp basals and combo bolus)",
+            "description": "Effective basal rate in U/hr",
             "format": "double"
           },
           "scheduledRate": {
             "type": "number",
-            "description": "Scheduled basal rate from profile in U/hr (without temp basal modifications)",
+            "description": "Scheduled basal rate from profile in U/hr",
             "format": "double"
           },
-          "isTemp": {
-            "type": "boolean",
-            "description": "Whether this is a temporary basal rate"
+          "origin": {
+            "description": "Origin of this basal rate - where it came from",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BasalDeliveryOrigin"
+              }
+            ]
           }
         }
       },
@@ -20239,32 +20602,6 @@
             }
           }
         }
-      },
-      "StateSpanCategory": {
-        "type": "string",
-        "description": "",
-        "x-enumNames": [
-          "PumpMode",
-          "PumpConnectivity",
-          "Override",
-          "Profile",
-          "TempBasal",
-          "Sleep",
-          "Exercise",
-          "Illness",
-          "Travel"
-        ],
-        "enum": [
-          "PumpMode",
-          "PumpConnectivity",
-          "Override",
-          "Profile",
-          "TempBasal",
-          "Sleep",
-          "Exercise",
-          "Illness",
-          "Travel"
-        ]
       },
       "ProxyConfigurationDto": {
         "type": "object",
@@ -21085,7 +21422,8 @@
           "HelpResponse",
           "AnonymousLoginRequest",
           "PredictedLow",
-          "SuggestedMealMatch"
+          "SuggestedMealMatch",
+          "SuggestedTrackerMatch"
         ],
         "enum": [
           "PasswordResetRequest",
@@ -21095,7 +21433,8 @@
           "HelpResponse",
           "AnonymousLoginRequest",
           "PredictedLow",
-          "SuggestedMealMatch"
+          "SuggestedMealMatch",
+          "SuggestedTrackerMatch"
         ]
       },
       "NotificationUrgency": {
@@ -23410,6 +23749,31 @@
           "error": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "ConnectorDataSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "connectorId": {
+            "type": "string"
+          },
+          "entries": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "treatments": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "deviceStatuses": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

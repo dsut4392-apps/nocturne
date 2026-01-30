@@ -2281,6 +2281,45 @@ export class MetadataClient {
     }
 
     /**
+     * Get state span types metadata
+    This endpoint exposes all available state span categories and their states for type-safe usage in frontend clients
+     * @return State span types metadata
+     */
+    getStateSpanTypes(signal?: AbortSignal): Promise<StateSpanTypesMetadata> {
+        let url_ = this.baseUrl + "/api/Metadata/state-span-types";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetStateSpanTypes(_response);
+        });
+    }
+
+    protected processGetStateSpanTypes(response: Response): Promise<StateSpanTypesMetadata> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as StateSpanTypesMetadata;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<StateSpanTypesMetadata>(null as any);
+    }
+
+    /**
      * Get statistics metadata for type generation
     This endpoint exists primarily to ensure NSwag generates TypeScript types for statistics models
      * @return Statistics types metadata
@@ -8944,6 +8983,53 @@ export class ServicesClient {
     }
 
     /**
+     * Get a summary of data counts for a specific connector.
+    Returns the number of entries, treatments, and device statuses synced by this connector.
+     * @param id Connector ID (e.g., "dexcom")
+     * @return Data summary with counts by type
+     */
+    getConnectorDataSummary(id: string, signal?: AbortSignal): Promise<ConnectorDataSummary> {
+        let url_ = this.baseUrl + "/api/v4/services/connectors/{id}/data-summary";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetConnectorDataSummary(_response);
+        });
+    }
+
+    protected processGetConnectorDataSummary(response: Response): Promise<ConnectorDataSummary> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ConnectorDataSummary;
+            return result200;
+            });
+        } else if (status === 500) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ConnectorDataSummary>(null as any);
+    }
+
+    /**
      * Delete all data from a specific connector.
     WARNING: This is a destructive operation that cannot be undone.
      * @param id Connector ID (e.g., "dexcom")
@@ -9454,12 +9540,12 @@ export class StateSpansClient {
     }
 
     /**
-     * Get temp basal state spans
+     * Get basal delivery state spans (pump-confirmed basal rates)
      * @param from (optional) 
      * @param to (optional) 
      */
-    getTempBasals(from?: number | null | undefined, to?: number | null | undefined, signal?: AbortSignal): Promise<StateSpan[]> {
-        let url_ = this.baseUrl + "/api/v4/state-spans/temp-basals?";
+    getBasalDelivery(from?: number | null | undefined, to?: number | null | undefined, signal?: AbortSignal): Promise<StateSpan[]> {
+        let url_ = this.baseUrl + "/api/v4/state-spans/basal-delivery?";
         if (from !== undefined && from !== null)
             url_ += "from=" + encodeURIComponent("" + from) + "&";
         if (to !== undefined && to !== null)
@@ -9475,11 +9561,11 @@ export class StateSpansClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetTempBasals(_response);
+            return this.processGetBasalDelivery(_response);
         });
     }
 
-    protected processGetTempBasals(response: Response): Promise<StateSpan[]> {
+    protected processGetBasalDelivery(response: Response): Promise<StateSpan[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -11312,6 +11398,62 @@ export class TreatmentsClient {
     }
 
     /**
+     * Get treatments with optional filtering and pagination.
+    Unlike V1-V3 endpoints, this does NOT include StateSpan-derived basal data.
+    For basal delivery, query /api/v4/state-spans?category=BasalDelivery instead.
+     * @param eventType (optional) Optional filter by event type
+     * @param count (optional) Maximum number of treatments to return (default: 100)
+     * @param skip (optional) Number of treatments to skip for pagination (default: 0)
+     * @param findQuery (optional) Optional MongoDB-style query filter for advanced filtering
+     * @return Array of treatments ordered by most recent first
+     */
+    getTreatments(eventType?: string | null | undefined, count?: number | undefined, skip?: number | undefined, findQuery?: string | null | undefined, signal?: AbortSignal): Promise<Treatment[]> {
+        let url_ = this.baseUrl + "/api/v4/treatments?";
+        if (eventType !== undefined && eventType !== null)
+            url_ += "eventType=" + encodeURIComponent("" + eventType) + "&";
+        if (count === null)
+            throw new globalThis.Error("The parameter 'count' cannot be null.");
+        else if (count !== undefined)
+            url_ += "count=" + encodeURIComponent("" + count) + "&";
+        if (skip === null)
+            throw new globalThis.Error("The parameter 'skip' cannot be null.");
+        else if (skip !== undefined)
+            url_ += "skip=" + encodeURIComponent("" + skip) + "&";
+        if (findQuery !== undefined && findQuery !== null)
+            url_ += "find=" + encodeURIComponent("" + findQuery) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetTreatments(_response);
+        });
+    }
+
+    protected processGetTreatments(response: Response): Promise<Treatment[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Treatment[];
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Treatment[]>(null as any);
+    }
+
+    /**
      * Create a treatment with tracker integration.
     If the treatment's event type matches a tracker's trigger event types,
     the tracker instance will be automatically started/restarted.
@@ -11454,10 +11596,109 @@ export class TreatmentsClient {
     }
 
     /**
+     * Update an existing treatment by ID
+     */
+    updateTreatment(id: string, treatment: Treatment, signal?: AbortSignal): Promise<Treatment> {
+        let url_ = this.baseUrl + "/api/v4/treatments/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(treatment);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdateTreatment(_response);
+        });
+    }
+
+    protected processUpdateTreatment(response: Response): Promise<Treatment> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Treatment;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Treatment>(null as any);
+    }
+
+    /**
+     * Delete a treatment by ID
+     */
+    deleteTreatment(id: string, signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/v4/treatments/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDeleteTreatment(_response);
+        });
+    }
+
+    protected processDeleteTreatment(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            result404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
      * Get treatments with V3 API features including pagination, field selection, and advanced filtering
      * @return V3 treatments collection response
      */
-    getTreatments(signal?: AbortSignal): Promise<V3CollectionResponseOfObject> {
+    getTreatments2(signal?: AbortSignal): Promise<V3CollectionResponseOfObject> {
         let url_ = this.baseUrl + "/api/v3/Treatments";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -11470,11 +11711,11 @@ export class TreatmentsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetTreatments(_response);
+            return this.processGetTreatments2(_response);
         });
     }
 
-    protected processGetTreatments(response: Response): Promise<V3CollectionResponseOfObject> {
+    protected processGetTreatments2(response: Response): Promise<V3CollectionResponseOfObject> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -11616,7 +11857,7 @@ export class TreatmentsClient {
      * @param treatment Updated treatment data
      * @return Updated treatment
      */
-    updateTreatment(id: string, treatment: Treatment, signal?: AbortSignal): Promise<Treatment> {
+    updateTreatment2(id: string, treatment: Treatment, signal?: AbortSignal): Promise<Treatment> {
         let url_ = this.baseUrl + "/api/v3/Treatments/{id}";
         if (id === undefined || id === null)
             throw new globalThis.Error("The parameter 'id' must be defined.");
@@ -11636,11 +11877,11 @@ export class TreatmentsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdateTreatment(_response);
+            return this.processUpdateTreatment2(_response);
         });
     }
 
-    protected processUpdateTreatment(response: Response): Promise<Treatment> {
+    protected processUpdateTreatment2(response: Response): Promise<Treatment> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -11678,7 +11919,7 @@ export class TreatmentsClient {
      * @param id Treatment ID
      * @return No content on success
      */
-    deleteTreatment(id: string, signal?: AbortSignal): Promise<void> {
+    deleteTreatment2(id: string, signal?: AbortSignal): Promise<void> {
         let url_ = this.baseUrl + "/api/v3/Treatments/{id}";
         if (id === undefined || id === null)
             throw new globalThis.Error("The parameter 'id' must be defined.");
@@ -11693,11 +11934,11 @@ export class TreatmentsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDeleteTreatment(_response);
+            return this.processDeleteTreatment2(_response);
         });
     }
 
-    protected processDeleteTreatment(response: Response): Promise<void> {
+    protected processDeleteTreatment2(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -11783,7 +12024,7 @@ export class TreatmentsClient {
      * @param format (optional) Output format (json, csv, tsv, txt)
      * @return Array of treatments ordered by most recent first
      */
-    getTreatments2(find?: string | null | undefined, count?: number | undefined, skip?: number | undefined, format?: string | null | undefined, signal?: AbortSignal): Promise<Treatment[]> {
+    getTreatments2All(find?: string | null | undefined, count?: number | undefined, skip?: number | undefined, format?: string | null | undefined, signal?: AbortSignal): Promise<Treatment[]> {
         let url_ = this.baseUrl + "/api/v1/Treatments?";
         if (find !== undefined && find !== null)
             url_ += "find=" + encodeURIComponent("" + find) + "&";
@@ -11808,11 +12049,11 @@ export class TreatmentsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetTreatments2(_response);
+            return this.processGetTreatments2All(_response);
         });
     }
 
-    protected processGetTreatments2(response: Response): Promise<Treatment[]> {
+    protected processGetTreatments2All(response: Response): Promise<Treatment[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -12004,7 +12245,7 @@ export class TreatmentsClient {
      * @param treatment Updated treatment data
      * @return Updated treatment
      */
-    updateTreatment2(id: string, treatment: Treatment, signal?: AbortSignal): Promise<Treatment> {
+    updateTreatment22(id: string, treatment: Treatment, signal?: AbortSignal): Promise<Treatment> {
         let url_ = this.baseUrl + "/api/v1/Treatments/{id}";
         if (id === undefined || id === null)
             throw new globalThis.Error("The parameter 'id' must be defined.");
@@ -12024,11 +12265,11 @@ export class TreatmentsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdateTreatment2(_response);
+            return this.processUpdateTreatment22(_response);
         });
     }
 
-    protected processUpdateTreatment2(response: Response): Promise<Treatment> {
+    protected processUpdateTreatment22(response: Response): Promise<Treatment> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -12066,7 +12307,7 @@ export class TreatmentsClient {
      * @param id Treatment ID to delete
      * @return Success status
      */
-    deleteTreatment2(id: string, signal?: AbortSignal): Promise<void> {
+    deleteTreatment22(id: string, signal?: AbortSignal): Promise<void> {
         let url_ = this.baseUrl + "/api/v1/Treatments/{id}";
         if (id === undefined || id === null)
             throw new globalThis.Error("The parameter 'id' must be defined.");
@@ -12081,11 +12322,11 @@ export class TreatmentsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDeleteTreatment2(_response);
+            return this.processDeleteTreatment22(_response);
         });
     }
 
-    protected processDeleteTreatment2(response: Response): Promise<void> {
+    protected processDeleteTreatment22(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -18285,6 +18526,64 @@ export interface EventTypeConfiguration {
     sensor?: boolean;
 }
 
+/** Metadata about state span types for NSwag generation */
+export interface StateSpanTypesMetadata {
+    /** Array of all available state span categories */
+    availableCategories?: StateSpanCategory[];
+    /** Array of all basal delivery states */
+    basalDeliveryStates?: BasalDeliveryState[];
+    /** Array of all basal delivery origin values */
+    basalDeliveryOrigins?: BasalDeliveryOrigin[];
+    /** Array of all pump mode states */
+    pumpModeStates?: PumpModeState[];
+    /** Array of all pump connectivity states */
+    pumpConnectivityStates?: PumpConnectivityState[];
+    /** Description of the state span types */
+    description?: string;
+}
+
+export enum StateSpanCategory {
+    PumpMode = "PumpMode",
+    PumpConnectivity = "PumpConnectivity",
+    Override = "Override",
+    Profile = "Profile",
+    BasalDelivery = "BasalDelivery",
+    Sleep = "Sleep",
+    Exercise = "Exercise",
+    Illness = "Illness",
+    Travel = "Travel",
+}
+
+export enum BasalDeliveryState {
+    Active = "Active",
+}
+
+export enum BasalDeliveryOrigin {
+    Algorithm = "Algorithm",
+    Scheduled = "Scheduled",
+    Manual = "Manual",
+    Suspended = "Suspended",
+}
+
+export enum PumpModeState {
+    Automatic = "Automatic",
+    Limited = "Limited",
+    Manual = "Manual",
+    Boost = "Boost",
+    EaseOff = "EaseOff",
+    Sleep = "Sleep",
+    Exercise = "Exercise",
+    Suspended = "Suspended",
+    Off = "Off",
+}
+
+export enum PumpConnectivityState {
+    Connected = "Connected",
+    Disconnected = "Disconnected",
+    Removed = "Removed",
+    BluetoothOff = "BluetoothOff",
+}
+
 /** Metadata about statistics types for NSwag generation */
 export interface StatisticsTypesMetadata {
     /** Description of the statistics types */
@@ -19428,8 +19727,8 @@ export interface DashboardChartData {
     maxCob?: number;
     /** Pump mode state spans for chart background coloring */
     pumpModeSpans?: StateSpan[];
-    /** Temp basal state spans with rate and duration metadata */
-    tempBasalSpans?: StateSpan[];
+    /** Basal delivery state spans (pump-confirmed delivery data) */
+    basalDeliverySpans?: StateSpan[];
     /** Profile state spans showing active profile changes */
     profileSpans?: StateSpan[];
 }
@@ -19446,12 +19745,12 @@ export interface TimeSeriesPoint {
 export interface BasalPoint {
     /** Timestamp in Unix milliseconds */
     timestamp?: number;
-    /** Effective basal rate in U/hr (includes temp basals and combo bolus) */
+    /** Effective basal rate in U/hr */
     rate?: number;
-    /** Scheduled basal rate from profile in U/hr (without temp basal modifications) */
+    /** Scheduled basal rate from profile in U/hr */
     scheduledRate?: number;
-    /** Whether this is a temporary basal rate */
-    isTemp?: boolean;
+    /** Origin of this basal rate - where it came from */
+    origin?: BasalDeliveryOrigin;
 }
 
 export interface StateSpan {
@@ -19467,18 +19766,6 @@ export interface StateSpan {
     updatedAt?: Date | undefined;
     canonicalId?: string | undefined;
     sources?: string[] | undefined;
-}
-
-export enum StateSpanCategory {
-    PumpMode = "PumpMode",
-    PumpConnectivity = "PumpConnectivity",
-    Override = "Override",
-    Profile = "Profile",
-    TempBasal = "TempBasal",
-    Sleep = "Sleep",
-    Exercise = "Exercise",
-    Illness = "Illness",
-    Travel = "Travel",
 }
 
 /** Proxy configuration DTO */
@@ -19753,6 +20040,7 @@ export enum InAppNotificationType {
     AnonymousLoginRequest = "AnonymousLoginRequest",
     PredictedLow = "PredictedLow",
     SuggestedMealMatch = "SuggestedMealMatch",
+    SuggestedTrackerMatch = "SuggestedTrackerMatch",
 }
 
 export enum NotificationUrgency {
@@ -20522,6 +20810,14 @@ export interface DataSourceDeleteResult {
     deviceStatusDeleted?: number;
     dataSource?: string;
     error?: string | undefined;
+}
+
+export interface ConnectorDataSummary {
+    connectorId?: string;
+    entries?: number;
+    treatments?: number;
+    deviceStatuses?: number;
+    total?: number;
 }
 
 export interface SyncResult {

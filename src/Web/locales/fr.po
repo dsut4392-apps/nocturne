@@ -1011,17 +1011,18 @@ msgstr "Insuline :"
 #. placeholder {0}: marker.insulin.toFixed(1)
 #. placeholder {0}: insulin.toFixed(1)
 #. placeholder {0}: averageTdd.toFixed(1)
+#. placeholder {0}: formatInsulinDisplay(treatmentSummary?.totals?.insulin?.bolus)
 #. placeholder {0}: formatInsulinDisplay(treatmentSummary?.totals?.insulin?.basal)
 #. placeholder {0}: formatInsulinDisplay((treatmentSummary?.totals?.insulin?.bolus ?? 0) + (treatmentSummary?.totals?.insulin?.basal ?? 0))
 #. placeholder {0}: formatInsulinDisplay((entry.treatmentSummary?.totals?.insulin?.bolus ?? 0) + (entry.treatmentSummary?.totals?.insulin?.basal ?? 0))
 #. placeholder {0}: morning.toFixed(1)
-#. placeholder {0}: morning.toFixed(1)
 #. placeholder {0}: afternoon.toFixed(1)
 #. placeholder {0}: evening.toFixed(1)
-#. placeholder {0}: totalInsulin.toFixed(1)
+#. placeholder {0}: formatInsulinDisplay(averages.avgTotalDaily)
 #. placeholder {0}: totalInsulin.toFixed(1)
 #. placeholder {0}: day.totalInsulin.toFixed(1)
 #. placeholder {0}: monthSummary.avgInsulin.toFixed(1)
+#. placeholder {0}: dayTotalInsulin.toFixed(1)
 #. placeholder {0}: meal.treatment.insulin.toFixed(1)
 #. placeholder {0}: treatmentStats.totalBolus.toFixed(1)
 #. placeholder {0}: treatmentStats.totalBolus.toFixed(1)
@@ -14182,34 +14183,4 @@ msgstr ""
 
 #: src/lib/components/ui/danger-zone-dialog/danger-zone-dialog.svelte
 msgid "<0/> Processing..."
-msgstr ""
-
-#: src/lib/components/layout/AppSidebar.svelte
-msgid "Medications"
-msgstr ""
-
-#: src/routes/+page.svelte
-msgid "Treatment created"
-msgstr ""
-
-#: src/routes/+page.svelte
-msgid "Failed to create treatment"
-msgstr ""
-
-#: src/lib/components/treatments/TreatmentEditDialog.svelte
-msgid "Dose (mg)"
-msgstr ""
-
-#: src/lib/components/treatments/TreatmentEditDialog.svelte
-msgid "<0/> Medication Type"
-msgstr ""
-
-#: src/lib/components/treatments/TreatmentEditDialog.svelte
-#: src/lib/components/treatments/TreatmentEditDialog.svelte
-msgid "Default (from profile)"
-msgstr ""
-
-#. placeholder {0}: med.dia
-#: src/lib/components/treatments/TreatmentEditDialog.svelte
-msgid "({0}h DIA)"
 msgstr ""

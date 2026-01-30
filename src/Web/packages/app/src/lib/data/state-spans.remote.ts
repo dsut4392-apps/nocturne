@@ -5,7 +5,7 @@
 import { getRequestEvent, query } from '$app/server';
 import { z } from 'zod';
 import { error } from '@sveltejs/kit';
-import { StateSpanCategory, SystemEventType, SystemEventCategory } from '$lib/api';
+import { StateSpanCategory, SystemEventType, SystemEventCategory, BasalDeliveryOrigin } from '$lib/api';
 
 /**
  * Input schema for state data queries
@@ -44,6 +44,19 @@ export interface SystemEventChartData {
 }
 
 /**
+ * Processed basal delivery span for chart rendering
+ */
+export interface BasalDeliveryChartData {
+	id: string;
+	startTime: Date;
+	endTime: Date | null;
+	rate: number;
+	origin: BasalDeliveryOrigin;
+	source?: string;
+	color: string;
+}
+
+/**
  * Combined state data response for charts
  */
 export interface ChartStateData {
@@ -53,6 +66,7 @@ export interface ChartStateData {
 	overrideSpans: StateSpanChartData[];
 	profileSpans: StateSpanChartData[];
 	activitySpans: StateSpanChartData[];
+	basalDeliverySpans: BasalDeliveryChartData[];
 	systemEvents: SystemEventChartData[];
 }
 
@@ -141,6 +155,19 @@ function getActivityColor(category: StateSpanCategory, _state: string): string {
 }
 
 /**
+ * Map basal delivery origin to CSS color variable
+ */
+function getBasalDeliveryColor(origin: BasalDeliveryOrigin): string {
+	const originColors: Record<BasalDeliveryOrigin, string> = {
+		[BasalDeliveryOrigin.Algorithm]: 'var(--insulin-basal)',
+		[BasalDeliveryOrigin.Scheduled]: 'var(--insulin-basal)',
+		[BasalDeliveryOrigin.Manual]: 'var(--insulin-temp-basal)',
+		[BasalDeliveryOrigin.Suspended]: 'var(--pump-mode-suspended)',
+	};
+	return originColors[origin] ?? 'var(--insulin-basal)';
+}
+
+/**
  * Get state span and system event data for chart visualization
  */
 export const getChartStateData = query(stateDataSchema, async ({ startTime, endTime }) => {
@@ -152,18 +179,23 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 		const [
 			pumpModeSpans,
 			connectivitySpans,
-			tempBasalSpans,
 			overrideSpans,
 			profileSpans,
 			activitySpans,
+			basalDeliverySpans,
 			systemEvents,
 		] = await Promise.all([
 			apiClient.stateSpans.getPumpModes(startTime, endTime),
 			apiClient.stateSpans.getConnectivity(startTime, endTime),
-			apiClient.stateSpans.getTempBasals(startTime, endTime),
 			apiClient.stateSpans.getOverrides(startTime, endTime),
 			apiClient.stateSpans.getProfiles(startTime, endTime),
 			apiClient.stateSpans.getActivities(startTime, endTime),
+			apiClient.stateSpans.getStateSpans(
+				StateSpanCategory.BasalDelivery,
+				undefined, // state - get all
+				startTime,
+				endTime
+			),
 			apiClient.systemEvents.getSystemEvents(
 				undefined, // type - get all
 				undefined, // category - get all
@@ -194,16 +226,18 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 			metadata: span.metadata,
 		}));
 
-		// Transform temp basal spans
-		const processedTempBasals: StateSpanChartData[] = (tempBasalSpans ?? []).map((span) => ({
-			id: span.id ?? '',
-			category: span.category ?? StateSpanCategory.TempBasal,
-			state: span.state ?? 'Unknown',
-			startTime: new Date(span.startMills ?? 0),
-			endTime: span.endMills ? new Date(span.endMills) : null,
-			color: getTempBasalColor(span.state ?? ''),
-			metadata: span.metadata,
-		}));
+		// Derive temp basal spans from basal delivery spans with Manual origin
+		const processedTempBasals: StateSpanChartData[] = (basalDeliverySpans ?? [])
+			.filter((span) => (span.metadata?.origin as BasalDeliveryOrigin) === BasalDeliveryOrigin.Manual)
+			.map((span) => ({
+				id: span.id ?? '',
+				category: StateSpanCategory.BasalDelivery,
+				state: 'TempBasal',
+				startTime: new Date(span.startMills ?? 0),
+				endTime: span.endMills ? new Date(span.endMills) : null,
+				color: getTempBasalColor('TempBasal'),
+				metadata: span.metadata,
+			}));
 
 		// Transform override spans
 		const processedOverrides: StateSpanChartData[] = (overrideSpans ?? []).map((span) => ({
@@ -249,6 +283,20 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 			color: getSystemEventColor(event.eventType ?? SystemEventType.Info),
 		}));
 
+		// Transform basal delivery spans
+		const processedBasalDelivery: BasalDeliveryChartData[] = (basalDeliverySpans ?? []).map((span) => {
+			const origin = (span.metadata?.origin as BasalDeliveryOrigin) ?? BasalDeliveryOrigin.Scheduled;
+			return {
+				id: span.id ?? '',
+				startTime: new Date(span.startMills ?? 0),
+				endTime: span.endMills ? new Date(span.endMills) : null,
+				rate: (span.metadata?.rate as number) ?? 0,
+				origin,
+				source: span.source,
+				color: getBasalDeliveryColor(origin),
+			};
+		});
+
 		return {
 			pumpModeSpans: processedPumpModes,
 			connectivitySpans: processedConnectivity,
@@ -256,6 +304,7 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 			overrideSpans: processedOverrides,
 			profileSpans: processedProfiles,
 			activitySpans: processedActivities,
+			basalDeliverySpans: processedBasalDelivery,
 			systemEvents: processedEvents,
 		};
 	} catch (err) {
@@ -290,6 +339,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 			overrideSpans: [],
 			profileSpans: [],
 			activitySpans: [],
+			basalDeliverySpans: [],
 			systemEvents: [],
 		};
 	}
@@ -344,7 +394,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 	const tempBasalSpans: StateSpanChartData[] = [
 		{
 			id: 'test-temp-1',
-			category: StateSpanCategory.TempBasal,
+			category: StateSpanCategory.BasalDelivery,
 			state: 'TempBasal',
 			startTime: new Date(dayAgo + 2 * hour),
 			endTime: new Date(dayAgo + 2.5 * hour),
@@ -353,7 +403,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 		},
 		{
 			id: 'test-temp-2',
-			category: StateSpanCategory.TempBasal,
+			category: StateSpanCategory.BasalDelivery,
 			state: 'TempBasal',
 			startTime: new Date(dayAgo + 5 * hour),
 			endTime: new Date(dayAgo + 6 * hour),
@@ -362,7 +412,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 		},
 		{
 			id: 'test-temp-3',
-			category: StateSpanCategory.TempBasal,
+			category: StateSpanCategory.BasalDelivery,
 			state: 'TempBasal',
 			startTime: new Date(dayAgo + 10 * hour),
 			endTime: new Date(dayAgo + 10.75 * hour),
@@ -371,7 +421,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 		},
 		{
 			id: 'test-temp-4',
-			category: StateSpanCategory.TempBasal,
+			category: StateSpanCategory.BasalDelivery,
 			state: 'TempBasal',
 			startTime: new Date(dayAgo + 16 * hour),
 			endTime: new Date(dayAgo + 17 * hour),
@@ -380,7 +430,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 		},
 		{
 			id: 'test-temp-5',
-			category: StateSpanCategory.TempBasal,
+			category: StateSpanCategory.BasalDelivery,
 			state: 'TempBasal',
 			startTime: new Date(dayAgo + 20 * hour),
 			endTime: new Date(dayAgo + 21 * hour),
@@ -504,6 +554,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 		overrideSpans,
 		profileSpans,
 		activitySpans,
+		basalDeliverySpans: [],
 		systemEvents: [],
 	};
 }

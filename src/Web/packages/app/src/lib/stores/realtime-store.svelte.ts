@@ -215,7 +215,7 @@ export class RealtimeStore {
       const apiClient = getApiClient();
       const [historicalEntries, historicalTreatments, deviceStatusData, profileData, trackerDefs, trackerActive, notifications] = await Promise.all([
         apiClient.entries.getEntries2(undefined, 1000),
-        apiClient.treatments.getTreatments2(undefined, 500),
+        apiClient.treatments.getTreatments(undefined, 500),
         apiClient.deviceStatus.getDeviceStatus2(undefined, 100).catch(() => []),
         apiClient.profile.getProfiles2(1).catch(() => []),
         apiClient.trackers.getDefinitions().catch(() => []),
@@ -658,7 +658,7 @@ export class RealtimeStore {
       // Note: getDeviceStatus2 doesn't support find queries, so we fetch recent and filter client-side
       const [entries, treatments, deviceStatuses] = await Promise.all([
         apiClient.entries.getEntries2(findQuery, 1000).catch(() => []),
-        apiClient.treatments.getTreatments2(findQuery, 500).catch(() => []),
+        apiClient.treatments.getTreatments(undefined, 500, undefined, findQuery).catch(() => []),
         apiClient.deviceStatus.getDeviceStatus2(100).catch(() => []),
       ]);
 

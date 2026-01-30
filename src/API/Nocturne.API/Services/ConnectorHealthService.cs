@@ -162,17 +162,11 @@ public class ConnectorHealthService : IConnectorHealthService
             liveStatus.State = "Not Configured";
         }
 
-        // Prefer live stats if available, fall back to DB stats
-        // (live stats should be accurate, but DB stats provide backup)
-        if (liveStatus.TotalEntries == 0 && dbStats.TotalItems > 0)
-        {
-            liveStatus.TotalEntries = dbStats.TotalItems;
-            liveStatus.LastEntryTime ??= dbStats.LastItemTime;
-            liveStatus.EntriesLast24Hours = Math.Max(
-                liveStatus.EntriesLast24Hours,
-                dbStats.ItemsLast24Hours
-            );
-        }
+        // ALWAYS use database stats for entry counts - sidecar stats may be stale/cached
+        // DB is the single source of truth for how much data exists
+        liveStatus.TotalEntries = dbStats.TotalItems;
+        liveStatus.LastEntryTime = dbStats.LastItemTime;
+        liveStatus.EntriesLast24Hours = dbStats.ItemsLast24Hours;
 
         return liveStatus;
     }

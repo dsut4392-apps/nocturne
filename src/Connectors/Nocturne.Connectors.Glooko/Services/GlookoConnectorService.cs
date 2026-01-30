@@ -1549,28 +1549,27 @@ namespace Nocturne.Connectors.Glooko.Services
 
             var series = graphData.Series;
 
-            // Process Suspend Basals as pump mode state spans
+            // Process Suspend Basals as pump mode state spans and BasalDelivery spans
             if (series.SuspendBasal != null)
             {
                 foreach (var suspend in series.SuspendBasal)
                 {
                     var startTimestamp = GetCorrectedGlookoTime(suspend.X);
                     var durationSeconds = suspend.Duration ?? 0;
+                    var startMills = new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds();
                     var endMills =
                         durationSeconds > 0
-                            ? new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds()
-                                + (durationSeconds * 1000)
+                            ? startMills + (durationSeconds * 1000)
                             : (long?)null;
 
+                    // PumpMode StateSpan for suspend state tracking
                     stateSpans.Add(
                         new StateSpan
                         {
                             OriginalId = $"glooko_suspend_{suspend.X}",
                             Category = StateSpanCategory.PumpMode,
                             State = PumpModeState.Suspended.ToString(),
-                            StartMills = new DateTimeOffset(
-                                startTimestamp
-                            ).ToUnixTimeMilliseconds(),
+                            StartMills = startMills,
                             EndMills = endMills,
                             Source = ConnectorSource,
                             Metadata = new Dictionary<string, object>
@@ -1580,20 +1579,39 @@ namespace Nocturne.Connectors.Glooko.Services
                             },
                         }
                     );
+
+                    // BasalDelivery StateSpan for suspended basal visualization
+                    stateSpans.Add(
+                        new StateSpan
+                        {
+                            OriginalId = $"glooko_suspend_basal_{suspend.X}",
+                            Category = StateSpanCategory.BasalDelivery,
+                            State = BasalDeliveryState.Active.ToString(),
+                            StartMills = startMills,
+                            EndMills = endMills,
+                            Source = ConnectorSource,
+                            Metadata = new Dictionary<string, object>
+                            {
+                                { "rate", 0.0 },
+                                { "origin", BasalDeliveryOrigin.Suspended.ToString() },
+                                { "durationSeconds", durationSeconds },
+                            },
+                        }
+                    );
                 }
             }
 
-            // Process LGS/PLGS events as pump mode state spans
+            // Process LGS/PLGS events as pump mode state spans and BasalDelivery spans
             if (series.LgsPlgs != null)
             {
                 foreach (var lgsEvent in series.LgsPlgs)
                 {
                     var startTimestamp = GetCorrectedGlookoTime(lgsEvent.X);
                     var durationSeconds = lgsEvent.Duration ?? 0;
+                    var startMills = new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds();
                     var endMills =
                         durationSeconds > 0
-                            ? new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds()
-                                + (durationSeconds * 1000)
+                            ? startMills + (durationSeconds * 1000)
                             : (long?)null;
 
                     // Map LGS/PLGS event types to pump mode states
@@ -1605,20 +1623,44 @@ namespace Nocturne.Connectors.Glooko.Services
                         _ => PumpModeState.Limited.ToString(),
                     };
 
+                    // PumpMode StateSpan for LGS/PLGS state tracking
                     stateSpans.Add(
                         new StateSpan
                         {
                             OriginalId = $"glooko_lgsplgs_{lgsEvent.X}",
                             Category = StateSpanCategory.PumpMode,
                             State = stateValue,
-                            StartMills = new DateTimeOffset(
-                                startTimestamp
-                            ).ToUnixTimeMilliseconds(),
+                            StartMills = startMills,
                             EndMills = endMills,
                             Source = ConnectorSource,
                             Metadata = new Dictionary<string, object>
                             {
                                 { "label", lgsEvent.Label ?? lgsEvent.EventType ?? "LGS/PLGS" },
+                                { "eventType", lgsEvent.EventType ?? "unknown" },
+                                { "durationSeconds", durationSeconds },
+                            },
+                        }
+                    );
+
+                    // BasalDelivery StateSpan for algorithm-controlled basal (LGS/PLGS = suspended by algorithm)
+                    // LGS/PLGS are algorithm-initiated suspensions, so rate is 0 with Algorithm origin
+                    var basalOrigin = lgsEvent.EventType?.ToUpperInvariant() == "SUSPEND"
+                        ? BasalDeliveryOrigin.Suspended
+                        : BasalDeliveryOrigin.Algorithm;
+
+                    stateSpans.Add(
+                        new StateSpan
+                        {
+                            OriginalId = $"glooko_lgsplgs_basal_{lgsEvent.X}",
+                            Category = StateSpanCategory.BasalDelivery,
+                            State = BasalDeliveryState.Active.ToString(),
+                            StartMills = startMills,
+                            EndMills = endMills,
+                            Source = ConnectorSource,
+                            Metadata = new Dictionary<string, object>
+                            {
+                                { "rate", 0.0 },
+                                { "origin", basalOrigin.ToString() },
                                 { "eventType", lgsEvent.EventType ?? "unknown" },
                                 { "durationSeconds", durationSeconds },
                             },
@@ -1665,17 +1707,17 @@ namespace Nocturne.Connectors.Glooko.Services
                 }
             }
 
-            // Process Temporary Basals as TempBasal state spans
+            // Process Temporary Basals as BasalDelivery spans
             if (series.TemporaryBasal != null)
             {
                 foreach (var tempBasal in series.TemporaryBasal)
                 {
                     var startTimestamp = GetCorrectedGlookoTime(tempBasal.X);
                     var durationSeconds = tempBasal.Duration ?? 0;
+                    var startMills = new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds();
                     var endMills =
                         durationSeconds > 0
-                            ? new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds()
-                                + (durationSeconds * 1000)
+                            ? startMills + (durationSeconds * 1000)
                             : (long?)null;
 
                     // Rate is stored in Y field (U/hr)
@@ -1684,24 +1726,23 @@ namespace Nocturne.Connectors.Glooko.Services
                     // Calculate total insulin delivered: rate (U/hr) × duration (seconds) / 3600 (seconds/hr)
                     var calculatedInsulin = rate * durationSeconds / 3600.0;
 
+                    // BasalDelivery StateSpan for temp basal visualization
+                    // Temp basals from Glooko are user-initiated (Manual origin)
                     stateSpans.Add(
                         new StateSpan
                         {
                             OriginalId = $"glooko_tempbasal_{tempBasal.X}",
-                            Category = StateSpanCategory.TempBasal,
-                            State = TempBasalState.Active.ToString(),
-                            StartMills = new DateTimeOffset(
-                                startTimestamp
-                            ).ToUnixTimeMilliseconds(),
+                            Category = StateSpanCategory.BasalDelivery,
+                            State = BasalDeliveryState.Active.ToString(),
+                            StartMills = startMills,
                             EndMills = endMills,
                             Source = ConnectorSource,
                             Metadata = new Dictionary<string, object>
                             {
                                 { "rate", rate },
+                                { "origin", BasalDeliveryOrigin.Manual.ToString() },
                                 { "durationSeconds", durationSeconds },
-                                { "durationMinutes", durationSeconds / 60.0 },
                                 { "calculatedInsulin", calculatedInsulin },
-                                { "label", tempBasal.Label ?? "Temp Basal" },
                             },
                         }
                     );
@@ -1727,7 +1768,7 @@ namespace Nocturne.Connectors.Glooko.Services
             if (batchData == null)
                 return stateSpans;
 
-            // Process Temporary Basals as TempBasal state spans
+            // Process Temporary Basals as BasalDelivery spans
             if (batchData.TempBasals != null)
             {
                 foreach (var tempBasal in batchData.TempBasals)
@@ -1739,10 +1780,10 @@ namespace Nocturne.Connectors.Glooko.Services
                     );
                     var startTimestamp = GetCorrectedGlookoTime(rawTimestamp);
                     var durationSeconds = tempBasal.Duration;
+                    var startMills = new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds();
                     var endMills =
                         durationSeconds > 0
-                            ? new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds()
-                                + (durationSeconds * 1000)
+                            ? startMills + (durationSeconds * 1000)
                             : (long?)null;
 
                     // Rate is U/hr
@@ -1751,32 +1792,29 @@ namespace Nocturne.Connectors.Glooko.Services
                     // Calculate total insulin delivered: rate (U/hr) × duration (seconds) / 3600 (seconds/hr)
                     var calculatedInsulin = rate * durationSeconds / 3600.0;
 
+                    // BasalDelivery StateSpan for temp basal visualization
                     stateSpans.Add(
                         new StateSpan
                         {
                             OriginalId = $"glooko_v2_tempbasal_{rawTimestamp.Ticks}",
-                            Category = StateSpanCategory.TempBasal,
-                            State = TempBasalState.Active.ToString(),
-                            StartMills = new DateTimeOffset(
-                                startTimestamp
-                            ).ToUnixTimeMilliseconds(),
+                            Category = StateSpanCategory.BasalDelivery,
+                            State = BasalDeliveryState.Active.ToString(),
+                            StartMills = startMills,
                             EndMills = endMills,
                             Source = ConnectorSource,
                             Metadata = new Dictionary<string, object>
                             {
                                 { "rate", rate },
+                                { "origin", BasalDeliveryOrigin.Manual.ToString() },
                                 { "durationSeconds", durationSeconds },
-                                { "durationMinutes", durationSeconds / 60.0 },
                                 { "calculatedInsulin", calculatedInsulin },
-                                { "percent", tempBasal.Percent ?? 100 },
-                                { "tempBasalType", tempBasal.TempBasalType ?? "unknown" },
                             },
                         }
                     );
                 }
             }
 
-            // Process Suspend Basals as PumpMode state spans
+            // Process Suspend Basals as PumpMode state spans and BasalDelivery spans
             if (batchData.SuspendBasals != null)
             {
                 foreach (var suspend in batchData.SuspendBasals)
@@ -1788,25 +1826,44 @@ namespace Nocturne.Connectors.Glooko.Services
                     );
                     var startTimestamp = GetCorrectedGlookoTime(rawTimestamp);
                     var durationSeconds = suspend.Duration;
+                    var startMills = new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds();
                     var endMills =
                         durationSeconds > 0
-                            ? new DateTimeOffset(startTimestamp).ToUnixTimeMilliseconds()
-                                + (durationSeconds * 1000)
+                            ? startMills + (durationSeconds * 1000)
                             : (long?)null;
 
+                    // PumpMode StateSpan for suspend state tracking
                     stateSpans.Add(
                         new StateSpan
                         {
                             OriginalId = $"glooko_v2_suspend_{rawTimestamp.Ticks}",
                             Category = StateSpanCategory.PumpMode,
                             State = PumpModeState.Suspended.ToString(),
-                            StartMills = new DateTimeOffset(
-                                startTimestamp
-                            ).ToUnixTimeMilliseconds(),
+                            StartMills = startMills,
                             EndMills = endMills,
                             Source = ConnectorSource,
                             Metadata = new Dictionary<string, object>
                             {
+                                { "suspendReason", suspend.SuspendReason ?? "unknown" },
+                                { "durationSeconds", durationSeconds },
+                            },
+                        }
+                    );
+
+                    // BasalDelivery StateSpan for suspended basal visualization
+                    stateSpans.Add(
+                        new StateSpan
+                        {
+                            OriginalId = $"glooko_v2_suspend_basal_{rawTimestamp.Ticks}",
+                            Category = StateSpanCategory.BasalDelivery,
+                            State = BasalDeliveryState.Active.ToString(),
+                            StartMills = startMills,
+                            EndMills = endMills,
+                            Source = ConnectorSource,
+                            Metadata = new Dictionary<string, object>
+                            {
+                                { "rate", 0.0 },
+                                { "origin", BasalDeliveryOrigin.Suspended.ToString() },
                                 { "suspendReason", suspend.SuspendReason ?? "unknown" },
                                 { "durationSeconds", durationSeconds },
                             },

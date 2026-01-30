@@ -12,13 +12,7 @@
   } from "layerchart";
   import { curveStepAfter } from "d3";
   import type { ScaleLinear } from "d3-scale";
-
-  interface BasalDataPoint {
-    time: Date;
-    rate: number;
-    scheduledRate?: number;
-    isTemp?: boolean;
-  }
+  import { BasalDeliveryOrigin, type BasalPoint } from "$lib/api";
 
   interface TempBasalSpan {
     id: string;
@@ -35,7 +29,7 @@
   }
 
   interface Props {
-    basalData: BasalDataPoint[];
+    basalData: BasalPoint[];
     scheduledBasalData: { time: Date; rate: number }[];
     tempBasalSpans: TempBasalSpan[];
     staleBasalData: StaleBasalData | null;
@@ -44,7 +38,10 @@
     basalZero: number;
     basalTrackTop: number;
     basalAxisScale: ScaleLinear<number, number>;
-    context: { xScale: (time: Date) => number; yScale: (value: number) => number };
+    context: {
+      xScale: (time: Date) => number;
+      yScale: (value: number) => number;
+    };
     showBasal: boolean;
   }
 
@@ -62,13 +59,21 @@
     showBasal,
   }: Props = $props();
 
-  // Group consecutive temp basal points into segments
-  const tempBasalSegments = $derived.by(() => {
-    const segments: BasalDataPoint[][] = [];
-    let currentSegment: BasalDataPoint[] = [];
+  // Check if a basal point is "temporary" (algorithm or manual adjusted)
+  const isAdjustedBasal = (origin: BasalDeliveryOrigin): boolean => {
+    return (
+      origin === BasalDeliveryOrigin.Algorithm ||
+      origin === BasalDeliveryOrigin.Manual
+    );
+  };
+
+  // Group consecutive adjusted basal points into segments
+  const adjustedBasalSegments = $derived.by(() => {
+    const segments: BasalPoint[][] = [];
+    let currentSegment: BasalPoint[] = [];
 
     for (const point of basalData) {
-      if (point.isTemp) {
+      if (point?.origin && isAdjustedBasal(point?.origin)) {
         currentSegment.push(point);
       } else {
         if (currentSegment.length > 0) {
@@ -178,7 +183,7 @@
     BASAL
   </Text>
 
-  <!-- Basal area - split into scheduled and temp basal layers -->
+  <!-- Basal area - split into scheduled and algorithm/manual adjusted layers -->
   {#if basalData.length > 0}
     <!-- Scheduled basal rate (background layer) -->
     <Area
@@ -190,8 +195,8 @@
       fill="var(--insulin-basal)"
       class="stroke-insulin stroke-1"
     />
-    <!-- Temp basal overlay (only where isTemp is true) -->
-    {#each tempBasalSegments as segment, i (i)}
+    <!-- Adjusted basal overlay (algorithm or manual adjusted rates) -->
+    {#each adjustedBasalSegments as segment, i (i)}
       <Area
         data={segment}
         x={(d) => d.time}

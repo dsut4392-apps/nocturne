@@ -87,72 +87,6 @@ public class StateSpanService : IStateSpanService
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<Treatment>> GetTempBasalsAsTreatmentsAsync(
-        long? from = null,
-        long? to = null,
-        int count = 100,
-        int skip = 0,
-        CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug(
-            "Getting temp basals as treatments with from: {From}, to: {To}, count: {Count}, skip: {Skip}",
-            from, to, count, skip);
-
-        // Get TempBasal StateSpans from repository
-        var stateSpans = await _repository.GetStateSpansAsync(
-            category: StateSpanCategory.TempBasal,
-            from: from,
-            to: to,
-            count: count,
-            skip: skip,
-            cancellationToken: cancellationToken);
-
-        // Convert each StateSpan to a Treatment using the mapper
-        var treatments = stateSpans
-            .Select(TreatmentStateSpanMapper.ToTreatment)
-            .Where(t => t != null)
-            .Cast<Treatment>()
-            .ToList();
-
-        _logger.LogDebug("Converted {Count} temp basal state spans to treatments", treatments.Count);
-
-        return treatments;
-    }
-
-    /// <inheritdoc />
-    public async Task<StateSpan> CreateTempBasalFromTreatmentAsync(
-        Treatment treatment,
-        CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug(
-            "Creating temp basal from treatment with ID: {Id}, EventType: {EventType}",
-            treatment.Id, treatment.EventType);
-
-        // Convert Treatment to StateSpan using the mapper
-        var stateSpan = TreatmentStateSpanMapper.ToStateSpan(treatment);
-
-        if (stateSpan == null)
-        {
-            _logger.LogWarning(
-                "Treatment with ID {Id} is not a temp basal treatment (EventType: {EventType})",
-                treatment.Id, treatment.EventType);
-
-            throw new ArgumentException(
-                $"Treatment with EventType '{treatment.EventType}' is not a valid temp basal treatment",
-                nameof(treatment));
-        }
-
-        // Upsert the StateSpan
-        var result = await _repository.UpsertStateSpanAsync(stateSpan, cancellationToken);
-
-        _logger.LogDebug(
-            "Created temp basal state span with ID: {Id} from treatment",
-            result.Id);
-
-        return result;
-    }
-
-    /// <inheritdoc />
     public async Task<IEnumerable<Treatment>> GetBasalDeliveriesAsTreatmentsAsync(
         long? from = null,
         long? to = null,
@@ -179,6 +113,39 @@ public class StateSpanService : IStateSpanService
         _logger.LogDebug("Converted {Count} basal delivery state spans to treatments", treatments.Count);
 
         return treatments;
+    }
+
+    /// <inheritdoc />
+    public async Task<StateSpan> CreateBasalDeliveryFromTreatmentAsync(
+        Treatment treatment,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug(
+            "Creating basal delivery from treatment with ID: {Id}, EventType: {EventType}",
+            treatment.Id, treatment.EventType);
+
+        // Convert Treatment to StateSpan using the mapper
+        var stateSpan = TreatmentStateSpanMapper.ToBasalDeliveryStateSpan(treatment);
+
+        if (stateSpan == null)
+        {
+            _logger.LogWarning(
+                "Treatment with ID {Id} is not a temp basal treatment (EventType: {EventType})",
+                treatment.Id, treatment.EventType);
+
+            throw new ArgumentException(
+                $"Treatment with EventType '{treatment.EventType}' is not a valid temp basal treatment",
+                nameof(treatment));
+        }
+
+        // Upsert the StateSpan
+        var result = await _repository.UpsertStateSpanAsync(stateSpan, cancellationToken);
+
+        _logger.LogDebug(
+            "Created basal delivery state span with ID: {Id} from treatment",
+            result.Id);
+
+        return result;
     }
 
     #region Activity Compatibility Methods

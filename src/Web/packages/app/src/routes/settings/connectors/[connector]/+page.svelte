@@ -37,7 +37,6 @@
   import { DangerZoneDialog } from "$lib/components/ui/danger-zone-dialog";
   import {
     ChevronLeft,
-    Loader2,
     AlertCircle,
     Trash2,
     ExternalLink,
@@ -72,7 +71,14 @@
 
   // Delete Data dialog state
   let showDeleteDataDialog = $state(false);
-  let deleteDataResult = $state<{ success: boolean; entriesDeleted?: number; error?: string } | null>(null);
+  let deleteDataResult = $state<{
+    success: boolean;
+    entriesDeleted?: number;
+    treatmentsDeleted?: number;
+    deviceStatusDeleted?: number;
+    totalDeleted?: number;
+    error?: string;
+  } | null>(null);
 
   onMount(async () => {
     await loadData();
@@ -282,7 +288,7 @@
   const hasRuntimeConfig = $derived(
     schema && schema.properties && Object.keys(schema.properties).length > 0
   );
-  const hasData = $derived(dataSummary && dataSummary.total > 0);
+  const hasData = $derived(dataSummary && (dataSummary.total ?? 0) > 0);
 </script>
 
 <svelte:head>
@@ -553,7 +559,7 @@
   onConfirm={handleDeleteData}
 >
   {#snippet content()}
-    {#if dataSummary && dataSummary.total > 0}
+    {#if dataSummary && (dataSummary.total ?? 0) > 0}
       <div class="mt-4 rounded-lg border bg-muted/50 p-4">
         <p class="text-sm font-medium mb-2">Data to be deleted:</p>
         <ul class="text-sm text-muted-foreground space-y-1">
@@ -578,8 +584,13 @@
             <CheckCircle class="h-5 w-5" />
             <span class="font-medium">Data deleted successfully</span>
           </div>
-          <p class="text-sm text-green-700 dark:text-green-300 mt-1">
-            Deleted {deleteDataResult.entriesDeleted?.toLocaleString() ?? 0} records
+          <ul class="text-sm text-green-700 dark:text-green-300 mt-2 space-y-1">
+            <li>{deleteDataResult.entriesDeleted?.toLocaleString() ?? 0} entries</li>
+            <li>{deleteDataResult.treatmentsDeleted?.toLocaleString() ?? 0} treatments</li>
+            <li>{deleteDataResult.deviceStatusDeleted?.toLocaleString() ?? 0} device statuses</li>
+          </ul>
+          <p class="text-sm font-medium text-green-700 dark:text-green-300 mt-2">
+            Total: {deleteDataResult.totalDeleted?.toLocaleString() ?? 0} records deleted
           </p>
         </div>
       {:else}

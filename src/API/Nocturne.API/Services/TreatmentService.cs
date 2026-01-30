@@ -257,14 +257,6 @@ public class TreatmentService : ITreatmentService
     {
         var (fromMills, toMills) = ParseTimeRangeFromFind(findQuery);
 
-        // Get TempBasal StateSpans as Treatments
-        var tempBasalTreatments = await _stateSpanService.GetTempBasalsAsTreatmentsAsync(
-            from: fromMills,
-            to: toMills,
-            count: count,
-            skip: 0, // We'll handle skip in the merge
-            cancellationToken: cancellationToken);
-
         // Get BasalDelivery StateSpans as Treatments (for V1-V3 compatibility)
         var basalDeliveryTreatments = await _stateSpanService.GetBasalDeliveriesAsTreatmentsAsync(
             from: fromMills,
@@ -275,7 +267,6 @@ public class TreatmentService : ITreatmentService
 
         // Merge all sources and sort
         var allTreatments = treatments
-            .Concat(tempBasalTreatments)
             .Concat(basalDeliveryTreatments)
             .OrderByDescending(t => t.Mills)
             .Skip(skip)
@@ -324,7 +315,7 @@ public class TreatmentService : ITreatmentService
         {
             try
             {
-                var stateSpan = await _stateSpanService.CreateTempBasalFromTreatmentAsync(
+                var stateSpan = await _stateSpanService.CreateBasalDeliveryFromTreatmentAsync(
                     tempBasal, cancellationToken);
 
                 // Convert back to Treatment for response
@@ -420,13 +411,13 @@ public class TreatmentService : ITreatmentService
         CancellationToken cancellationToken = default
     )
     {
-        // Check if this is a temp basal in StateSpans
+        // Check if this is a basal delivery in StateSpans
         var existingStateSpan = await _stateSpanService.GetStateSpanByIdAsync(id, cancellationToken);
 
-        if (existingStateSpan != null && existingStateSpan.Category == StateSpanCategory.TempBasal)
+        if (existingStateSpan != null && existingStateSpan.Category == StateSpanCategory.BasalDelivery)
         {
             // Update as StateSpan
-            var updatedSpan = TreatmentStateSpanMapper.ToStateSpan(treatment);
+            var updatedSpan = TreatmentStateSpanMapper.ToBasalDeliveryStateSpan(treatment);
             if (updatedSpan != null)
             {
                 updatedSpan.Id = existingStateSpan.Id;
@@ -520,10 +511,10 @@ public class TreatmentService : ITreatmentService
         CancellationToken cancellationToken = default
     )
     {
-        // Check if this is a temp basal in StateSpans
+        // Check if this is a basal delivery in StateSpans
         var existingStateSpan = await _stateSpanService.GetStateSpanByIdAsync(id, cancellationToken);
 
-        if (existingStateSpan != null && existingStateSpan.Category == StateSpanCategory.TempBasal)
+        if (existingStateSpan != null && existingStateSpan.Category == StateSpanCategory.BasalDelivery)
         {
             var deleted = await _stateSpanService.DeleteStateSpanAsync(id, cancellationToken);
 

@@ -790,7 +790,6 @@
       time: Date;
       rate: number;
       scheduledRate?: number;
-      isTemp?: boolean;
     }[],
     time: Date
   ) {

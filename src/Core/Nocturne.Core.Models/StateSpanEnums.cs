@@ -29,12 +29,8 @@ public enum StateSpanCategory
     Profile,
 
     /// <summary>
-    /// Temporary basal rate override
-    /// </summary>
-    TempBasal,
-
-    /// <summary>
-    /// Pump-confirmed basal delivery rate
+    /// Pump-confirmed basal delivery rate.
+    /// Use metadata.origin to distinguish between Algorithm, Scheduled, Manual, and Suspended.
     /// </summary>
     BasalDelivery,
 
@@ -165,23 +161,6 @@ public enum ProfileState
     /// A profile is active (name in metadata)
     /// </summary>
     Active
-}
-
-/// <summary>
-/// Temp basal states - the actual rate is stored in metadata
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter<TempBasalState>))]
-public enum TempBasalState
-{
-    /// <summary>
-    /// Temporary basal rate is active (rate in metadata)
-    /// </summary>
-    Active,
-
-    /// <summary>
-    /// Temp basal was cancelled early
-    /// </summary>
-    Cancelled
 }
 
 /// <summary>

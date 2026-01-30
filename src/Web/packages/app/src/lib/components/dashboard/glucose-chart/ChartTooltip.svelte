@@ -2,18 +2,8 @@
   import { Tooltip } from "layerchart";
   import { cn } from "$lib/utils";
   import { goto } from "$app/navigation";
-
-  interface BasalData {
-    time: Date;
-    rate: number;
-    scheduledRate?: number;
-    isTemp?: boolean;
-  }
-
-  interface SeriesData {
-    time: Date;
-    value: number;
-  }
+  import { BasalDeliveryOrigin } from "$lib/api";
+  import type { BasalPoint, TimeSeriesPoint } from "$lib/data/chart-data.remote";
 
   interface BolusMarker {
     time: Date;
@@ -74,9 +64,9 @@
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: any;
     // Data finders - functions that find relevant data at a given time
-    findBasalValue: (time: Date) => BasalData | undefined;
-    findIobValue: (time: Date) => SeriesData | undefined;
-    findCobValue: (time: Date) => SeriesData | undefined;
+    findBasalValue: (time: Date) => BasalPoint | undefined;
+    findIobValue: (time: Date) => TimeSeriesPoint | undefined;
+    findCobValue: (time: Date) => TimeSeriesPoint | undefined;
     findNearbyBolus: (time: Date) => BolusMarker | undefined;
     findNearbyCarbs: (time: Date) => CarbMarker | undefined;
     findNearbyDeviceEvent: (time: Date) => DeviceEventMarker | undefined;
@@ -201,13 +191,23 @@
         />
       {/if}
       {#if showBasal && activeBasal}
-        {@const isEffectiveTemp =
-          activeBasal.isTemp && activeBasal.rate !== activeBasal.scheduledRate}
+        {@const isAdjusted =
+          (activeBasal.origin === BasalDeliveryOrigin.Algorithm ||
+            activeBasal.origin === BasalDeliveryOrigin.Manual) &&
+          activeBasal.rate !== activeBasal.scheduledRate}
+        {@const basalLabel =
+          activeBasal.origin === BasalDeliveryOrigin.Suspended
+            ? "Suspended"
+            : isAdjusted
+              ? activeBasal.origin === BasalDeliveryOrigin.Algorithm
+                ? "Auto Basal"
+                : "Temp Basal"
+              : "Basal"}
         <Tooltip.Item
-          label={isEffectiveTemp ? "Temp Basal" : "Basal"}
+          label={basalLabel}
           value={activeBasal.rate}
           format={"decimal"}
-          color={isEffectiveTemp
+          color={isAdjusted || activeBasal.origin === BasalDeliveryOrigin.Suspended
             ? "var(--insulin-temp-basal)"
             : "var(--insulin-basal)"}
           class={cn(
@@ -216,7 +216,7 @@
               : ""
           )}
         />
-        {#if isEffectiveTemp && activeBasal.scheduledRate !== undefined}
+        {#if isAdjusted && activeBasal.scheduledRate !== undefined}
           <Tooltip.Item
             label="Scheduled"
             value={activeBasal.scheduledRate}

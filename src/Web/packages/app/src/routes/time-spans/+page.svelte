@@ -5,7 +5,7 @@
   import Button from "$lib/components/ui/button/button.svelte";
   import DateRangePicker from "$lib/components/ui/date-range-picker.svelte";
   import { ChevronLeft, ChevronRight, ArrowLeft } from "lucide-svelte";
-  import GlucoseChartCard from "$lib/components/dashboard/GlucoseChartCard.svelte";
+  import { GlucoseChartCard } from "$lib/components/dashboard/glucose-chart";
   import { getTimeSpansData } from "./data.remote";
 
   // Get date range from URL search params

@@ -239,9 +239,9 @@ public class BasalDeliveryStateSpanToTreatmentMapperTests
         // Arrange
         var stateSpan = new StateSpan
         {
-            Id = "span-temp-basal",
-            Category = StateSpanCategory.TempBasal,
-            State = "Active",
+            Id = "span-pump-mode",
+            Category = StateSpanCategory.PumpMode,
+            State = "Automatic",
             StartMills = 1700000000000,
             Source = "pump"
         };
@@ -266,7 +266,6 @@ public class BasalDeliveryStateSpanToTreatmentMapperTests
 
     [Theory]
     [Trait("Category", "Unit")]
-    [InlineData(StateSpanCategory.TempBasal)]
     [InlineData(StateSpanCategory.PumpMode)]
     [InlineData(StateSpanCategory.PumpConnectivity)]
     [InlineData(StateSpanCategory.Override)]
@@ -342,8 +341,8 @@ public class BasalDeliveryStateSpanToTreatmentMapperTests
             },
             new StateSpan
             {
-                Id = "temp-1",
-                Category = StateSpanCategory.TempBasal,
+                Id = "override-1",
+                Category = StateSpanCategory.Override,
                 State = "Active",
                 StartMills = 1700001000000,
                 Source = "pump"
@@ -399,8 +398,8 @@ public class BasalDeliveryStateSpanToTreatmentMapperTests
         {
             new StateSpan
             {
-                Id = "temp-1",
-                Category = StateSpanCategory.TempBasal,
+                Id = "override-1",
+                Category = StateSpanCategory.Override,
                 State = "Active",
                 StartMills = 1700000000000,
                 Source = "pump"

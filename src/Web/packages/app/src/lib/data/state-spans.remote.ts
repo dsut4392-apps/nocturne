@@ -231,7 +231,7 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 		// Transform temp basal spans
 		const processedTempBasals: StateSpanChartData[] = (tempBasalSpans ?? []).map((span) => ({
 			id: span.id ?? '',
-			category: span.category ?? StateSpanCategory.TempBasal,
+			category: span.category ?? StateSpanCategory.BasalDelivery,
 			state: span.state ?? 'Unknown',
 			startTime: new Date(span.startMills ?? 0),
 			endTime: span.endMills ? new Date(span.endMills) : null,
@@ -394,7 +394,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 	const tempBasalSpans: StateSpanChartData[] = [
 		{
 			id: 'test-temp-1',
-			category: StateSpanCategory.TempBasal,
+			category: StateSpanCategory.BasalDelivery,
 			state: 'TempBasal',
 			startTime: new Date(dayAgo + 2 * hour),
 			endTime: new Date(dayAgo + 2.5 * hour),
@@ -403,7 +403,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 		},
 		{
 			id: 'test-temp-2',
-			category: StateSpanCategory.TempBasal,
+			category: StateSpanCategory.BasalDelivery,
 			state: 'TempBasal',
 			startTime: new Date(dayAgo + 5 * hour),
 			endTime: new Date(dayAgo + 6 * hour),
@@ -412,7 +412,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 		},
 		{
 			id: 'test-temp-3',
-			category: StateSpanCategory.TempBasal,
+			category: StateSpanCategory.BasalDelivery,
 			state: 'TempBasal',
 			startTime: new Date(dayAgo + 10 * hour),
 			endTime: new Date(dayAgo + 10.75 * hour),
@@ -421,7 +421,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 		},
 		{
 			id: 'test-temp-4',
-			category: StateSpanCategory.TempBasal,
+			category: StateSpanCategory.BasalDelivery,
 			state: 'TempBasal',
 			startTime: new Date(dayAgo + 16 * hour),
 			endTime: new Date(dayAgo + 17 * hour),
@@ -430,7 +430,7 @@ function generateTestStateSpans(startTime: number, endTime: number): ChartStateD
 		},
 		{
 			id: 'test-temp-5',
-			category: StateSpanCategory.TempBasal,
+			category: StateSpanCategory.BasalDelivery,
 			state: 'TempBasal',
 			startTime: new Date(dayAgo + 20 * hour),
 			endTime: new Date(dayAgo + 21 * hour),

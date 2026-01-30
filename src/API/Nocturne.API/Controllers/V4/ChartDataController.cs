@@ -248,26 +248,40 @@ public class ChartDataController : ControllerBase
             if (spanStart > currentTime)
             {
                 var gapPoints = BuildBasalSeriesFromProfile(currentTime, spanStart, defaultBasalRate);
-                // Mark gap points as not from pump (using profile fallback)
-                foreach (var point in gapPoints)
-                {
-                    point.IsFromProfile = true;
-                }
                 series.AddRange(gapPoints);
             }
 
             // Extract rate and origin from metadata
-            var rate = span.Metadata?.TryGetValue("rate", out var rateObj) == true
-                ? Convert.ToDouble(rateObj)
-                : defaultBasalRate;
+            double rate = defaultBasalRate;
+            if (span.Metadata?.TryGetValue("rate", out var rateObj) == true)
+            {
+                rate = rateObj switch
+                {
+                    System.Text.Json.JsonElement jsonElement => jsonElement.GetDouble(),
+                    double d => d,
+                    _ => Convert.ToDouble(rateObj)
+                };
+            }
 
-            var originStr = span.Metadata?.TryGetValue("origin", out var originObj) == true
-                ? originObj?.ToString()
-                : "Scheduled";
+            string? originStr = "Scheduled";
+            if (span.Metadata?.TryGetValue("origin", out var originObj) == true)
+            {
+                originStr = originObj switch
+                {
+                    System.Text.Json.JsonElement jsonElement => jsonElement.GetString(),
+                    string s => s,
+                    _ => originObj?.ToString()
+                };
+            }
 
-            var isAlgorithmDriven = originStr?.Equals("Algorithm", StringComparison.OrdinalIgnoreCase) == true;
-            var isManual = originStr?.Equals("Manual", StringComparison.OrdinalIgnoreCase) == true;
-            var isSuspended = originStr?.Equals("Suspended", StringComparison.OrdinalIgnoreCase) == true;
+            // Parse origin string to enum
+            var origin = originStr?.ToLowerInvariant() switch
+            {
+                "algorithm" => BasalDeliveryOrigin.Algorithm,
+                "manual" => BasalDeliveryOrigin.Manual,
+                "suspended" => BasalDeliveryOrigin.Suspended,
+                _ => BasalDeliveryOrigin.Scheduled
+            };
 
             // Get scheduled rate from profile for comparison
             var scheduledRate = _profileService.HasData()
@@ -278,10 +292,9 @@ public class ChartDataController : ControllerBase
             series.Add(new BasalPoint
             {
                 Timestamp = spanStart,
-                Rate = isSuspended ? 0 : rate,
+                Rate = origin == BasalDeliveryOrigin.Suspended ? 0 : rate,
                 ScheduledRate = scheduledRate,
-                IsTemp = isAlgorithmDriven || isManual,
-                IsFromProfile = false,
+                Origin = origin,
             });
 
             currentTime = spanEnd;
@@ -291,10 +304,6 @@ public class ChartDataController : ControllerBase
         if (currentTime < endTime)
         {
             var tailPoints = BuildBasalSeriesFromProfile(currentTime, endTime, defaultBasalRate);
-            foreach (var point in tailPoints)
-            {
-                point.IsFromProfile = true;
-            }
             series.AddRange(tailPoints);
         }
 
@@ -306,8 +315,7 @@ public class ChartDataController : ControllerBase
                 Timestamp = startTime,
                 Rate = defaultBasalRate,
                 ScheduledRate = defaultBasalRate,
-                IsTemp = false,
-                IsFromProfile = true,
+                Origin = BasalDeliveryOrigin.Scheduled,
             });
         }
 
@@ -342,8 +350,7 @@ public class ChartDataController : ControllerBase
                     Timestamp = t,
                     Rate = rate,
                     ScheduledRate = rate,
-                    IsTemp = false,
-                    IsFromProfile = true,
+                    Origin = BasalDeliveryOrigin.Scheduled,
                 });
                 prevRate = rate;
             }
@@ -357,8 +364,7 @@ public class ChartDataController : ControllerBase
                 Timestamp = startTime,
                 Rate = defaultBasalRate,
                 ScheduledRate = defaultBasalRate,
-                IsTemp = false,
-                IsFromProfile = true,
+                Origin = BasalDeliveryOrigin.Scheduled,
             });
         }
 
@@ -449,22 +455,17 @@ public class BasalPoint
     public long Timestamp { get; set; }
 
     /// <summary>
-    /// Effective basal rate in U/hr (includes temp basals and combo bolus)
+    /// Effective basal rate in U/hr
     /// </summary>
     public double Rate { get; set; }
 
     /// <summary>
-    /// Scheduled basal rate from profile in U/hr (without temp basal modifications)
+    /// Scheduled basal rate from profile in U/hr
     /// </summary>
     public double ScheduledRate { get; set; }
 
     /// <summary>
-    /// Whether this is a temporary basal rate (algorithm-driven or manual)
+    /// Origin of this basal rate - where it came from
     /// </summary>
-    public bool IsTemp { get; set; }
-
-    /// <summary>
-    /// Whether this rate comes from profile fallback (no pump data available)
-    /// </summary>
-    public bool IsFromProfile { get; set; }
+    public BasalDeliveryOrigin Origin { get; set; }
 }

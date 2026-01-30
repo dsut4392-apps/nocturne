@@ -183,6 +183,7 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 			overrideSpans,
 			profileSpans,
 			activitySpans,
+			basalDeliverySpans,
 			systemEvents,
 		] = await Promise.all([
 			apiClient.stateSpans.getPumpModes(startTime, endTime),
@@ -191,6 +192,12 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 			apiClient.stateSpans.getOverrides(startTime, endTime),
 			apiClient.stateSpans.getProfiles(startTime, endTime),
 			apiClient.stateSpans.getActivities(startTime, endTime),
+			apiClient.stateSpans.getStateSpans(
+				StateSpanCategory.BasalDelivery,
+				undefined, // state - get all
+				startTime,
+				endTime
+			),
 			apiClient.systemEvents.getSystemEvents(
 				undefined, // type - get all
 				undefined, // category - get all
@@ -276,6 +283,20 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 			color: getSystemEventColor(event.eventType ?? SystemEventType.Info),
 		}));
 
+		// Transform basal delivery spans
+		const processedBasalDelivery: BasalDeliveryChartData[] = (basalDeliverySpans ?? []).map((span) => {
+			const origin = (span.metadata?.origin as BasalDeliveryOrigin) ?? BasalDeliveryOrigin.Scheduled;
+			return {
+				id: span.id ?? '',
+				startTime: new Date(span.startMills ?? 0),
+				endTime: span.endMills ? new Date(span.endMills) : null,
+				rate: (span.metadata?.rate as number) ?? 0,
+				origin,
+				source: span.source,
+				color: getBasalDeliveryColor(origin),
+			};
+		});
+
 		return {
 			pumpModeSpans: processedPumpModes,
 			connectivitySpans: processedConnectivity,
@@ -283,6 +304,7 @@ export const getChartStateData = query(stateDataSchema, async ({ startTime, endT
 			overrideSpans: processedOverrides,
 			profileSpans: processedProfiles,
 			activitySpans: processedActivities,
+			basalDeliverySpans: processedBasalDelivery,
 			systemEvents: processedEvents,
 		};
 	} catch (err) {

@@ -35,6 +35,10 @@ public class AlertOrchestrator(
                     {
                         await processingService.ProcessAlertEvent(alertEvent, cancellationToken);
                     }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         logger.LogError(
@@ -45,6 +49,10 @@ public class AlertOrchestrator(
                         );
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

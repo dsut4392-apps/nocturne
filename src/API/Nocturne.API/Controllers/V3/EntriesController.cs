@@ -217,7 +217,7 @@ public class EntriesController : BaseV3Controller<Entry>
                     cancellationToken
                 );
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "Failed to process alerts for V3 entry creation");
             }
@@ -310,7 +310,7 @@ public class EntriesController : BaseV3Controller<Entry>
                     cancellationToken
                 );
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "Failed to process alerts for V3 bulk entries");
             }

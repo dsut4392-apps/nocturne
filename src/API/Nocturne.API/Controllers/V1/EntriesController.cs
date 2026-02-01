@@ -756,7 +756,7 @@ public class EntriesController : ControllerBase
                     cancellationToken
                 );
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "Failed to process alerts for created entries");
             }
@@ -1330,12 +1330,16 @@ public class EntriesController : ControllerBase
                     cancellationToken
                 );
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "Failed to process alerts for async entries");
             }
 
             return Accepted(response);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -1354,9 +1358,9 @@ public class EntriesController : ControllerBase
                     cancellationToken
                 );
             }
-            catch
+            catch (Exception statusUpdateEx)
             {
-                // Ignore errors in status update
+                _logger.LogDebug(statusUpdateEx, "Failed to update processing status to failed");
             }
 
             return StatusCode(

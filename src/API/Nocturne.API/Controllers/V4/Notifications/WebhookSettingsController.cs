@@ -59,6 +59,10 @@ public class WebhookSettingsController(
                 }
             );
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load webhook settings");
@@ -87,12 +91,10 @@ public class WebhookSettingsController(
             var secretToUse = string.IsNullOrWhiteSpace(settings.Secret)
                 ? existingConfig.Secret
                 : settings.Secret;
-            var generatedSecret = false;
 
             if (settings.Enabled && string.IsNullOrWhiteSpace(secretToUse))
             {
                 secretToUse = WebhookSecretGenerator.Generate();
-                generatedSecret = true;
             }
 
             var normalizedPayload = WebhookConfigurationParser.Serialize(
@@ -117,6 +119,10 @@ public class WebhookSettingsController(
                     SignatureVersion = "v1",
                 }
             );
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -177,6 +183,10 @@ public class WebhookSettingsController(
                     FailedUrls = failedUrls.ToArray(),
                 }
             );
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

@@ -42,6 +42,7 @@
       hasSecret = response?.hasSecret ?? hasSecret;
       secret = response?.secret ?? secret;
       status = "Webhook settings saved.";
+      showModal = false;
     } catch (err) {
       console.error("Failed to save webhook settings:", err);
       status = "Failed to save webhook settings.";
@@ -55,9 +56,20 @@
     status = null;
 
     try {
-      const response = await testWebhookSettings({
+      // Save first to generate the secret if needed
+      const saveResponse = await saveWebhookSettings({
+        enabled,
         urls: payload.urls,
         secret: payload.secret ? payload.secret : null,
+      });
+      enabled = saveResponse?.enabled ?? enabled;
+      urls = [...(saveResponse?.urls ?? [])];
+      hasSecret = saveResponse?.hasSecret ?? hasSecret;
+      secret = saveResponse?.secret ?? secret;
+
+      const response = await testWebhookSettings({
+        urls: payload.urls,
+        secret: saveResponse?.secret ?? payload.secret ?? null,
       });
 
       if (response?.ok) {

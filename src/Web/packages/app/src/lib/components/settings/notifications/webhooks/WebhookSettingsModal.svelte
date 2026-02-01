@@ -31,7 +31,9 @@
     onClose,
     saving = false,
   }: Props = $props();
-  let hasUrls = $derived(urls.filter((url) => url.trim().length > 0).length > 0);
+  let hasUrls = $derived(
+    urls.filter((url) => url.trim().length > 0).length > 0
+  );
 
   function handleClose() {
     onClose();
@@ -47,7 +49,7 @@
 </script>
 
 <Dialog bind:open onOpenChange={(value) => !value && handleClose()}>
-  <DialogContent class="sm:max-w-lg">
+  <DialogContent class="sm:max-w-2xl">
     <DialogHeader>
       <DialogTitle>Webhook Settings</DialogTitle>
       <DialogDescription>
@@ -55,12 +57,7 @@
       </DialogDescription>
     </DialogHeader>
 
-    <WebhookSettingsForm
-      bind:urls
-      secret={secret}
-      {hasSecret}
-      disabled={saving}
-    />
+    <WebhookSettingsForm bind:urls {secret} {hasSecret} disabled={saving} />
 
     <DialogFooter class="gap-2">
       <Button type="button" variant="outline" onclick={handleClose}>

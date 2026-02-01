@@ -3832,6 +3832,68 @@
         }
       }
     },
+    "/api/v4/debug/test/notification": {
+      "get": {
+        "tags": [
+          "V4 Debug"
+        ],
+        "summary": "Simple test endpoint for creating in-app notifications without authentication\nCreates a test notification to verify the real-time notification system is working",
+        "operationId": "Debug_CreateSimpleTestNotification",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Notification type (info, warn, hazard, urgent)",
+            "schema": {
+              "type": "string",
+              "default": "info"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "title",
+            "in": "query",
+            "description": "Optional notification title",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification created and broadcast successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InAppNotificationDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v4/debug/test/signalr-broadcast": {
+      "get": {
+        "tags": [
+          "V4 Debug"
+        ],
+        "summary": "Test endpoint to broadcast a raw SignalR notification event\nThis bypasses the database and directly tests the SignalR broadcast",
+        "operationId": "Debug_TestSignalRBroadcast",
+        "responses": {
+          "200": {
+            "description": "Confirmation of broadcast",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v4/admin/deduplication/run": {
       "post": {
         "tags": [

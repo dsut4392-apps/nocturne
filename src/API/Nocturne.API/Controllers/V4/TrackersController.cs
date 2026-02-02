@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Nocturne.API.Attributes;
 using Nocturne.API.Extensions;
 using Nocturne.API.Services;
 using Nocturne.Core.Models;
@@ -96,6 +97,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpGet("definitions")]
     [AllowAnonymous]
+    [RemoteQuery]
     public async Task<ActionResult<TrackerDefinitionDto[]>> GetDefinitions(
         [FromQuery] TrackerCategory? category = null
     )
@@ -133,6 +135,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpGet("definitions/{id:guid}")]
     [AllowAnonymous]
+    [RemoteQuery]
     public async Task<ActionResult<TrackerDefinitionDto>> GetDefinition(Guid id)
     {
         var definition = await _repository.GetDefinitionByIdAsync(id, HttpContext.RequestAborted);
@@ -151,6 +154,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpPost("definitions")]
     [Authorize]
+    [RemoteCommand(Invalidates = ["GetDefinitions"])]
     [ProducesResponseType(typeof(TrackerDefinitionDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<TrackerDefinitionDto>> CreateDefinition(
         [FromBody] CreateTrackerDefinitionRequest request
@@ -233,6 +237,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpPut("definitions/{id:guid}")]
     [Authorize]
+    [RemoteCommand(Invalidates = ["GetDefinitions", "GetDefinition"])]
     public async Task<ActionResult<TrackerDefinitionDto>> UpdateDefinition(
         Guid id,
         [FromBody] UpdateTrackerDefinitionRequest request
@@ -319,6 +324,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpDelete("definitions/{id:guid}")]
     [Authorize]
+    [RemoteCommand(Invalidates = ["GetDefinitions"])]
     public async Task<ActionResult> DeleteDefinition(Guid id)
     {
         var existing = await _repository.GetDefinitionByIdAsync(id, HttpContext.RequestAborted);
@@ -345,6 +351,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpGet("instances")]
     [AllowAnonymous]
+    [RemoteQuery]
     public async Task<ActionResult<TrackerInstanceDto[]>> GetActiveInstances()
     {
         var userId = HttpContext.GetSubjectIdString();
@@ -361,6 +368,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpGet("instances/history")]
     [Authorize]
+    [RemoteQuery]
     public async Task<ActionResult<TrackerInstanceDto[]>> GetInstanceHistory(
         [FromQuery] int limit = 100
     )
@@ -380,6 +388,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpGet("instances/upcoming")]
     [AllowAnonymous]
+    [RemoteQuery]
     public async Task<ActionResult<TrackerInstanceDto[]>> GetUpcomingInstances(
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null
@@ -404,6 +413,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpPost("instances")]
     [Authorize]
+    [RemoteCommand(Invalidates = ["GetActiveInstances"])]
     [ProducesResponseType(typeof(TrackerInstanceDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<TrackerInstanceDto>> StartInstance(
         [FromBody] StartTrackerInstanceRequest request
@@ -458,6 +468,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpPut("instances/{id:guid}/complete")]
     [Authorize]
+    [RemoteCommand(Invalidates = ["GetActiveInstances", "GetInstanceHistory"])]
     public async Task<ActionResult<TrackerInstanceDto>> CompleteInstance(
         Guid id,
         [FromBody] CompleteTrackerInstanceRequest request
@@ -503,6 +514,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpPost("instances/{id:guid}/ack")]
     [Authorize]
+    [RemoteCommand(Invalidates = ["GetActiveInstances"])]
     public async Task<ActionResult> AckInstance(Guid id, [FromBody] AckTrackerRequest request)
     {
         var existing = await _repository.GetInstanceByIdAsync(id, HttpContext.RequestAborted);
@@ -536,6 +548,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpDelete("instances/{id:guid}")]
     [Authorize]
+    [RemoteCommand(Invalidates = ["GetActiveInstances"])]
     public async Task<ActionResult> DeleteInstance(Guid id)
     {
         var existing = await _repository.GetInstanceByIdAsync(id, HttpContext.RequestAborted);
@@ -565,6 +578,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpGet("presets")]
     [Authorize]
+    [RemoteQuery]
     public async Task<ActionResult<TrackerPresetDto[]>> GetPresets()
     {
         var userId = HttpContext.GetSubjectIdString()!;
@@ -578,6 +592,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpPost("presets")]
     [Authorize]
+    [RemoteCommand(Invalidates = ["GetPresets"])]
     [ProducesResponseType(typeof(TrackerPresetDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<TrackerPresetDto>> CreatePreset(
         [FromBody] CreateTrackerPresetRequest request
@@ -619,6 +634,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpPost("presets/{id:guid}/apply")]
     [Authorize]
+    [RemoteCommand(Invalidates = ["GetActiveInstances"])]
     public async Task<ActionResult<TrackerInstanceDto>> ApplyPreset(
         Guid id,
         [FromBody] ApplyPresetRequest? request = null
@@ -650,6 +666,7 @@ public class TrackersController : ControllerBase
     /// </summary>
     [HttpDelete("presets/{id:guid}")]
     [Authorize]
+    [RemoteCommand(Invalidates = ["GetPresets"])]
     public async Task<ActionResult> DeletePreset(Guid id)
     {
         var existing = await _repository.GetPresetByIdAsync(id, HttpContext.RequestAborted);

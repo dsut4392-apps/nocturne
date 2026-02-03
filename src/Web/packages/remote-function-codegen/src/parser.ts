@@ -1,6 +1,12 @@
 import type { OpenAPIV3 } from 'openapi-types';
 import type { OperationInfo, ParsedSpec, ParameterInfo, RemoteType } from './types.js';
 
+// Extended operation type to include our custom extensions
+type OperationWithExtensions = OpenAPIV3.OperationObject & {
+  'x-remote-type'?: RemoteType;
+  'x-remote-invalidates'?: string[];
+};
+
 export function parseOpenApiSpec(spec: OpenAPIV3.Document): ParsedSpec {
   const operations: OperationInfo[] = [];
   const tagsSet = new Set<string>();
@@ -18,16 +24,16 @@ export function parseOpenApiSpec(spec: OpenAPIV3.Document): ParsedSpec {
     const methods = ['get', 'post', 'put', 'patch', 'delete'] as const;
 
     for (const method of methods) {
-      const operation = pathItem[method] as OpenAPIV3.OperationObject | undefined;
+      const operation = pathItem[method] as OperationWithExtensions | undefined;
       if (!operation) continue;
 
-      const remoteType = operation['x-remote-type'] as RemoteType | undefined;
+      const remoteType = operation['x-remote-type'];
       if (!remoteType) continue;
 
       const tag = operation.tags?.[0] ?? 'Default';
       tagsSet.add(tag);
 
-      const invalidates = (operation['x-remote-invalidates'] as string[]) ?? [];
+      const invalidates = operation['x-remote-invalidates'] ?? [];
 
       const parameters = parseParameters(operation.parameters ?? [], pathItem.parameters ?? []);
       const requestBodySchema = parseRequestBody(operation.requestBody as OpenAPIV3.RequestBodyObject | undefined);

@@ -15010,6 +15010,12 @@ msgstr ""
 msgid "Send alert events to external services"
 msgstr ""
 
+#: src/lib/components/settings/notifications/webhooks/WebhookUrlList.svelte
+msgid "No webhook URLs configured."
+msgstr ""
+
+#: src/lib/components/settings/notifications/webhooks/WebhookUrlList.svelte
+msgid "<0/> Add URL"
 #: src/lib/components/settings/notifications/webhooks/WebhookSecurity.svelte
 msgid "Signature Secret"
 msgstr ""
